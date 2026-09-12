@@ -211,12 +211,11 @@ namespace demonware::achievement_engine
 					const auto parsed = std::from_chars(token.data(), token.data() + token.size(), offset);
 					if (parsed.ec != std::errc{} || parsed.ptr != token.data() + token.size()) return fail("invalid_page_token");
 				}
-				unsigned limit = 100;
-				if (request.HasMember("Limit"))
+				// A missing or zero Limit means "no limit"; never reject the request for it.
+				std::size_t limit = 1000;
+				if (request.HasMember("Limit") && request["Limit"].IsUint() && request["Limit"].GetUint() > 0)
 				{
-					if (!request["Limit"].IsUint() || !request["Limit"].GetUint() || request["Limit"].GetUint() > 1000)
-						return fail("invalid_limit");
-					limit = request["Limit"].GetUint();
+					limit = std::min<std::size_t>(request["Limit"].GetUint(), 1000);
 				}
 				rapidjson::Value page{rapidjson::kArrayType};
 				const auto end = std::min<std::size_t>(results.Size(), std::min<std::size_t>(offset, results.Size()) + limit);

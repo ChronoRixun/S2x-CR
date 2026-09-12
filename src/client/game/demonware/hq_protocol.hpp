@@ -2,6 +2,7 @@
 
 #include "byte_buffer.hpp"
 #include "component/console/console.hpp"
+#include <utils/flags.hpp>
 #include <utils/io.hpp>
 
 namespace demonware::hq_protocol
@@ -32,6 +33,13 @@ namespace demonware::hq_protocol
 
 	inline void trace(const char* label, const std::string& bytes)
 	{
+		// Raw dumps only with -demonware_debug; every AE and marketplace request passes here.
+		static const auto enabled = utils::flags::has_flag("-demonware_debug");
+		if (!enabled)
+		{
+			return;
+		}
+
 		static std::atomic_uint64_t sequence{};
 		const auto path = std::string{"s2x/dump/dw/hq_"} + label + "_" +
 			std::to_string(GetCurrentProcessId()) + "_" + std::to_string(sequence++) + ".bin";
