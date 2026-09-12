@@ -222,7 +222,7 @@ namespace demonware::hq_economy
 		{
 			std::lock_guard lock{state_mutex};
 			const file_lock disk_lock{};
-			auto next = cached ? *cached : load();
+			auto next = load(); // always validate the on-disk copy before mutating it
 			if (!mutation(next) || next.revision == UINT64_MAX || next.inventory.size() > 10000 ||
 				next.achievements.size() > 10000 || next.transactions.size() > 10000) return false;
 			++next.revision;
