@@ -31,10 +31,26 @@ namespace demonware
 			server->create_reply(task).send();
 		}
 
+		void submit_hq_event(const reward_game_events::event& event)
+		{
+			if (game::environment::is_zombies() || game::environment::is_dedicated()) return;
+			if (utils::flags::has_flag("-demonware_debug"))
+			{
+				const auto* name = event.name == "1" ? "killed_a_player" :
+					event.name == "18" ? "picked_up_payroll" : event.name.c_str();
+				console::info("[HQ event] %s (%s), timestamp %lld, %zu parameters\n",
+					event.name.c_str(), name, event.timestamp, event.parameters.size());
+				for (const auto& parameter : event.parameters)
+					console::info("  %s=%llu\n", parameter.selector.c_str(), parameter.value);
+			}
+			if (!achievement_engine::submit_event(event)) console::warn("[HQ event] economy update failed\n");
+		}
+
 		void submit_hidden_challenge_events(std::vector<reward_game_events::event>& events)
 		{
 			for (auto& event : events)
 			{
+				submit_hq_event(event);
 				hidden_challenges::submit_reward_game_event(std::move(event));
 			}
 		}
@@ -94,6 +110,7 @@ namespace demonware
 
 				for (auto& event : user.events)
 				{
+					if (!dedicated && user.user_id == local_user_id) submit_hq_event(event);
 					std::uint32_t group{};
 					std::uint32_t challenge{};
 					if (!hidden_challenges::get_completion(event, group, challenge))

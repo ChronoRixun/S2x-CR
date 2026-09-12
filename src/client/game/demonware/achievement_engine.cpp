@@ -129,6 +129,61 @@ namespace demonware::achievement_engine
 		definitions = std::move(catalog);
 	}
 
+	bool submit_event(const reward_game_events::event& event)
+	{
+		const auto kills = event.name == "1" || event.name == "killed_a_player";
+		const auto payroll = event.name == "18" || event.name == "picked_up_payroll";
+		if (!kills && !payroll) return true;
+		const auto now = static_cast<std::uint64_t>(time(nullptr));
+		// Timestamp plus parameters identifies a repeated native event. Zero timestamps
+		// are not deduplicated because multiple genuine kills could otherwise collapse.
+		std::string fingerprint = event.name + ":" + std::to_string(event.timestamp);
+		for (const auto& parameter : event.parameters)
+			fingerprint += ":" + parameter.selector + "=" + std::to_string(parameter.value);
+		std::uint64_t hash = 14695981039346656037ULL;
+		for (const auto byte : fingerprint) { hash ^= static_cast<unsigned char>(byte); hash *= 1099511628211ULL; }
+		const auto key = "event:" + std::to_string(hash);
+		return hq_economy::transact([&](hq_economy::state& data)
+		{
+			if (event.timestamp > 0 && data.transactions.contains(key)) return true;
+			if (payroll)
+			{
+				auto& entry = data.achievements["payroll_officer"];
+				// Local policy: 200 AC every four hours. Never replace an unclaimed reward.
+				if (entry.status != "claimable" && (!entry.completion || now >= entry.completion + 4 * 3600))
+				{
+					entry = {};
+					entry.name = "payroll_officer"; entry.challenge_name = entry.name;
+					entry.kind = 5; entry.target = 1; entry.progress = 1;
+					entry.activation = now; entry.offer_day = now / 86400;
+					entry.status = "claimable";
+					entry.rewards = {{"GRANT_CURRENCY", 2, 200}};
+				}
+			}
+			if (kills) for (auto& [name, entry] : data.achievements)
+			{
+				if (entry.status != "inProgress") continue;
+				bool matches_event = name == "daily_ch_kills" || name == "weekly_ch_kills";
+				if (name == "daily_ch_headshots")
+					for (const auto& parameter : event.parameters)
+						matches_event |= parameter.selector == "6" && parameter.value == 1;
+				if (!matches_event) continue;
+				if (entry.progress < entry.target) ++entry.progress;
+				if (entry.progress >= entry.target) entry.status = "claimable";
+			}
+			if (event.timestamp > 0) data.transactions[key] = std::to_string(now);
+			// Event replay window is bounded independently of permanent claim receipts.
+			std::size_t events{};
+			for (const auto& [id, value] : data.transactions) if (id.starts_with("event:")) ++events;
+			for (auto it = data.transactions.begin(); events > 2048 && it != data.transactions.end();)
+			{
+				if (it->first.starts_with("event:")) { it = data.transactions.erase(it); --events; }
+				else ++it;
+			}
+			return true;
+		});
+	}
+
 	std::string dispatch(const std::string_view body)
 	{
 		try
