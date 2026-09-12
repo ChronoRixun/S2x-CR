@@ -161,6 +161,9 @@ namespace demonware
 
 			auto result = std::make_unique<bdCommsMessagesResult>();
 			result->payload = hq_mail::empty_slots(slots);
+			byte_buffer encoded;
+			result->serialize(&encoded);
+			hq_protocol::trace("marketing_6_response", encoded.get_buffer());
 			console::info("[HQ mail] getMessages: %zu non-claimable slot(s) for %zu advertised slot(s)\n",
 				slots, slots);
 

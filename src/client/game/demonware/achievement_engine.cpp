@@ -2,6 +2,7 @@
 #include "achievement_engine.hpp"
 #include "achievement_response.hpp"
 #include "hq_protocol.hpp"
+#include "hq_payroll.hpp"
 #include "component/console/console.hpp"
 #include "steam/steam.hpp"
 #include <charconv>
@@ -151,12 +152,15 @@ namespace demonware::achievement_engine
 		loot_items = std::move(items);
 	}
 
-	bool submit_event(const reward_game_events::event& event)
+	bool submit_event(const reward_game_events::event& event, const bool native_payroll)
 	{
 		const auto kills = event.name == "1" || event.name == "killed_a_player";
 		const auto payroll = event.name == "18" || event.name == "picked_up_payroll";
 		if (!kills && !payroll) return true;
 		const auto now = static_cast<std::uint64_t>(time(nullptr));
+		if (payroll && native_payroll)
+			return hq_economy::transact([&](hq_economy::state& data) { return hq_payroll::settle(data, event.timestamp, now); });
+
 		// Timestamp plus parameters identifies a repeated native event. Zero timestamps
 		// are not deduplicated because multiple genuine kills could otherwise collapse.
 		std::string fingerprint = event.name + ":" + std::to_string(event.timestamp);

@@ -34,6 +34,30 @@ namespace hq_native
 			console::info("[HQ vendor] inventory/entitlement fetched flags and final LUI enable expression unresolved\n");
 		}
 
+		void mail_status()
+		{
+			const auto ready = *reinterpret_cast<const int*>(0x8A14F84_g);
+			const auto* slots = *reinterpret_cast<const unsigned char* const*>(0x8A15010_g);
+			console::info("[HQ mail native] ready=%d slots=%p; first 14 advertised slots\n", ready, slots);
+			if (!ready || !slots) return;
+			MEMORY_BASIC_INFORMATION memory{};
+			if (!VirtualQuery(slots, &memory, sizeof(memory)) || memory.State != MEM_COMMIT ||
+				(memory.Protect & (PAGE_NOACCESS | PAGE_GUARD)) ||
+				reinterpret_cast<std::uintptr_t>(slots) - reinterpret_cast<std::uintptr_t>(memory.BaseAddress) + 14 * 0x1CA0 > memory.RegionSize)
+			{
+				console::warn("[HQ mail native] slot region unavailable\n");
+				return;
+			}
+			for (unsigned i = 0; i < 14; ++i)
+			{
+				const auto* slot = slots + i * 0x1CA0;
+				console::info("[HQ mail native] slot %u id=%llu contentLength=%u codeLength=%u\n", i,
+					*reinterpret_cast<const std::uint64_t*>(slot + 0x10),
+					*reinterpret_cast<const unsigned*>(slot + 0x102C),
+					*reinterpret_cast<const unsigned*>(slot + 0x1C34));
+			}
+		}
+
 		void open_drop(const command::params& params)
 		{
 			const std::string_view drop = params.size() == 2 ? params[1] : "";
@@ -73,6 +97,7 @@ namespace hq_native
 			sku_failure_hook.create(0x27B6C0_g, sku_failure);
 			command::add("hqnative", status);
 			command::add("hqvendor", vendor_status);
+			command::add("hqmail", mail_status);
 			command::add("hqopendrop", open_drop);
 		}
 	};

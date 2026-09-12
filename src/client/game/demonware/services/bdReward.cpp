@@ -31,9 +31,9 @@ namespace demonware
 			server->create_reply(task).send();
 		}
 
-		void submit_hq_event(const reward_game_events::event& event)
+		bool submit_hq_event(const reward_game_events::event& event)
 		{
-			if (game::environment::is_zombies() || game::environment::is_dedicated()) return;
+			if (game::environment::is_zombies() || game::environment::is_dedicated()) return true;
 			if (utils::flags::has_flag("-demonware_debug"))
 			{
 				// Names from build/research/tables/dwgameevents.csv.
@@ -92,16 +92,20 @@ namespace demonware
 				for (const auto& parameter : event.parameters)
 					console::info("  %s=%llu\n", parameter.selector.c_str(), parameter.value);
 			}
-			if (!achievement_engine::submit_event(event)) console::warn("[HQ event] economy update failed\n");
+			const auto ok = achievement_engine::submit_event(event, true);
+			if (!ok) console::warn("[HQ event] economy update failed\n");
+			return ok;
 		}
 
-		void submit_hidden_challenge_events(std::vector<reward_game_events::event>& events)
+		bool submit_hidden_challenge_events(std::vector<reward_game_events::event>& events)
 		{
+			bool ok = true;
 			for (auto& event : events)
 			{
-				submit_hq_event(event);
+				ok = submit_hq_event(event) && ok;
 				hidden_challenges::submit_reward_game_event(std::move(event));
 			}
+			return ok;
 		}
 	}
 
@@ -197,17 +201,19 @@ namespace demonware
 
 	void bdReward::reportRewardGameEvents(service_server* server, byte_buffer* buffer) const
 	{
+		hq_protocol::trace("reward_12", buffer->get_remaining());
+		bool ok = true;
 		std::vector<reward_game_events::event> events{};
 		if (reward_game_events::parse_report_request(buffer, events))
 		{
-			submit_hidden_challenge_events(events);
+			ok = submit_hidden_challenge_events(events);
 		}
 		else
 		{
 			console::debug("[hidden_challenges] ignored a malformed bdReward task 12 request\n");
 		}
 
-		auto reply = server->create_reply(this->task_id());
+		auto reply = server->create_reply(this->task_id(), ok ? BD_NO_ERROR : BD_HANDLE_TASK_FAILED);
 		reply.send();
 	}
 }
