@@ -7,6 +7,7 @@
 #include "game/demonware/achievement_engine.hpp"
 #include "game/demonware/hq_protocol.hpp"
 
+#include <utils/finally.hpp>
 #include <utils/hook.hpp>
 
 namespace achievement_injection
@@ -16,10 +17,29 @@ namespace achievement_injection
 		// See build/research/ae-internals.md and the Ghidra output under
 		// build/research/ghidra/decomp-quick. Only controller 0 is supported by
 		// the existing response bridge; +0xF8 is also the native task stride.
+		//
+		// Every Achievement Engine task data blob shares one 0xF8-byte struct: all six
+		// documented per-task bases (0x60391D0 scheduled, 0x6039A60 user, 0x603A030
+		// activate, 0x60393C0 deactivate, 0x60395B0 claim, 0x6039C50 expired) index their
+		// controller with the same 0xF8 stride, so the active flag at +0xC0 and the
+		// transaction at +0xD0 are valid for every AE type, not just the two fetches that
+		// were confirmed by decompile. Nothing below may read at or beyond +0xF8.
 		constexpr std::ptrdiff_t active_offset = 0xC0;
 		constexpr std::ptrdiff_t transaction_offset = 0xD0;
 		constexpr std::size_t transaction_size = 25;
+		constexpr std::size_t task_data_size = 0xF8;
 		constexpr std::size_t request_capacity = 0x1800;
+		static_assert(static_cast<std::size_t>(active_offset) + sizeof(unsigned int) <= task_data_size);
+		static_assert(static_cast<std::size_t>(transaction_offset) + transaction_size <= task_data_size);
+
+		// Native task table for group 0, as walked by the task lookup 0x208270: entries
+		// start at table + 8 with a stride of 0x50 and there are 32 of them. The shared
+		// submission function 0x8397E0 has ~90 call sites across unrelated subsystems
+		// (build/research/ghidra/slice2-refs.txt), so a foreign task whose type happens to
+		// equal one of the AE type constants must not have its data blob read as AE data.
+		constexpr std::ptrdiff_t task_table_first_entry = 8;
+		constexpr std::ptrdiff_t task_table_stride = 0x50;
+		constexpr std::size_t task_table_entries = 32;
 
 		// Scheduled-challenge cache read by Engine.AE_GetScheduledChallenges (0x121A00):
 		// 0x1908 bytes per controller, 100 records of 0x30 bytes, ready byte at +0x1900.
@@ -32,6 +52,9 @@ namespace achievement_injection
 		constexpr std::size_t scheduled_cache_records = 100;
 		constexpr std::size_t scheduled_record_size = 0x30;
 
+		// Guards the synchronous AE_ProcessResponse call below against re-entering this hook.
+		thread_local bool in_dispatch = false;
+
 		utils::hook::detour submit_hook;
 		utils::hook::detour scheduled_success_hook;
 		utils::hook::detour scheduled_failure_hook;
@@ -39,6 +62,26 @@ namespace achievement_injection
 		const std::byte* scheduled_cache(const unsigned int controller)
 		{
 			return game::AE_ScheduledChallengeCache.get() + controller * scheduled_cache_stride;
+		}
+
+		// True only when the task pointer is an entry of the group-0 native task table.
+		bool is_group_zero_task(const std::byte* task)
+		{
+			const auto* table = game::AE_TaskGroupTables.get()[0];
+			if (!table) return false;
+			for (std::size_t i = 0; i < task_table_entries; ++i)
+			{
+				if (task == table + task_table_first_entry + i * task_table_stride) return true;
+			}
+			return false;
+		}
+
+		// Every AE type constant below is < 0x100, so one flag per type value is enough.
+		void warn_rejected_once(const unsigned int type)
+		{
+			static std::atomic<bool> warned[256]{};
+			if (type >= std::size(warned) || warned[type].exchange(true)) return;
+			console::warn("[HQ AE injection] task type 0x%X rejected: not an entry of the group 0 task table\n", type);
 		}
 
 		// 0x8397E0 submits every native task after its data and callbacks are installed.
@@ -56,6 +99,13 @@ namespace achievement_injection
 			case 0x99: case 0x9E: case 0xA0: break;
 			default: return;
 			}
+			// The type alone does not identify an AE task: only tasks that live in the
+			// group 0 table are ones the Achievement Engine registered.
+			if (!is_group_zero_task(task))
+			{
+				warn_rejected_once(type);
+				return;
+			}
 			try
 			{
 				auto* data = *reinterpret_cast<std::byte**>(task + 0x28);
@@ -69,9 +119,23 @@ namespace achievement_injection
 				json.Parse<rapidjson::kParseIterativeFlag>(body.data(), body.size());
 				const auto* tx = reinterpret_cast<const char*>(data + transaction_offset);
 				const auto tx_length = strnlen_s(tx, transaction_size);
-				if (json.HasParseError() || !json.IsObject() || tx_length == transaction_size ||
+				// Bail on an empty transaction id as well as an unterminated one, so an
+				// uninitialised request is never answered.
+				if (json.HasParseError() || !json.IsObject() || !tx_length || tx_length == transaction_size ||
 					!json.HasMember("ClientTx") || !json["ClientTx"].IsString() ||
 					std::string_view{json["ClientTx"].GetString(), json["ClientTx"].GetStringLength()} != std::string_view{tx, tx_length}) return;
+				// AE_ProcessResponse runs native handlers that can submit further tasks
+				// through 0x8397E0; a shallow guard keeps that from recursing into this hook.
+				if (in_dispatch)
+				{
+					console::warn("[HQ AE injection] re-entrant dispatch for task type 0x%X skipped\n", type);
+					return;
+				}
+				in_dispatch = true;
+				const auto reset = utils::finally([]
+				{
+					in_dispatch = false;
+				});
 				const auto response = demonware::achievement_engine::dispatch(body);
 				demonware::hq_protocol::trace("injected_ae_request", body);
 				demonware::hq_protocol::trace("injected_ae_response", response);

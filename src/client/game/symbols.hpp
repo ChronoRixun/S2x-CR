@@ -381,6 +381,11 @@ namespace game
 	WEAK symbol<void(void* task)> AE_ScheduledTaskSucceeded{ 0x13C220 };
 	WEAK symbol<void(void* task)> AE_ScheduledTaskFailed{ 0x13C120 };
 	WEAK symbol<bool(void* response, const char* value)> AE_SetResponseString{ 0xA3B8F0 };
+	// Per-group native task tables used by the task lookup 0x208270(group, controller, type):
+	// AE_TaskGroupTables[group] is the table pointer (null when the group is not initialised),
+	// its entries start at table + 8 with a stride of 0x50 and there are 32 of them. The
+	// Achievement Engine only ever uses group 0 (see build/research/ghidra/decomp-quick/208270.c).
+	WEAK symbol<std::byte*> AE_TaskGroupTables{ 0x6F72B00 };
 	WEAK symbol<void(unsigned int controllerIndex, const void* response,
 		unsigned int taskGroup)> AE_ProcessResponse{ 0x676A40 };
 	WEAK symbol<unsigned int(const char* reference)> BG_GetItemGUIDFromReference{ 0x6524C0 };
