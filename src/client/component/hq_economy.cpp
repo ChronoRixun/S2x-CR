@@ -3,6 +3,7 @@
 #include "game/game.hpp"
 #include "game/demonware/achievement_engine.hpp"
 #include "component/scheduler.hpp"
+#include "component/command.hpp"
 #include "component/console/console.hpp"
 #include <charconv>
 
@@ -15,6 +16,44 @@ namespace hq_economy
 			if (!table || !table->values || row < 0 || row >= table->rowCount || column < 0 || column >= table->columnCount) return "";
 			const auto* value = table->values[row * table->columnCount + column].string;
 			return value ? value : "";
+		}
+
+		bool parse_number(std::string_view value, std::uint32_t& output)
+		{
+			int base = 10;
+			if (value.starts_with("0x") || value.starts_with("0X")) { value.remove_prefix(2); base = 16; }
+			const auto parsed = std::from_chars(value.data(), value.data() + value.size(), output, base);
+			return !value.empty() && parsed.ec == std::errc{} && parsed.ptr == value.data() + value.size();
+		}
+
+		void print_state()
+		{
+			try
+			{
+				const auto data = demonware::hq_economy::snapshot();
+				console::info("[HQ economy] revision %llu: %zu currencies, %zu items, %zu achievements\n",
+					data.revision, data.currencies.size(), data.inventory.size(), data.achievements.size());
+				for (const auto& [id, balance] : data.currencies) console::info("  currency %u = %u\n", id, balance);
+				for (const auto& [key, item] : data.inventory) console::info("  item 0x%X collision %u = %u (expires %u)\n",
+					item.guid, item.collision, item.quantity, item.expires);
+				for (const auto& [name, entry] : data.achievements) console::info("  %s kind %d: %s %u/%u activated %llu claimed '%s'\n",
+					name.c_str(), entry.kind, entry.status.c_str(), entry.progress, entry.target, entry.activation, entry.claim_transaction.c_str());
+			}
+			catch (const std::exception& error) { console::error("[HQ economy] %s\n", error.what()); }
+		}
+
+		void grant(const command::params& params)
+		{
+			std::uint32_t id{}, amount{};
+			if (params.size() != 4 || !parse_number(params[2], id) || !parse_number(params[3], amount) || !amount ||
+				(std::string_view{params[1]} != "currency" && std::string_view{params[1]} != "item"))
+			{
+				console::info("Usage: hqgrant <currency|item> <decimal or 0x id> <positive amount>\n");
+				return;
+			}
+			const demonware::hq_economy::reward value{std::string_view{params[1]} == "item" ? "GRANT_PRODUCT" : "GRANT_CURRENCY", id, amount};
+			if (demonware::hq_economy::transact([&](auto& data) { return demonware::hq_economy::grant(data, value); })) print_state();
+			else console::warn("[HQ economy] grant rejected (ID, overflow, lock or save failure)\n");
 		}
 
 		void load_catalog()
@@ -69,6 +108,8 @@ namespace hq_economy
 		void post_unpack() override
 		{
 			if (game::environment::is_dedicated() || game::environment::is_zombies()) return;
+			command::add("hqeconomy", print_state);
+			command::add("hqgrant", grant);
 			scheduler::loop(load_catalog, scheduler::pipeline::main, 5s);
 		}
 	};

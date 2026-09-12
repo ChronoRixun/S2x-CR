@@ -218,9 +218,10 @@ namespace demonware::achievement_engine
 				action == "deactivate_user_achievement" || action == "claim_achievement_reward")
 			{
 				const auto name = string(request, "AchievementName");
-				if (name.empty() || !request.HasMember("AchievementKind") || !request["AchievementKind"].IsInt())
+				if (name.empty() || name.size() > 256 || client_tx.size() > 256 || !request.HasMember("AchievementKind") || !request["AchievementKind"].IsInt())
 					return fail("invalid_achievement");
 				const auto kind = request["AchievementKind"].GetInt();
+				if (action == "claim_achievement_reward" && client_tx.empty()) return fail("missing_transaction");
 				hq_economy::achievement updated{};
 				bool replay{};
 				const auto ok = hq_economy::transact([&](hq_economy::state& next)
@@ -258,6 +259,10 @@ namespace demonware::achievement_engine
 					}
 					else
 					{
+						const auto transaction_key = "claim:" + client_tx;
+						const auto fingerprint = name + ":" + std::to_string(entry.offer_day);
+						const auto previous = next.transactions.find(transaction_key);
+						if (previous != next.transactions.end() && previous->second != fingerprint) return false;
 						if (entry.status == "finished") replay = true;
 						else
 						{
@@ -266,6 +271,7 @@ namespace demonware::achievement_engine
 							entry.status = "finished";
 							entry.completion = now;
 							entry.claim_transaction = client_tx;
+							next.transactions[transaction_key] = fingerprint;
 						}
 					}
 					updated = entry;
