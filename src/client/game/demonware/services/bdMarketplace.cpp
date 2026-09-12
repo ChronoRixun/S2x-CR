@@ -2,6 +2,7 @@
 #include "../dw_include.hpp"
 #include "../hq_marketplace.hpp"
 #include "../hq_protocol.hpp"
+#include "../hq_vendor.hpp"
 #include "steam/steam.hpp"
 #include "game/game.hpp"
 
@@ -273,9 +274,18 @@ namespace demonware
 				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send_struct();
 				return;
 			}
-			// Empty protobuf body, with the required bdStructBuffer envelope. Vendor
-			// business fields remain unverified; capture the next native task result.
-			auto result = std::make_unique<hq_protocol::empty_struct_result>();
+			++hq_vendor::requests;
+			auto result = std::make_unique<hq_vendor::result>();
+			if (!hq_vendor::reply_body(request, result->body))
+			{
+				++hq_vendor::rejected;
+				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send_struct();
+				return;
+			}
+			byte_buffer encoded;
+			result->serialize(&encoded);
+			hq_protocol::trace("marketplace_242_response", encoded.get_buffer());
+			++hq_vendor::replies;
 			auto reply = server->create_reply(this->task_id());
 			reply.add(result);
 			reply.send_struct();

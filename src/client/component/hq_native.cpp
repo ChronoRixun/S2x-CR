@@ -4,6 +4,7 @@
 #include "component/command.hpp"
 #include "component/console/console.hpp"
 #include <utils/hook.hpp>
+#include "game/demonware/hq_vendor.hpp"
 
 namespace hq_native
 {
@@ -16,6 +17,21 @@ namespace hq_native
 		{
 			console::info("[HQ native] SKUs fetched=%u (raw flag); use aecache for Orders\n",
 				*reinterpret_cast<const unsigned char*>(0x81038A8_g));
+		}
+
+		void vendor_status()
+		{
+			status();
+			console::info("[HQ vendor] Engine.Inventory_AreSKUsFetched=%u; 242 requests=%u replies=%u rejected=%u (provisional schema)\n",
+				utils::hook::invoke<bool>(0x278400_g), demonware::hq_vendor::requests.load(),
+				demonware::hq_vendor::replies.load(), demonware::hq_vendor::rejected.load());
+			for (const auto* name : {"allow_hub_vendor_menu", "spv_hub_vendors_kswitch",
+				"spv_hub_quartermasterVendor_kswitch", "spv_hub_payrollVendor_kswitch"})
+			{
+				auto* value = game::Dvar_FindMalleableVar(name);
+				console::info("[HQ vendor] %s=%s\n", name, value ? game::Dvar_ValueToString(value, true, &value->current) : "<unregistered>");
+			}
+			console::info("[HQ vendor] inventory/entitlement fetched flags and final LUI enable expression unresolved\n");
 		}
 
 		void open_drop(const command::params& params)
@@ -56,6 +72,7 @@ namespace hq_native
 			sku_success_hook.create(0x27B700_g, sku_success);
 			sku_failure_hook.create(0x27B6C0_g, sku_failure);
 			command::add("hqnative", status);
+			command::add("hqvendor", vendor_status);
 			command::add("hqopendrop", open_drop);
 		}
 	};
