@@ -2,6 +2,7 @@
 #include "../dw_include.hpp"
 
 #include "game/game.hpp"
+#include "../hq_protocol.hpp"
 
 namespace demonware
 {
@@ -38,6 +39,22 @@ namespace demonware
 
 	void bdMarketingComms::getMessages(service_server* server, byte_buffer* buffer) const
 	{
+		hq_protocol::trace("marketing_6", buffer->get_remaining());
+		if (!game::environment::is_zombies())
+		{
+			std::string request_body{};
+			if (!buffer->read_struct(&request_body, 65536) || !hq_protocol::padding(buffer))
+			{
+				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send_struct();
+				return;
+			}
+			// Empty repeated-message collection. Do not manufacture a message with ID 0.
+			auto result = std::make_unique<hq_protocol::empty_struct_result>();
+			auto reply = server->create_reply(this->task_id());
+			reply.add(result);
+			reply.send_struct();
+			return;
+		}
 		bdCommsGetMessagesRequest request{};
 
 		class bdCommsGetMessagesResult final : public bdTaskResult

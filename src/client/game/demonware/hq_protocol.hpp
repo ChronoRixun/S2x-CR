@@ -1,12 +1,24 @@
 #pragma once
 
 #include "byte_buffer.hpp"
+#include "data_types.hpp"
 #include "component/console/console.hpp"
 #include <utils/flags.hpp>
 #include <utils/io.hpp>
 
 namespace demonware::hq_protocol
 {
+	// A structured reply still needs its typed length-delimited body when empty.
+	class empty_struct_result final : public bdTaskResult
+	{
+	public:
+		void serialize(byte_buffer* buffer) override
+		{
+			char empty{};
+			buffer->write_struct(&empty, 0);
+		}
+	};
+
 	inline bool padding(byte_buffer* buffer)
 	{
 		const auto tail = buffer->get_remaining();

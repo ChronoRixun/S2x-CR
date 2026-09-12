@@ -3,6 +3,7 @@
 #include "../hq_marketplace.hpp"
 #include "../hq_protocol.hpp"
 #include "steam/steam.hpp"
+#include "game/game.hpp"
 
 namespace demonware
 {
@@ -59,9 +60,10 @@ namespace demonware
 		this->register_task(242, &bdMarketplace::unknown242);
 	}
 
-	void bdMarketplace::startExchangeTransaction(service_server* server, byte_buffer* /*buffer*/) const
+	void bdMarketplace::startExchangeTransaction(service_server* server, byte_buffer* buffer) const
 	{
-		// TODO:
+
+		hq_protocol::trace("marketplace_42", buffer->get_remaining());		// TODO:
 		auto reply = server->create_reply(this->task_id());
 		reply.send();
 	}
@@ -105,9 +107,10 @@ namespace demonware
 		reply.send();
 	}
 
-	void bdMarketplace::steamProcessDurable(service_server* server, byte_buffer* /*buffer*/) const
+	void bdMarketplace::steamProcessDurable(service_server* server, byte_buffer* buffer) const
 	{
-		// TODO:
+
+		hq_protocol::trace("marketplace_60", buffer->get_remaining());		// TODO:
 		auto reply = server->create_reply(this->task_id());
 		reply.send();
 	}
@@ -126,16 +129,18 @@ namespace demonware
 		reply.send();
 	}
 
-	void bdMarketplace::getBalance(service_server* server, byte_buffer* /*buffer*/) const
+	void bdMarketplace::getBalance(service_server* server, byte_buffer* buffer) const
 	{
-		// TODO:
+
+		hq_protocol::trace("marketplace_130", buffer->get_remaining());		// TODO:
 		auto reply = server->create_reply(this->task_id());
 		reply.send();
 	}
 
 	void bdMarketplace::getBalanceV2(service_server* server, byte_buffer* buffer) const
 	{
-		guarded(server, this->task_id(), [&]
+
+		hq_protocol::trace("marketplace_132", buffer->get_remaining());		guarded(server, this->task_id(), [&]
 		{
 			std::uint32_t limit{};
 			if (!hq_marketplace::context(buffer) || !buffer->read_uint32(&limit) || !limit || limit > 256 || !hq_protocol::padding(buffer))
@@ -160,7 +165,8 @@ namespace demonware
 
 	void bdMarketplace::getInventoryPaginated(service_server* server, byte_buffer* buffer) const
 	{
-		guarded(server, this->task_id(), [&]
+
+		hq_protocol::trace("marketplace_165", buffer->get_remaining());		guarded(server, this->task_id(), [&]
 		{
 			hq_marketplace::inventory_request request{};
 			if (!hq_marketplace::parse_inventory(buffer, request))
@@ -178,7 +184,8 @@ namespace demonware
 
 	void bdMarketplace::putPlayersInventoryItems(service_server* server, byte_buffer* buffer) const
 	{
-		guarded(server, this->task_id(), [&]
+
+		hq_protocol::trace("marketplace_193", buffer->get_remaining());		guarded(server, this->task_id(), [&]
 		{
 			hq_protocol::trace("put_assumed_request", buffer->get_remaining());
 			std::vector<hq_economy::item> items{};
@@ -190,7 +197,8 @@ namespace demonware
 
 	void bdMarketplace::pawnItems(service_server* server, byte_buffer* buffer) const
 	{
-		guarded(server, this->task_id(), [&]
+
+		hq_protocol::trace("marketplace_199", buffer->get_remaining());		guarded(server, this->task_id(), [&]
 		{
 			hq_protocol::trace("pawn_assumed_request", buffer->get_remaining());
 			console::warn("[HQ marketplace] pawnItems uses provisional quantity reconciliation; currency conversion is unavailable\n");
@@ -204,7 +212,8 @@ namespace demonware
 
 	void bdMarketplace::getEntitlements(service_server* server, byte_buffer* buffer) const
 	{
-		guarded(server, this->task_id(), [&]
+
+		hq_protocol::trace("marketplace_232", buffer->get_remaining());		guarded(server, this->task_id(), [&]
 		{
 			hq_protocol::trace("entitlements_assumed_request", buffer->get_remaining());
 			if (!hq_marketplace::context(buffer) || !hq_protocol::padding(buffer))
@@ -246,12 +255,23 @@ namespace demonware
 				return;
 			}
 			hq_protocol::trace("marketplace_242", buffer->get_remaining());
-			// Captured input has a struct-buffer prefix and protobuf-like fields.
-			// Provisional empty structured success: no ordinary result-count field,
-			// no inferred catalog, purchase, or entitlement and no invented Tx tag.
-			// The opaque body is deliberately not parsed until its schema is known.
-			console::warn("[HQ marketplace] task 242: provisional empty structured success\n");
-			server->create_reply(this->task_id()).send_struct();
+			if (game::environment::is_zombies())
+			{
+				server->create_reply(this->task_id()).send_struct();
+				return;
+			}
+			std::string request{};
+			if (!buffer->read_struct(&request, 65536) || !hq_protocol::padding(buffer))
+			{
+				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send_struct();
+				return;
+			}
+			// Empty protobuf body, with the required bdStructBuffer envelope. Vendor
+			// business fields remain unverified; capture the next native task result.
+			auto result = std::make_unique<hq_protocol::empty_struct_result>();
+			auto reply = server->create_reply(this->task_id());
+			reply.add(result);
+			reply.send_struct();
 		}, true);
 	}
 
