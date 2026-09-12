@@ -215,18 +215,41 @@ namespace demonware
 		});
 	}
 
-	void bdMarketplace::getSkusPaginated(service_server* server, byte_buffer* /*buffer*/) const
+	void bdMarketplace::getSkusPaginated(service_server* server, byte_buffer* buffer) const
 	{
-		// TODO:
-		auto reply = server->create_reply(this->task_id());
-		reply.send();
+		guarded(server, this->task_id(), [&]
+		{
+			if (buffer->size() > 65536)
+			{
+				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send();
+				return;
+			}
+			hq_protocol::trace("marketplace_111", buffer->get_remaining());
+			// No local SKU catalog. The data_types.hpp bdTaskResult collection is
+			// empty: send() serializes a typed uint32 result count of zero. There
+			// is no SKU/page wrapper serializer, and no placeholder item to add.
+			console::info("[HQ marketplace] getSkusPaginated: empty SKU page\n");
+			server->create_reply(this->task_id()).send();
+		});
 	}
 
 	void bdMarketplace::unknown242(service_server* server, byte_buffer* buffer) const
 	{
-		hq_protocol::trace("marketplace_242", buffer->get_remaining());
-		console::warn("[HQ marketplace] task 242 schema unknown; empty acknowledgement\n");
-		server->create_reply(this->task_id()).send();
+		guarded(server, this->task_id(), [&]
+		{
+			if (buffer->size() > 65536)
+			{
+				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send_struct();
+				return;
+			}
+			hq_protocol::trace("marketplace_242", buffer->get_remaining());
+			// Captured input has a struct-buffer prefix and protobuf-like fields.
+			// Provisional empty structured success: no ordinary result-count field,
+			// no inferred catalog, purchase, or entitlement and no invented Tx tag.
+			// The opaque body is deliberately not parsed until its schema is known.
+			console::warn("[HQ marketplace] task 242: provisional empty structured success\n");
+			server->create_reply(this->task_id()).send_struct();
+		});
 	}
 
 }
