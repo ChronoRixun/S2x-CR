@@ -388,6 +388,20 @@ namespace game
 	WEAK symbol<std::byte*> AE_TaskGroupTables{ 0x6F72B00 };
 	WEAK symbol<void(unsigned int controllerIndex, const void* response,
 		unsigned int taskGroup)> AE_ProcessResponse{ 0x676A40 };
+	// Marketing Comms / Mail "is there unread mail?" poll, run every frame from 0x852630.
+	// Decompile: build/research/ghidra/decomp-crash/372069.c. It walks the per-controller
+	// mail state blocks below and, for every block whose ready flag is set, reads
+	// array[start] .. array[start + count - 1] of the message array WITHOUT null-checking
+	// the array pointer, which faults on a reply that carried no messages.
+	WEAK symbol<bool()> MarketingComms_HasUnreadMail{ 0x372020 };
+	// Per-controller mail state: 0x110 bytes per controller, exactly two controllers (the
+	// poll's cursor starts at block 0 + 0xB0 = 0x8A15010 and stops once it passes
+	// 0x8A1522F). +0x24 = getMessages-completed flag, +0xB0 = message array pointer,
+	// message entries are 0x1CA0 bytes each.
+	WEAK symbol<std::byte> MarketingComms_MailState{ 0x8A14F60 };
+	// Globals the poll scans with: first index (observed 8) and number of entries.
+	WEAK symbol<int> MarketingComms_MailScanStart{ 0x8A15B88 };
+	WEAK symbol<int> MarketingComms_MailScanCount{ 0x8A15B8C };
 	WEAK symbol<unsigned int(const char* reference)> BG_GetItemGUIDFromReference{ 0x6524C0 };
 	WEAK symbol<int(unsigned int controllerIndex, unsigned int itemGuid)> Inventory_GetItemQuantity{ 0x279480 };
 	WEAK symbol<bool(unsigned int itemGuid)> Inventory_IsItemGuidAZMConsumable{ 0x652490 };
