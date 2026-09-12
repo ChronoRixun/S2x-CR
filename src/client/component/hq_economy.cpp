@@ -76,6 +76,28 @@ namespace hq_economy
 				demonware::achievement_engine::submit_event(event) ? "saved" : "failed");
 		}
 
+		void load_loot_catalog()
+		{
+			const auto* collections = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/collections.csv", false).stringTable;
+			const auto* items = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/itemscollections.csv", false).stringTable;
+			if (!collections || !items) return;
+			std::vector<std::uint32_t> pool;
+			for (int row = 0; row < items->rowCount; ++row)
+			{
+				bool known{};
+				for (int c = 0; c < collections->rowCount; ++c)
+					known |= std::string_view{cell(items, row, 0)} == cell(collections, c, 0);
+				std::uint32_t count{};
+				if (!known || !parse_number(cell(items, row, 2), count) || count > 64) continue;
+				for (std::uint32_t col = 3; col < 3 + count; ++col)
+				{
+					std::uint32_t id{};
+					if (parse_number(cell(items, row, static_cast<int>(col)), id)) pool.push_back(id);
+				}
+			}
+			demonware::achievement_engine::set_loot_catalog(std::move(pool));
+		}
+
 		void load_catalog()
 		{
 			const auto* daily = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/dailychallengestable.csv", false).stringTable;
@@ -148,6 +170,7 @@ namespace hq_economy
 			command::add("hqeconomy", [](const command::params& params) { print_state(params.size() > 1 && std::string_view{params[1]} == "reload"); });
 			command::add("hqgrant", grant);
 			command::add("aeevent", event_command);
+			scheduler::loop(load_loot_catalog, scheduler::pipeline::main, 5s);
 			scheduler::loop(load_catalog, scheduler::pipeline::main, 5s);
 		}
 	};

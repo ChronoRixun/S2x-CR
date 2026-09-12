@@ -5,6 +5,7 @@
 #include "component/console/console.hpp"
 #include "steam/steam.hpp"
 #include <charconv>
+#include <random>
 
 namespace demonware::achievement_engine
 {
@@ -12,6 +13,7 @@ namespace demonware::achievement_engine
 	{
 		std::mutex catalog_mutex{};
 		std::vector<hq_economy::achievement> definitions{};
+		std::vector<std::uint32_t> loot_items{};
 		using allocator = rapidjson::Document::AllocatorType;
 
 		rapidjson::Value text(const std::string_view value, allocator& alloc)
@@ -137,6 +139,16 @@ namespace demonware::achievement_engine
 	{
 		std::lock_guard lock{catalog_mutex};
 		definitions = std::move(catalog);
+	}
+
+	void set_loot_catalog(std::vector<std::uint32_t> items)
+	{
+		std::erase_if(items, [](const auto id) { return id <= 2 || id > INT32_MAX; });
+		std::sort(items.begin(), items.end());
+		items.erase(std::unique(items.begin(), items.end()), items.end());
+		if (items.size() > 10000) items.clear();
+		std::lock_guard lock{catalog_mutex};
+		loot_items = std::move(items);
 	}
 
 	bool submit_event(const reward_game_events::event& event)
@@ -338,6 +350,86 @@ namespace demonware::achievement_engine
 				for (auto i = offset; i < end; ++i) page.PushBack(results[static_cast<rapidjson::SizeType>(i)], alloc);
 				response.AddMember("Achievements", page, alloc);
 				response.AddMember("NextPageToken", text(end < results.Size() ? std::to_string(end) : "", alloc), alloc);
+			}
+			else if (action == "open_supply_drop")
+			{
+				// Native 0x2B0850 sends column 4; 0x2AEEA0 counts column 5 item IDs.
+				const auto drop = string(request, "SupplyDropID");
+				const std::uint32_t drop_id = drop == "sd_mp" ? 1 : drop == "sd_mp_rare" ? 2 : 0;
+				if (!drop_id) return fail("unsupported_supply_drop");
+				if (client_tx.empty() || client_tx.size() > 128 || client_tx.find('\0') != std::string::npos)
+					return fail("invalid_transaction");
+				std::vector<std::uint32_t> pool;
+				{
+					std::lock_guard lock{catalog_mutex};
+					pool = loot_items;
+				}
+				const auto key = "drop:" + client_tx;
+				const auto ok = hq_economy::transact([&](hq_economy::state& next)
+				{
+					const auto previous = next.transactions.find(key);
+					if (previous != next.transactions.end())
+					{
+						rapidjson::Document receipt;
+						receipt.Parse<rapidjson::kParseIterativeFlag>(previous->second.c_str());
+						if (receipt.HasParseError() || !receipt.IsObject() || string(receipt, "SupplyDropID") != drop ||
+							!receipt.HasMember("GrantedItems") || !receipt["GrantedItems"].IsArray()) return false;
+						response.CopyFrom(receipt, alloc);
+					}
+					else
+					{
+						if (pool.empty()) return false;
+						auto owned = next.inventory.find({drop_id, 0});
+						if (owned == next.inventory.end() || !owned->second.quantity ||
+							(owned->second.expires && owned->second.expires <= now)) return false;
+						--owned->second.quantity;
+						owned->second.modified = static_cast<std::uint32_t>(now);
+						// Local policy: three uniform collection-item rolls, with replacement.
+						// This is not a reconstruction of retail odds or rare guarantees.
+						std::mt19937_64 random{std::random_device{}()};
+						std::uniform_int_distribution<std::size_t> roll{0, pool.size() - 1};
+						rapidjson::Value items{rapidjson::kArrayType};
+						for (int i = 0; i < 3; ++i)
+						{
+							const auto id = pool[roll(random)];
+							if (!hq_economy::grant(next, {"GRANT_PRODUCT", id, 1})) return false;
+							rapidjson::Value item{rapidjson::kObjectType};
+							item.AddMember("id", id, alloc);
+							items.PushBack(item, alloc);
+						}
+						response.AddMember("SupplyDropID", text(drop, alloc), alloc);
+						response.AddMember("GrantedItems", items, alloc);
+						response.AddMember("GrantedCurrencies", rapidjson::Value{rapidjson::kArrayType}, alloc);
+						next.transactions[key] = encode(response);
+					}
+					// Absolute quantities, including zero for the consumed drop. On replay,
+					// use today's quantities so an old receipt cannot rewind the UI cache.
+					std::vector<std::uint32_t> ids{drop_id};
+					for (const auto& item : response["GrantedItems"].GetArray())
+					{
+						if (!item.IsObject() || !item.HasMember("id") || !item["id"].IsUint()) return false;
+						ids.push_back(item["id"].GetUint());
+					}
+					std::sort(ids.begin(), ids.end());
+					ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
+					rapidjson::Value inventory{rapidjson::kArrayType};
+					for (const auto id : ids)
+					{
+						const auto found = next.inventory.find({id, 0});
+						if (found == next.inventory.end()) return false;
+						const auto& entry = found->second;
+						rapidjson::Value item{rapidjson::kObjectType};
+						item.AddMember("item_id", id, alloc);
+						item.AddMember("item_quantity", entry.quantity, alloc);
+						item.AddMember("collision_field", entry.collision, alloc);
+						item.AddMember("expiry_duration", -1, alloc);
+						item.AddMember("mod_date_time", entry.modified, alloc);
+						inventory.PushBack(item, alloc);
+					}
+					response.AddMember("DetailedInventory", inventory, alloc);
+					return true;
+				});
+				if (!ok) return fail("drop_unavailable_transaction_conflict_or_save_failed");
 			}
 			else if (action == "pump_global_achievement_counters")
 				response.AddMember("CounterValues", rapidjson::Value{rapidjson::kObjectType}, alloc);

@@ -18,6 +18,20 @@ namespace hq_native
 				*reinterpret_cast<const unsigned char*>(0x81038A8_g));
 		}
 
+		void open_drop(const command::params& params)
+		{
+			const std::string_view drop = params.size() == 2 ? params[1] : "";
+			if (drop != "common" && drop != "rare")
+			{
+				console::info("Usage: hqopendrop <common|rare> (consumes one owned drop)\n");
+				return;
+			}
+			char transaction[32]{};
+			game::AE_GenerateTransactionId(transaction);
+			const auto issued = utils::hook::invoke<bool>(0x2B0850_g, 0, drop == "common" ? 0u : 1u, transaction);
+			console::info("[HQ native] open drop %s, Tx=%s\n", issued ? "issued" : "rejected", transaction);
+		}
+
 		void sku_success(void* task)
 		{
 			sku_success_hook.invoke<void>(task);
@@ -42,6 +56,7 @@ namespace hq_native
 			sku_success_hook.create(0x27B700_g, sku_success);
 			sku_failure_hook.create(0x27B6C0_g, sku_failure);
 			command::add("hqnative", status);
+			command::add("hqopendrop", open_drop);
 		}
 	};
 }
