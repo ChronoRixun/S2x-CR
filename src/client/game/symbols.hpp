@@ -364,11 +364,16 @@ namespace game
 	WEAK symbol<void(bool cg)> LUI_CoD_Restart{ 0x3200A0, 0x1A3810 };
 	WEAK symbol<void()> LUI_EnterCriticalSection{ 0xBE8D0, 0x18B1F0 };
 	WEAK symbol<void()> LUI_LeaveCriticalSection{ 0xC5F80, 0x191FB0 };
+	// Achievement Engine (multiplayer binary only; the single-address constructor resolves to the
+	// MP image whenever multiplayer components are loaded). Offsets documented in build/research/ae-internals.md.
 	WEAK symbol<std::int64_t(void* transactionId)> AE_GenerateTransactionId{ 0x8390A0 };
 	WEAK symbol<bool(unsigned int controllerIndex, const void* transactionId)> AE_FetchUserAchievements{ 0x139350 };
 	WEAK symbol<bool(unsigned int controllerIndex, const char* pageToken, const void* transactionId,
 		unsigned int accountIndex)> AE_FetchUserAchievementsByPage{ 0x139400 };
+	WEAK symbol<bool(unsigned int controllerIndex, const void* transactionId)> AE_FetchScheduledChallenges{ 0x1399C0 };
 	WEAK symbol<std::byte> AE_UserAchievementTaskData{ 0x6039A60 };
+	WEAK symbol<std::byte> AE_ScheduledAchievementTaskData{ 0x60391D0 };
+	WEAK symbol<const char*(void* response)> AE_GetResponseString{ 0xA3B850 };
 	WEAK symbol<bool(void* response, const char* value)> AE_SetResponseString{ 0xA3B8F0 };
 	WEAK symbol<void(unsigned int controllerIndex, const void* response,
 		unsigned int taskGroup)> AE_ProcessResponse{ 0x676A40 };

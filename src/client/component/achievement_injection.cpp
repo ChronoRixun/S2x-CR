@@ -20,9 +20,6 @@ namespace achievement_injection
 		constexpr std::ptrdiff_t transaction_offset = 0xD0;
 		constexpr std::size_t transaction_size = 25;
 		constexpr std::size_t request_capacity = 0x1800;
-		game::symbol<bool(unsigned int, const void*)> fetch_scheduled{0x1399C0};
-		game::symbol<std::byte> scheduled_task{0x60391D0};
-		game::symbol<const char*(void*)> get_response_string{0xA3B850};
 		utils::hook::detour fetch_user_hook;
 		utils::hook::detour fetch_scheduled_hook;
 		std::atomic_bool accepting{};
@@ -38,7 +35,7 @@ namespace achievement_injection
 
 		std::byte* task_data(const std::size_t index)
 		{
-			return index == 0 ? game::AE_UserAchievementTaskData.get() : scheduled_task.get();
+			return index == 0 ? game::AE_UserAchievementTaskData.get() : game::AE_ScheduledAchievementTaskData.get();
 		}
 
 		std::string task_transaction(const std::byte* task)
@@ -54,7 +51,7 @@ namespace achievement_injection
 			try
 			{
 				auto* task = task_data(index);
-				const auto* request = get_response_string(task);
+				const auto* request = game::AE_GetResponseString(task);
 				if (!request) return;
 				const auto length = strnlen_s(request, request_capacity);
 				if (!length || length == request_capacity) return;
@@ -145,7 +142,7 @@ namespace achievement_injection
 		{
 			if (game::environment::is_dedicated() || game::environment::is_zombies()) return;
 			fetch_user_hook.create(game::AE_FetchUserAchievementsByPage, fetch_user_stub);
-			fetch_scheduled_hook.create(fetch_scheduled, fetch_scheduled_stub);
+			fetch_scheduled_hook.create(game::AE_FetchScheduledChallenges, fetch_scheduled_stub);
 			accepting = true;
 			scheduler::loop(dispatch_responses, scheduler::pipeline::main, 50ms);
 		}

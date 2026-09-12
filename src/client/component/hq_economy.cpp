@@ -26,10 +26,11 @@ namespace hq_economy
 			return !value.empty() && parsed.ec == std::errc{} && parsed.ptr == value.data() + value.size();
 		}
 
-		void print_state()
+		void print_state(const bool reload = false)
 		{
 			try
 			{
+				if (reload) demonware::hq_economy::invalidate();
 				const auto data = demonware::hq_economy::snapshot();
 				console::info("[HQ economy] revision %llu: %zu currencies, %zu items, %zu achievements\n",
 					data.revision, data.currencies.size(), data.inventory.size(), data.achievements.size());
@@ -108,7 +109,7 @@ namespace hq_economy
 		void post_unpack() override
 		{
 			if (game::environment::is_dedicated() || game::environment::is_zombies()) return;
-			command::add("hqeconomy", print_state);
+			command::add("hqeconomy", [](const command::params& params) { print_state(params.size() > 1 && std::string_view{params[1]} == "reload"); });
 			command::add("hqgrant", grant);
 			scheduler::loop(load_catalog, scheduler::pipeline::main, 5s);
 		}

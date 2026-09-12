@@ -9,6 +9,10 @@ namespace demonware::hq_economy
 	{
 		constexpr auto state_path = "players2/user/hq_economy.json";
 		std::mutex state_mutex{};
+		// Parsed copy of the store. snapshot() runs on the game's main thread from
+		// the AE injection loop, so it must not touch the disk once loaded; the
+		// cache is only refreshed by a successful transact() or by invalidate().
+		std::optional<state> cached{};
 
 		class file_lock
 		{
@@ -198,8 +202,18 @@ namespace demonware::hq_economy
 	state snapshot()
 	{
 		std::lock_guard lock{state_mutex};
-		const file_lock disk_lock{};
-		return load();
+		if (!cached)
+		{
+			const file_lock disk_lock{};
+			cached = load();
+		}
+		return *cached;
+	}
+
+	void invalidate()
+	{
+		std::lock_guard lock{state_mutex};
+		cached.reset();
 	}
 
 	bool transact(const std::function<bool(state&)>& mutation)
@@ -208,11 +222,12 @@ namespace demonware::hq_economy
 		{
 			std::lock_guard lock{state_mutex};
 			const file_lock disk_lock{};
-			auto next = load();
+			auto next = cached ? *cached : load();
 			if (!mutation(next) || next.revision == UINT64_MAX || next.inventory.size() > 10000 ||
 				next.achievements.size() > 10000 || next.transactions.size() > 10000) return false;
 			++next.revision;
 			if (!save(next)) throw std::runtime_error("atomic economy save failed");
+			cached = std::move(next);
 			return true;
 		}
 		catch (const std::exception& error)

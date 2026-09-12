@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -52,6 +53,8 @@ namespace demonware::hq_economy
 	};
 
 	state snapshot();
+	// Drop the in-memory copy so the next snapshot()/transact() re-reads the JSON file.
+	void invalidate();
 	bool transact(const std::function<bool(state&)>& mutation);
 	bool grant(state& data, const reward& value);
 }

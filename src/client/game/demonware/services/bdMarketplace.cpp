@@ -24,14 +24,17 @@ namespace demonware
 			reply.add(result);
 		}
 
+		// structured: the handler answers with send_struct(), so its failure reply must too.
 		template <typename F>
-		void guarded(service_server* server, const std::uint8_t task, F callback)
+		void guarded(service_server* server, const std::uint8_t task, F callback, const bool structured = false)
 		{
 			try { callback(); }
 			catch (const std::exception& error)
 			{
 				console::error("[HQ marketplace] task %u failed: %s\n", task, error.what());
-				server->create_reply(task, BD_HANDLE_TASK_FAILED).send();
+				auto reply = server->create_reply(task, BD_HANDLE_TASK_FAILED);
+				if (structured) reply.send_struct();
+				else reply.send();
 			}
 		}
 	}
@@ -249,7 +252,7 @@ namespace demonware
 			// The opaque body is deliberately not parsed until its schema is known.
 			console::warn("[HQ marketplace] task 242: provisional empty structured success\n");
 			server->create_reply(this->task_id()).send_struct();
-		});
+		}, true);
 	}
 
 }
