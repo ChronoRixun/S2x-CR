@@ -16,27 +16,6 @@ namespace demonware
 {
 	namespace
 	{
-		class ae_result final : public bdTaskResult
-		{
-		public:
-			std::string json{};
-			void serialize(byte_buffer* buffer) override
-			{
-				// Provisional mirrored task 4/5 envelope; see slice report.
-				hq_protocol::write_ae(buffer, json);
-			}
-		};
-
-		bool injected_fetch(const std::string& json)
-		{
-			rapidjson::Document document{};
-			document.Parse<rapidjson::kParseIterativeFlag>(json.data(), json.size());
-			if (document.HasParseError() || !document.IsObject() || !document.HasMember("Action") ||
-				!document["Action"].IsString()) return false;
-			const std::string_view action{document["Action"].GetString(), document["Action"].GetStringLength()};
-			return action == "get_user_achievements" || action == "get_scheduled_user_achievements";
-		}
-
 		void dispatch_ae(service_server* server, byte_buffer* buffer, const std::uint8_t task)
 		{
 			hq_protocol::trace("reward_request", buffer->get_remaining());
@@ -47,25 +26,9 @@ namespace demonware
 				server->create_reply(task, BD_REWARD_EVENTS_DATA_ERROR).send();
 				return;
 			}
-			// The engine never reads Achievement Engine JSON out of a task 4/5 reply; it
-			// only consumes responses through AE_ProcessResponse, which achievement_injection
-			// feeds for the two fetch actions. A structured reply makes the native task FAIL
-			// (callback 0x13C120 clears the scheduled cache's ready flag and raises a Lua
-			// failure event); the stock empty success is what completes it. Ghidra notes:
-			// build/research/ae-ghidra-findings.md.
-			if (injected_fetch(json))
-			{
-				server->create_reply(task).send();
-				return;
-			}
-			auto result = std::make_unique<ae_result>();
-			result->json = achievement_engine::dispatch(json);
-			byte_buffer raw{};
-			result->serialize(&raw);
-			hq_protocol::trace("reward_reply", raw.get_buffer());
-			auto reply = server->create_reply(task);
-			reply.add(result);
-			reply.send_struct();
+			// AE JSON is delivered synchronously by the native submit hook. Dispatching
+			// again here would apply mutations twice and structured replies fail tasks.
+			server->create_reply(task).send();
 		}
 
 		void submit_hidden_challenge_events(std::vector<reward_game_events::event>& events)
