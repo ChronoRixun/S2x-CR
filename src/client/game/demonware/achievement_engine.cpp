@@ -33,13 +33,16 @@ namespace demonware::achievement_engine
 			return {buffer.GetString(), buffer.GetSize()};
 		}
 
-		rapidjson::Value serialize(const hq_economy::achievement& entry, allocator& alloc)
+		rapidjson::Value serialize(const hq_economy::achievement& entry, allocator& alloc, const bool scheduled = false)
 		{
 			rapidjson::Value value{rapidjson::kObjectType};
 			value.AddMember("name", text(entry.name, alloc), alloc);
 			value.AddMember("challengeName", text(entry.challenge_name, alloc), alloc);
 			value.AddMember("kind", entry.kind, alloc);
-			value.AddMember("status", text(entry.status, alloc), alloc);
+			const auto status = scheduled ? (entry.status == "inProgress" ? "in_progress" :
+				entry.status == "finished" ? "completed" : entry.status.c_str()) :
+				(entry.status == "available" ? "inactive" : entry.status.c_str());
+			value.AddMember("status", text(status, alloc), alloc);
 			value.AddMember("requiresClaim", true, alloc);
 			value.AddMember("progress", entry.progress, alloc);
 			value.AddMember("progressTarget", entry.target, alloc);
@@ -49,17 +52,29 @@ namespace demonware::achievement_engine
 			value.AddMember("completionCount", entry.completion ? 1 : 0, alloc);
 			value.AddMember("completionTimestamp", entry.completion, alloc);
 			value.AddMember("activationTimestamp", entry.activation, alloc);
-			value.AddMember("eventEndTimestamp", entry.status == "available" ? (entry.offer_day + 1) * 86400 : 0, alloc);
+			value.AddMember("expirationTimestamp", (entry.offer_day + (entry.kind == 2 ? 7 : 1)) * 86400, alloc);
 			value.AddMember("usageTimeTarget", entry.usage_target, alloc);
 			value.AddMember("usageTimeRemaining", entry.usage_target - std::min(entry.usage_target, entry.usage), alloc);
 			rapidjson::Value rewards{rapidjson::kArrayType};
 			for (const auto& reward : entry.rewards)
 			{
 				rapidjson::Value result{rapidjson::kObjectType};
-				result.AddMember("type", text(reward.type, alloc), alloc);
-				if (reward.type == "ACTIVATE_ACHIEVEMENT") result.AddMember("name", text(reward.achievement_name, alloc), alloc);
-				result.AddMember(rapidjson::StringRef(reward.type == "GRANT_PRODUCT" ? "product" : "currencyID"), reward.id, alloc);
-				result.AddMember(rapidjson::StringRef(reward.type == "GRANT_PRODUCT" ? "num_times" : "amount"), reward.amount, alloc);
+				const auto product = reward.type == "GRANT_PRODUCT";
+				if (!product && reward.type != "GRANT_CURRENCY") continue;
+				result.AddMember("type", text(product ? "grant_product" : "grant_currency", alloc), alloc);
+				rapidjson::Value payload{rapidjson::kObjectType};
+				payload.AddMember("id", reward.id, alloc);
+				if (!product) payload.AddMember("amount", reward.amount, alloc);
+				else
+				{
+					payload.AddMember("currencies", rapidjson::Value{rapidjson::kArrayType}, alloc);
+					rapidjson::Value items{rapidjson::kArrayType}, item{rapidjson::kObjectType};
+					item.AddMember("id", reward.id, alloc);
+					item.AddMember("quantity", reward.amount, alloc);
+					items.PushBack(item, alloc);
+					payload.AddMember("items", items, alloc);
+				}
+				result.AddMember(rapidjson::StringRef(product ? "product" : "currency"), payload, alloc);
 				rewards.PushBack(result, alloc);
 			}
 			value.AddMember("successRewards", rewards, alloc);
@@ -91,18 +106,18 @@ namespace demonware::achievement_engine
 		std::vector<hq_economy::achievement> offers(const std::uint64_t day)
 		{
 			std::lock_guard lock{catalog_mutex};
-			std::vector<hq_economy::achievement> result{}, daily{};
-			for (auto entry : definitions)
+			std::vector<hq_economy::achievement> result{};
+			for (const auto kind : {1, 2, 4})
 			{
-				entry.offer_day = day;
-				if (entry.kind == 1) daily.push_back(entry);
-				else result.push_back(entry);
-			}
-			for (std::size_t i = 0; i < std::min<std::size_t>(3, daily.size()); ++i)
-			{
-				auto entry = daily[(day + i) % daily.size()];
-				entry.offer_day = day;
-				result.push_back(entry);
+				std::vector<hq_economy::achievement> pool{};
+				for (const auto& entry : definitions) if (entry.kind == kind) pool.push_back(entry);
+				const auto period = kind == 2 ? day / 7 : day;
+				for (std::size_t i = 0; i < std::min<std::size_t>(3, pool.size()); ++i)
+				{
+					auto entry = pool[(period + i) % pool.size()];
+					entry.offer_day = kind == 2 ? period * 7 : day;
+					result.push_back(entry);
+				}
 			}
 			return result;
 		}
@@ -140,7 +155,7 @@ namespace demonware::achievement_engine
 			const auto day = now / 86400;
 			const auto scheduled = offers(day);
 			hq_economy::state data{};
-			if (action != "get_user_achievements_for_users" && action != "pump_global_achievement_counters")
+			if (action != "pump_global_achievement_counters")
 			{
 				try { data = hq_economy::snapshot(); }
 				catch (const std::exception& error)
@@ -152,12 +167,18 @@ namespace demonware::achievement_engine
 			}
 			if (action == "get_user_achievements_for_users")
 			{
-				// Preserve the Zombies multi-user projection, without sharing wallets.
 				rapidjson::Value users{rapidjson::kObjectType};
+				const auto local_id = std::to_string(steam::SteamUser()->GetSteamID().bits);
 				const auto add = [&](const std::string& id)
 				{
-					if (!users.HasMember(id.c_str())) users.AddMember(text(id, alloc),
-						achievement_response::serialize_achievements(achievement_store::get_all(), alloc), alloc);
+					if (users.HasMember(id.c_str())) return;
+					rapidjson::Value entries{rapidjson::kArrayType};
+					std::size_t limit = 1000;
+					if (request.HasMember("Limit") && request["Limit"].IsUint() && request["Limit"].GetUint())
+						limit = std::min<std::size_t>(1000, request["Limit"].GetUint());
+					if (id == local_id) for (const auto& [name, entry] : data.achievements)
+						if (entries.Size() < limit && matches(request, entry)) entries.PushBack(serialize(entry, alloc), alloc);
+					users.AddMember(text(id, alloc), entries, alloc);
 				};
 				if (request.HasMember("UserIDs") && request["UserIDs"].IsArray())
 					for (const auto& id : request["UserIDs"].GetArray())
@@ -165,7 +186,7 @@ namespace demonware::achievement_engine
 						if (id.IsString()) add(id.GetString());
 						else if (id.IsUint64()) add(std::to_string(id.GetUint64()));
 					}
-				if (users.ObjectEmpty()) add(std::to_string(steam::SteamUser()->GetSteamID().bits));
+				if (!request.HasMember("UserIDs")) add(std::to_string(steam::SteamUser()->GetSteamID().bits));
 				response.AddMember("Achievements", users, alloc);
 				response.AddMember("NextPageToken", "", alloc);
 			}
@@ -173,8 +194,35 @@ namespace demonware::achievement_engine
 				action == "get_expired_user_achievements")
 			{
 				rapidjson::Value results{rapidjson::kArrayType};
+				if (action == "get_user_achievements" && request.HasMember("UserIDs"))
+				{
+					if (!request["UserIDs"].IsArray()) return fail("invalid_user_ids");
+					const auto local_id = steam::SteamUser()->GetSteamID().bits;
+					bool local{};
+					for (const auto& id : request["UserIDs"].GetArray())
+						local |= (id.IsUint64() && id.GetUint64() == local_id) ||
+							(id.IsString() && std::string_view{id.GetString()} == std::to_string(local_id));
+					if (!local)
+					{
+						response.AddMember("Achievements", results, alloc);
+						response.AddMember("NextPageToken", "", alloc);
+						return encode(response);
+					}
+				}
 				if (action == "get_user_achievements")
-					results = achievement_response::serialize_achievements(achievement_store::get_all(), alloc);
+					{
+					for (const auto& legacy : achievement_store::get_all())
+					{
+						hq_economy::achievement filter{};
+						filter.name = legacy.name; filter.kind = legacy.kind;
+						filter.status = get_achievement_status_name(legacy.status);
+						if (matches(request, filter))
+						{
+							auto record = achievement_response::serialize_achievements({legacy}, alloc);
+							results.PushBack(record[0], alloc);
+						}
+					}
+					}
 				std::vector<hq_economy::achievement> entries{};
 				if (action == "get_scheduled_user_achievements")
 				{
@@ -182,13 +230,15 @@ namespace demonware::achievement_engine
 					{
 						const auto it = data.achievements.find(entry.name);
 						if (it != data.achievements.end() && (it->second.status == "inProgress" ||
-							it->second.status == "claimable" || it->second.offer_day == day)) entry = it->second;
+							it->second.status == "claimable" || it->second.offer_day == entry.offer_day)) entry = it->second;
 						entries.push_back(entry);
 					}
 					rapidjson::Value periods{rapidjson::kObjectType}, limits{rapidjson::kObjectType};
 					periods.AddMember("1", (day + 1) * 86400, alloc);
+					periods.AddMember("2", (day / 7 + 1) * 7 * 86400, alloc);
 					periods.AddMember("4", (day + 1) * 86400, alloc);
 					limits.AddMember("1", 3, alloc);
+					limits.AddMember("2", 3, alloc);
 					limits.AddMember("4", 3, alloc);
 					response.AddMember("NextPeriodStartTimes", periods, alloc);
 					response.AddMember("ActivationLimits", limits, alloc);
@@ -203,7 +253,7 @@ namespace demonware::achievement_engine
 					}
 					entries.push_back(entry);
 				}
-				for (const auto& entry : entries) if (matches(request, entry)) results.PushBack(serialize(entry, alloc), alloc);
+				for (const auto& entry : entries) if (matches(request, entry)) results.PushBack(serialize(entry, alloc, action == "get_scheduled_user_achievements"), alloc);
 				std::size_t offset{};
 				const auto token = string(request, "PageToken");
 				if (!token.empty())
@@ -229,9 +279,16 @@ namespace demonware::achievement_engine
 				action == "deactivate_user_achievement" || action == "claim_achievement_reward")
 			{
 				const auto name = string(request, "AchievementName");
-				if (name.empty() || name.size() > 256 || client_tx.size() > 256 || !request.HasMember("AchievementKind") || !request["AchievementKind"].IsInt())
+				if (name.empty() || name.size() > 256 || client_tx.size() > 256)
 					return fail("invalid_achievement");
-				const auto kind = request["AchievementKind"].GetInt();
+				int kind{};
+				if (request.HasMember("AchievementKind"))
+				{
+					if (!request["AchievementKind"].IsInt()) return fail("invalid_kind");
+					kind = request["AchievementKind"].GetInt();
+				}
+				else if (const auto it = data.achievements.find(name); it != data.achievements.end()) kind = it->second.kind;
+				else for (const auto& offer : scheduled) if (offer.name == name) kind = offer.kind;
 				if (action == "claim_achievement_reward" && client_tx.empty()) return fail("missing_transaction");
 				hq_economy::achievement updated{};
 				bool replay{};
@@ -247,7 +304,8 @@ namespace demonware::achievement_engine
 							updated = it->second;
 							return true;
 						}
-						if (it != next.achievements.end() && it->second.offer_day == day) return false;
+						if (it != next.achievements.end() && it->second.status != "available" &&
+							(kind == 2 ? it->second.offer_day / 7 == day / 7 : it->second.offer_day == day)) return false;
 						const auto offer = std::find_if(scheduled.begin(), scheduled.end(), [&](const auto& e) { return e.name == name && e.kind == kind; });
 						if (offer == scheduled.end()) return false;
 						const auto active = std::count_if(next.achievements.begin(), next.achievements.end(), [&](const auto& pair)
@@ -266,7 +324,11 @@ namespace demonware::achievement_engine
 					if (action == "deactivate_user_achievement")
 					{
 						if (entry.status != "inProgress" && entry.status != "claimable" && entry.status != "inactive") return false;
-						entry.status = "inactive";
+						if (entry.kind != 1 && entry.kind != 2 && entry.kind != 4) return false;
+						entry.status = "available";
+						entry.progress = 0;
+						entry.activation = 0;
+						entry.usage = 0;
 					}
 					else
 					{

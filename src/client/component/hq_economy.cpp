@@ -86,6 +86,20 @@ namespace hq_economy
 					catalog.push_back(entry);
 				}
 			}
+			// The copied weekly UI table is empty. These definition-backed offers use
+			// explicit local targets; see Slice 2 report, not inferred retail values.
+			for (const auto& [name, target] : std::map<std::string, std::uint32_t>{
+				{"weekly_ch_kills", 100}, {"weekly_ch_wins", 10}, {"weekly_ch_scorestreak_calls", 25}})
+			{
+				for (int row = 0; row < definitions->rowCount; ++row)
+				{
+					if (name != cell(definitions, row, 1) || std::string_view{cell(definitions, row, 2)} != "2") continue;
+					demonware::hq_economy::achievement entry{};
+					entry.name = name; entry.challenge_name = name;
+					entry.kind = 2; entry.target = target;
+					catalog.push_back(entry);
+				}
+			}
 			// Minimal local contract policy; prices/reward bundles are not in dwGameChallenges.
 			for (int row = 0; row < definitions->rowCount; ++row)
 			{
