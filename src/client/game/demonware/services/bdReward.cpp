@@ -27,6 +27,16 @@ namespace demonware
 			}
 		};
 
+		bool injected_fetch(const std::string& json)
+		{
+			rapidjson::Document document{};
+			document.Parse<rapidjson::kParseIterativeFlag>(json.data(), json.size());
+			if (document.HasParseError() || !document.IsObject() || !document.HasMember("Action") ||
+				!document["Action"].IsString()) return false;
+			const std::string_view action{document["Action"].GetString(), document["Action"].GetStringLength()};
+			return action == "get_user_achievements" || action == "get_scheduled_user_achievements";
+		}
+
 		void dispatch_ae(service_server* server, byte_buffer* buffer, const std::uint8_t task)
 		{
 			hq_protocol::trace("reward_request", buffer->get_remaining());
@@ -35,6 +45,17 @@ namespace demonware
 			{
 				console::warn("[HQ AE] invalid bdReward task %u framing\n", task);
 				server->create_reply(task, BD_REWARD_EVENTS_DATA_ERROR).send();
+				return;
+			}
+			// The engine never reads Achievement Engine JSON out of a task 4/5 reply; it
+			// only consumes responses through AE_ProcessResponse, which achievement_injection
+			// feeds for the two fetch actions. A structured reply makes the native task FAIL
+			// (callback 0x13C120 clears the scheduled cache's ready flag and raises a Lua
+			// failure event); the stock empty success is what completes it. Ghidra notes:
+			// build/research/ae-ghidra-findings.md.
+			if (injected_fetch(json))
+			{
+				server->create_reply(task).send();
 				return;
 			}
 			auto result = std::make_unique<ae_result>();

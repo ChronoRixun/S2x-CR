@@ -374,6 +374,12 @@ namespace game
 	WEAK symbol<std::byte> AE_UserAchievementTaskData{ 0x6039A60 };
 	WEAK symbol<std::byte> AE_ScheduledAchievementTaskData{ 0x60391D0 };
 	WEAK symbol<const char*(void* response)> AE_GetResponseString{ 0xA3B850 };
+	// Scheduled-challenge cache read by Engine.AE_GetScheduledChallenges: 0x1908 bytes per controller,
+	// 100 records of 0x30 bytes, ready byte at +0x1900 (see build/research/ae-ghidra-findings.md).
+	WEAK symbol<std::byte> AE_ScheduledChallengeCache{ 0x5C94C60 };
+	// Completion callbacks the scheduled issuer registers on its Demonware task.
+	WEAK symbol<void(void* task)> AE_ScheduledTaskSucceeded{ 0x13C220 };
+	WEAK symbol<void(void* task)> AE_ScheduledTaskFailed{ 0x13C120 };
 	WEAK symbol<bool(void* response, const char* value)> AE_SetResponseString{ 0xA3B8F0 };
 	WEAK symbol<void(unsigned int controllerIndex, const void* response,
 		unsigned int taskGroup)> AE_ProcessResponse{ 0x676A40 };

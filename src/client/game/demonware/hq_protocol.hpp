@@ -10,7 +10,8 @@ namespace demonware::hq_protocol
 	inline bool padding(byte_buffer* buffer)
 	{
 		const auto tail = buffer->get_remaining();
-		return tail.size() <= 15 && std::all_of(tail.begin(), tail.end(), [](char value) { return value == 0; });
+		// pump_global_achievement_counters arrives with 17 trailing zero bytes; accept any short zero tail.
+		return tail.size() <= 64 && std::all_of(tail.begin(), tail.end(), [](char value) { return value == 0; });
 	}
 
 	inline bool parse_ae(byte_buffer* buffer, std::string& json)
