@@ -95,8 +95,18 @@ namespace demonware::achievement_engine
 					if (std::strcmp(key, "AchievementKinds") == 0)
 						found |= value.IsInt() && value.GetInt() == entry.kind;
 					else if (value.IsString())
-						found |= std::string_view{value.GetString()} ==
-							(std::strcmp(key, "AchievementNames") == 0 ? entry.name : entry.status);
+					{
+						const std::string_view requested{value.GetString(), value.GetStringLength()};
+						if (std::strcmp(key, "AchievementNames") == 0) found |= requested == entry.name;
+						else
+						{
+							const auto scheduled = string(request, "Action") == "get_scheduled_user_achievements";
+							const auto status = scheduled ? (entry.status == "inProgress" ? "in_progress" :
+								entry.status == "finished" ? "completed" : entry.status.c_str()) :
+								(entry.status == "available" ? "inactive" : entry.status.c_str());
+							found |= requested == status;
+						}
+					}
 				}
 				if (!found) return false;
 			}
@@ -222,6 +232,7 @@ namespace demonware::achievement_engine
 			}
 			if (action == "get_user_achievements_for_users")
 			{
+				if (request.HasMember("UserIDs") && !request["UserIDs"].IsArray()) return fail("invalid_user_ids");
 				rapidjson::Value users{rapidjson::kObjectType};
 				const auto local_id = std::to_string(steam::SteamUser()->GetSteamID().bits);
 				const auto add = [&](const std::string& id)
@@ -390,7 +401,8 @@ namespace demonware::achievement_engine
 						const auto transaction_key = "claim:" + client_tx;
 						const auto fingerprint = name + ":" + std::to_string(entry.offer_day);
 						const auto previous = next.transactions.find(transaction_key);
-						if (previous != next.transactions.end() && previous->second != fingerprint) return false;
+						if (previous != next.transactions.end() &&
+							(previous->second != fingerprint || entry.claim_transaction != client_tx)) return false;
 						if (entry.status == "finished") replay = true;
 						else
 						{

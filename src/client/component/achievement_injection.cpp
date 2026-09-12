@@ -168,4 +168,3 @@ namespace achievement_injection
 }
 
 REGISTER_COMPONENT(achievement_injection::component)
-

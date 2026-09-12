@@ -57,6 +57,25 @@ namespace hq_economy
 			else console::warn("[HQ economy] grant rejected (ID, overflow, lock or save failure)\n");
 		}
 
+		void event_command(const command::params& params)
+		{
+			const std::string_view name = params.size() == 2 ? params[1] : "";
+			if (name != "kill" && name != "headshot" && name != "payroll")
+			{
+				console::info("Usage: aeevent <kill|headshot|payroll> (changes local economy)\n");
+				return;
+			}
+			static std::int64_t last{};
+			const auto timestamp = std::chrono::duration_cast<std::chrono::microseconds>(
+				std::chrono::system_clock::now().time_since_epoch()).count();
+			last = std::max(last + 1, timestamp);
+			demonware::reward_game_events::event event{name == "payroll" ? "18" : "1", last, {}};
+			if (name == "headshot") event.parameters.push_back({"6", 1});
+			console::info("[HQ event] diagnostic event %.*s: %s; use aefetch user to refresh the native cache\n",
+				static_cast<int>(name.size()), name.data(),
+				demonware::achievement_engine::submit_event(event) ? "saved" : "failed");
+		}
+
 		void load_catalog()
 		{
 			const auto* daily = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/dailychallengestable.csv", false).stringTable;
@@ -128,6 +147,7 @@ namespace hq_economy
 			if (game::environment::is_dedicated() || game::environment::is_zombies()) return;
 			command::add("hqeconomy", [](const command::params& params) { print_state(params.size() > 1 && std::string_view{params[1]} == "reload"); });
 			command::add("hqgrant", grant);
+			command::add("aeevent", event_command);
 			scheduler::loop(load_catalog, scheduler::pipeline::main, 5s);
 		}
 	};
