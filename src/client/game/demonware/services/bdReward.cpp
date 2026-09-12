@@ -23,22 +23,15 @@ namespace demonware
 			void serialize(byte_buffer* buffer) override
 			{
 				// Provisional mirrored task 4/5 envelope; see slice report.
-				buffer->write_string("s2_steam");
-				buffer->write_uint16(1);
-				buffer->write_int32(1);
-				buffer->write_string(json);
+				hq_protocol::write_ae(buffer, json);
 			}
 		};
 
 		void dispatch_ae(service_server* server, byte_buffer* buffer, const std::uint8_t task)
 		{
 			hq_protocol::trace("reward_request", buffer->get_remaining());
-			std::string context{}, json{};
-			unsigned short count{};
-			int type{};
-			if (buffer->size() > 65536 || !buffer->read_string(&context) || context != "s2_steam" ||
-				!buffer->read_uint16(&count) || count != 1 || !buffer->read_int32(&type) || type != 1 ||
-				!buffer->read_string(&json) || !hq_protocol::padding(buffer))
+			std::string json{};
+			if (!hq_protocol::parse_ae(buffer, json))
 			{
 				console::warn("[HQ AE] invalid bdReward task %u framing\n", task);
 				server->create_reply(task, BD_REWARD_EVENTS_DATA_ERROR).send();

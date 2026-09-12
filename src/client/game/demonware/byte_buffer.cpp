@@ -1,5 +1,8 @@
 #include <std_include.hpp>
-#include "dw_include.hpp"
+#include "byte_buffer.hpp"
+#include "game/types/demonware.hpp"
+
+using namespace game::demonware;
 
 namespace demonware
 {

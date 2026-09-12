@@ -1,6 +1,7 @@
 #include <std_include.hpp>
 #include "achievement_engine.hpp"
 #include "achievement_response.hpp"
+#include "hq_protocol.hpp"
 #include "component/console/console.hpp"
 #include "steam/steam.hpp"
 #include <charconv>
@@ -56,6 +57,7 @@ namespace demonware::achievement_engine
 			{
 				rapidjson::Value result{rapidjson::kObjectType};
 				result.AddMember("type", text(reward.type, alloc), alloc);
+				if (reward.type == "ACTIVATE_ACHIEVEMENT") result.AddMember("name", text(reward.achievement_name, alloc), alloc);
 				result.AddMember(rapidjson::StringRef(reward.type == "GRANT_PRODUCT" ? "product" : "currencyID"), reward.id, alloc);
 				result.AddMember(rapidjson::StringRef(reward.type == "GRANT_PRODUCT" ? "num_times" : "amount"), reward.amount, alloc);
 				rewards.PushBack(result, alloc);
@@ -118,7 +120,7 @@ namespace demonware::achievement_engine
 		{
 			rapidjson::Document request{};
 			if (body.size() > 64 * 1024) return R"({"Status":"error","reason":"request_too_large"})";
-			request.Parse(body.data(), body.size());
+			request.Parse<rapidjson::kParseIterativeFlag>(body.data(), body.size());
 			if (request.HasParseError() || !request.IsObject()) return R"({"Status":"error","reason":"invalid_json"})";
 			const auto action = string(request, "Action");
 			const auto client_tx = string(request, "ClientTx");
@@ -137,7 +139,17 @@ namespace demonware::achievement_engine
 			const auto now = static_cast<std::uint64_t>(time(nullptr));
 			const auto day = now / 86400;
 			const auto scheduled = offers(day);
-			const auto data = hq_economy::snapshot();
+			hq_economy::state data{};
+			if (action != "get_user_achievements_for_users" && action != "pump_global_achievement_counters")
+			{
+				try { data = hq_economy::snapshot(); }
+				catch (const std::exception& error)
+				{
+					if (action != "get_user_achievements") throw;
+					// A damaged HQ file must not hide independently persisted Zombies records.
+					console::error("[HQ AE] HQ records unavailable: %s\n", error.what());
+				}
+			}
 			if (action == "get_user_achievements_for_users")
 			{
 				// Preserve the Zombies multi-user projection, without sharing wallets.
@@ -286,7 +298,7 @@ namespace demonware::achievement_engine
 					rapidjson::Value items{rapidjson::kArrayType}, currencies{rapidjson::kArrayType};
 					for (const auto& reward : updated.rewards)
 					{
-						if (replay && client_tx != updated.claim_transaction) continue;
+						if ((replay && client_tx != updated.claim_transaction) || reward.type == "ACTIVATE_ACHIEVEMENT") continue;
 						rapidjson::Value value{rapidjson::kObjectType};
 						const auto item = reward.type == "GRANT_PRODUCT";
 						value.AddMember(rapidjson::StringRef(item ? "guid" : "currencyID"), reward.id, alloc);
@@ -300,6 +312,7 @@ namespace demonware::achievement_engine
 			}
 			else
 			{
+				hq_protocol::trace("unsupported_ae_json", std::string{body});
 				console::warn("[HQ AE] unsupported action '%s': %.*s\n", action.c_str(), static_cast<int>(std::min<std::size_t>(body.size(), 768)), body.data());
 				return fail("unsupported_action");
 			}

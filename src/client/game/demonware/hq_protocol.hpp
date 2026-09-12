@@ -12,6 +12,24 @@ namespace demonware::hq_protocol
 		return tail.size() <= 15 && std::all_of(tail.begin(), tail.end(), [](char value) { return value == 0; });
 	}
 
+	inline bool parse_ae(byte_buffer* buffer, std::string& json)
+	{
+		std::string context{};
+		unsigned short count{};
+		int type{};
+		return buffer->size() <= 65536 && buffer->read_string(&context) && context == "s2_steam" &&
+			buffer->read_uint16(&count) && count == 1 && buffer->read_int32(&type) && type == 1 &&
+			buffer->read_string(&json) && padding(buffer);
+	}
+
+	inline void write_ae(byte_buffer* buffer, const std::string& json)
+	{
+		buffer->write_string("s2_steam");
+		buffer->write_uint16(1);
+		buffer->write_int32(1);
+		buffer->write_string(json);
+	}
+
 	inline void trace(const char* label, const std::string& bytes)
 	{
 		static std::atomic_uint64_t sequence{};

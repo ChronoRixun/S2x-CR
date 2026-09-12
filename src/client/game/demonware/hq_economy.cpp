@@ -49,7 +49,7 @@ namespace demonware::hq_economy
 			std::string bytes{};
 			if (!utils::io::read_file(state_path, &bytes)) throw std::runtime_error("cannot read economy");
 			rapidjson::Document document{};
-			document.Parse(bytes.data(), bytes.size());
+			document.Parse<rapidjson::kParseIterativeFlag>(bytes.data(), bytes.size());
 			if (document.HasParseError() || !document.IsObject() || number(document, "schemaVersion") != 1)
 				throw std::runtime_error("invalid economy schema; original preserved");
 			data.revision = number(document, "revision");
@@ -98,6 +98,7 @@ namespace demonware::hq_economy
 				{
 					reward result{};
 					result.type = string(reward_value, "type");
+					if (reward_value.HasMember("achievementName")) result.achievement_name = string(reward_value, "achievementName");
 					result.id = static_cast<std::uint32_t>(number(reward_value, "id", UINT32_MAX));
 					result.amount = static_cast<std::uint32_t>(number(reward_value, "amount", UINT32_MAX));
 					entry.rewards.push_back(result);
@@ -159,6 +160,7 @@ namespace demonware::hq_economy
 				{
 					writer.StartObject();
 					writer.Key("type"); writer.String(result.type.c_str());
+					writer.Key("achievementName"); writer.String(result.achievement_name.c_str());
 					writer.Key("id"); writer.Uint(result.id);
 					writer.Key("amount"); writer.Uint(result.amount);
 					writer.EndObject();
@@ -207,7 +209,8 @@ namespace demonware::hq_economy
 			std::lock_guard lock{state_mutex};
 			const file_lock disk_lock{};
 			auto next = load();
-			if (!mutation(next) || next.revision == UINT64_MAX) return false;
+			if (!mutation(next) || next.revision == UINT64_MAX || next.inventory.size() > 10000 ||
+				next.achievements.size() > 10000 || next.transactions.size() > 10000) return false;
 			++next.revision;
 			if (!save(next)) throw std::runtime_error("atomic economy save failed");
 			return true;
@@ -221,6 +224,20 @@ namespace demonware::hq_economy
 
 	bool grant(state& data, const reward& value)
 	{
+		if (value.type == "ACTIVATE_ACHIEVEMENT")
+		{
+			const auto target = data.achievements.find(value.achievement_name);
+			if (target == data.achievements.end() || target->second.status != "inactive") return false;
+			const auto active = std::count_if(data.achievements.begin(), data.achievements.end(), [&](const auto& pair)
+			{
+				return pair.second.kind == target->second.kind &&
+					(pair.second.status == "inProgress" || pair.second.status == "claimable");
+			});
+			if (active >= 3) return false;
+			target->second.status = "inProgress";
+			target->second.activation = static_cast<std::uint64_t>(time(nullptr));
+			return true;
+		}
 		if (value.type == "GRANT_CURRENCY" || value.type == "SET_CURRENCY_BALANCE")
 		{
 			if (value.id > UINT8_MAX) return false;

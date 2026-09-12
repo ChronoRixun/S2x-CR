@@ -22,6 +22,7 @@ namespace demonware::hq_economy
 		std::string type{};
 		std::uint32_t id{};
 		std::uint32_t amount{};
+		std::string achievement_name{};
 	};
 
 	struct achievement
