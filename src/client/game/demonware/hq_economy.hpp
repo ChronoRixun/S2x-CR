@@ -16,6 +16,7 @@ namespace demonware::hq_economy
 		std::uint16_t collision{};
 		std::uint32_t modified{};
 		std::uint32_t expires{};
+		std::string metadata{};
 	};
 
 	struct reward

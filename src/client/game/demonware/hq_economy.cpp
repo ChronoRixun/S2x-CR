@@ -74,6 +74,16 @@ namespace demonware::hq_economy
 				entry.collision = static_cast<std::uint16_t>(number(value, "collision", UINT16_MAX));
 				entry.modified = static_cast<std::uint32_t>(number(value, "modified", UINT32_MAX));
 				entry.expires = static_cast<std::uint32_t>(number(value, "expires", UINT32_MAX));
+				if (value.HasMember("itemData"))
+				{
+					const auto& item_bytes = value["itemData"];
+					if (!item_bytes.IsArray() || item_bytes.Size() > 64) throw std::runtime_error("invalid item data");
+					for (const auto& byte : item_bytes.GetArray())
+					{
+						if (!byte.IsUint() || byte.GetUint() > 255) throw std::runtime_error("invalid item data byte");
+						entry.metadata += static_cast<char>(byte.GetUint());
+					}
+				}
 				if (!entry.guid || !data.inventory.emplace(std::make_pair(entry.guid, entry.collision), entry).second)
 					throw std::runtime_error("invalid or duplicate item");
 			}
@@ -140,6 +150,9 @@ namespace demonware::hq_economy
 				writer.Key("collision"); writer.Uint(entry.collision);
 				writer.Key("modified"); writer.Uint(entry.modified);
 				writer.Key("expires"); writer.Uint(entry.expires);
+				writer.Key("itemData"); writer.StartArray();
+				for (const auto byte : entry.metadata) writer.Uint(static_cast<unsigned char>(byte));
+				writer.EndArray();
 				writer.EndObject();
 			}
 			writer.EndArray();

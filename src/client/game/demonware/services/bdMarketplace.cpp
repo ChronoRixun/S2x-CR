@@ -3,6 +3,7 @@
 #include "../hq_marketplace.hpp"
 #include "../hq_protocol.hpp"
 #include "../hq_vendor.hpp"
+#include "../hq_item_data.hpp"
 #include "steam/steam.hpp"
 #include "game/game.hpp"
 
@@ -18,7 +19,7 @@ namespace demonware
 			result->m_itemId = item.guid;
 			result->m_itemQuantity = item.quantity;
 			result->m_itemXp = 0;
-			result->m_itemData = {};
+			result->m_itemData = item.metadata;
 			result->m_expireDateTime = item.expires;
 			result->m_expiryDuration = -1;
 			result->m_collisionField = item.collision;
@@ -55,6 +56,7 @@ namespace demonware
 		this->register_task(130, &bdMarketplace::getBalance);
 		this->register_task(132, &bdMarketplace::getBalanceV2);
 		this->register_task(165, &bdMarketplace::getInventoryPaginated);
+		this->register_task(168, &bdMarketplace::putInventoryItemsData);
 		this->register_task(193, &bdMarketplace::putPlayersInventoryItems);
 		this->register_task(199, &bdMarketplace::pawnItems);
 		this->register_task(232, &bdMarketplace::getEntitlements);
@@ -250,6 +252,38 @@ namespace demonware
 			console::info("[HQ marketplace] getSkusPaginated: terminal empty page %u, limit %u\n",
 				request.page, request.limit);
 			server->create_reply(this->task_id()).send();
+		});
+	}
+
+	void bdMarketplace::putInventoryItemsData(service_server* server, byte_buffer* buffer) const
+	{
+		if (game::environment::is_zombies())
+		{
+			server->create_reply(this->task_id()).send(); // unchanged generic fallback
+			return;
+		}
+		guarded(server, this->task_id(), [&]
+		{
+			hq_protocol::trace("marketplace_168", buffer->get_remaining());
+			std::string transaction;
+			std::vector<hq_item_data::update> updates;
+			if (!hq_item_data::parse(buffer, steam::SteamUser()->GetSteamID().bits, transaction, updates))
+			{
+				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send();
+				return;
+			}
+			if (!hq_item_data::apply(transaction, updates))
+			{
+				server->create_reply(this->task_id(), BD_HANDLE_TASK_FAILED).send();
+				return;
+			}
+			auto result = std::make_unique<hq_item_data::audit_result>();
+			result->transaction = transaction;
+			byte_buffer encoded; result->serialize(&encoded);
+			hq_protocol::trace("marketplace_168_response", encoded.get_buffer());
+			auto reply = server->create_reply(this->task_id());
+			reply.add(result);
+			reply.send();
 		});
 	}
 
