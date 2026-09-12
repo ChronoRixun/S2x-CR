@@ -3,6 +3,7 @@
 
 #include "game/game.hpp"
 #include "../hq_protocol.hpp"
+#include "../hq_mail.hpp"
 
 namespace demonware
 {
@@ -14,7 +15,7 @@ namespace demonware
 
 	void bdMarketingComms::reportFullMessagesViewed(service_server* server, byte_buffer* buffer) const
 	{
-		// TODO:
+		hq_protocol::trace("marketing_4", buffer->get_remaining());
 		auto reply = server->create_reply(this->task_id());
 		reply.send();
 	}
@@ -63,6 +64,7 @@ namespace demonware
 			{
 				if (at >= body.size()) return false;
 				const auto byte = static_cast<unsigned char>(body[at++]);
+				if (shift == 63 && (byte & 0xFE)) return false;
 				value |= static_cast<std::uint64_t>(byte & 0x7F) << shift;
 				if ((byte & 0x80) == 0) return true;
 			}
@@ -129,35 +131,6 @@ namespace demonware
 			return total;
 		}
 
-		void write_varint(std::string& out, std::uint64_t value)
-		{
-			do
-			{
-				auto byte = static_cast<unsigned char>(value & 0x7F);
-				value >>= 7;
-				if (value) byte |= 0x80;
-				out.push_back(static_cast<char>(byte));
-			} while (value);
-		}
-
-		// One repeated entry of the same 18-byte message the Zombies branch below fabricates
-		// ({ 1: id, 2..6: "", 7: 0, 8: 1 }), except that the id is non-zero and ascending.
-		void write_message(std::string& out, std::uint64_t id)
-		{
-			std::string message{};
-			message.push_back('\x08');
-			write_varint(message, id);
-			for (const auto tag : { '\x12', '\x1A', '\x22', '\x2A', '\x32' })
-			{
-				message.push_back(tag);
-				message.push_back('\x00');
-			}
-			message.append("\x38\x00\x40\x01", 4);
-
-			out.push_back('\x0A');
-			write_varint(out, message.size());
-			out.append(message);
-		}
 	}
 
 	void bdMarketingComms::getMessages(service_server* server, byte_buffer* buffer) const
@@ -184,14 +157,11 @@ namespace demonware
 			};
 
 			auto slots = requested_message_slots(request_body);
-			if (!slots) slots = default_message_slots;
+			slots = std::max(slots, default_message_slots);
 
 			auto result = std::make_unique<bdCommsMessagesResult>();
-			for (std::size_t i = 0; i < slots; ++i)
-			{
-				write_message(result->payload, i + 1);
-			}
-			console::info("[HQ mail] getMessages: %zu benign message(s) for %zu advertised slot(s)\n",
+			result->payload = hq_mail::empty_slots(slots);
+			console::info("[HQ mail] getMessages: %zu non-claimable slot(s) for %zu advertised slot(s)\n",
 				slots, slots);
 
 			auto reply = server->create_reply(this->task_id());
