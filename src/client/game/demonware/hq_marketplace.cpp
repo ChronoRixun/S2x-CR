@@ -11,6 +11,21 @@ namespace demonware::hq_marketplace
 		return buffer->size() <= 65536 && buffer->read_string(&value) && value == "s2_steam";
 	}
 
+	bool parse_skus(byte_buffer* buffer, inventory_request& request)
+	{
+		bool show_all{};
+		std::uint32_t ids{}, types{}, id{};
+		unsigned char type{};
+		std::string token{};
+		if (!context(buffer) || !buffer->read_uint32(&request.page) || !request.page ||
+			!buffer->read_uint32(&request.limit) || !request.limit || request.limit > 100 ||
+			!buffer->read_bool(&show_all) || !buffer->read_uint32(&ids) || ids > 100) return false;
+		for (std::uint32_t i = 0; i < ids; ++i) if (!buffer->read_uint32(&id)) return false;
+		if (!buffer->read_uint32(&types) || types > 256) return false;
+		for (std::uint32_t i = 0; i < types; ++i) if (!buffer->read_ubyte(&type)) return false;
+		return buffer->read_string(&token) && token.size() <= 64 && hq_protocol::padding(buffer);
+	}
+
 	bool parse_inventory(byte_buffer* buffer, inventory_request& request)
 	{
 		return context(buffer) && buffer->read_uint32(&request.page) && buffer->read_uint32(&request.limit) &&

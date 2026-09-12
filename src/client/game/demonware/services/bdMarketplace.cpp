@@ -237,10 +237,17 @@ namespace demonware
 				return;
 			}
 			hq_protocol::trace("marketplace_111", buffer->get_remaining());
-			// No local SKU catalog. The data_types.hpp bdTaskResult collection is
-			// empty: send() serializes a typed uint32 result count of zero. There
-			// is no SKU/page wrapper serializer, and no placeholder item to add.
-			console::info("[HQ marketplace] getSkusPaginated: empty SKU page\n");
+			hq_marketplace::inventory_request request{};
+			if (!game::environment::is_zombies() && !hq_marketplace::parse_skus(buffer, request))
+			{
+				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send();
+				return;
+			}
+			// 0x27B700 marks SKUs fetched when result count < requested page size.
+			// Zero is a terminal page; the SDK result count is the paging signal.
+			// There is no extra page object or token in this reply.
+			console::info("[HQ marketplace] getSkusPaginated: terminal empty page %u, limit %u\n",
+				request.page, request.limit);
 			server->create_reply(this->task_id()).send();
 		});
 	}
