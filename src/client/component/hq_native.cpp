@@ -12,6 +12,9 @@ namespace hq_native
 	{
 		utils::hook::detour sku_success_hook;
 		utils::hook::detour sku_failure_hook;
+		utils::hook::detour conversion_success_hook;
+		utils::hook::detour conversion_failure_hook;
+		unsigned conversion_successes{}, conversion_failures{};
 
 		void status()
 		{
@@ -22,7 +25,7 @@ namespace hq_native
 		void vendor_status()
 		{
 			status();
-			console::info("[HQ vendor] Engine.Inventory_AreSKUsFetched=%u; 242 requests=%u replies=%u rejected=%u (provisional schema)\n",
+			console::info("[HQ vendor] Engine.Inventory_AreSKUsFetched=%u; 242 requests=%u replies=%u rejected=%u (conversion rule)\n",
 				utils::hook::invoke<bool>(0x278400_g), demonware::hq_vendor::requests.load(),
 				demonware::hq_vendor::replies.load(), demonware::hq_vendor::rejected.load());
 			for (const auto* name : {"allow_hub_vendor_menu", "spv_hub_vendors_kswitch",
@@ -31,7 +34,31 @@ namespace hq_native
 				auto* value = game::Dvar_FindMalleableVar(name);
 				console::info("[HQ vendor] %s=%s\n", name, value ? game::Dvar_ValueToString(value, true, &value->current) : "<unregistered>");
 			}
-			console::info("[HQ vendor] inventory/entitlement fetched flags and final LUI enable expression unresolved\n");
+			console::info("[HQ vendor] inventoryReady=%u inventoryCount=%u dirtyMetadata=%u\n",
+				*reinterpret_cast<const unsigned char*>(0x80385A8_g),
+				*reinterpret_cast<const unsigned*>(0x80385A4_g), *reinterpret_cast<const unsigned*>(0x819B568_g));
+			console::info("[HQ vendor] conversion successes=%u failures=%u responseTx=%.*s scalar=%llu currencyCount=%u inventoryCount=%u extraCount=%u\n",
+				conversion_successes, conversion_failures, 24, reinterpret_cast<const char*>(0x81960C0_g),
+				*reinterpret_cast<const std::uint64_t*>(0x81960E0_g),
+				*reinterpret_cast<const unsigned*>(0x8196254_g), *reinterpret_cast<const unsigned*>(0x8196264_g),
+				*reinterpret_cast<const unsigned*>(0x8196274_g));
+			console::info("[HQ vendor] entitlement fetched flag and final LUI enable expression unresolved\n");
+		}
+
+		void conversion_success(void* task)
+		{
+			conversion_success_hook.invoke<void>(task);
+			++conversion_successes;
+			console::info("[HQ vendor] conversion-rule native success callback\n");
+			vendor_status();
+		}
+
+		void conversion_failure(void* task)
+		{
+			conversion_failure_hook.invoke<void>(task);
+			++conversion_failures;
+			console::warn("[HQ vendor] conversion-rule native failure callback\n");
+			vendor_status();
 		}
 
 		void mail_status()
@@ -95,6 +122,8 @@ namespace hq_native
 			if (game::environment::is_dedicated() || game::environment::is_zombies()) return;
 			sku_success_hook.create(0x27B700_g, sku_success);
 			sku_failure_hook.create(0x27B6C0_g, sku_failure);
+			conversion_success_hook.create(0x27A4C0_g, conversion_success);
+			conversion_failure_hook.create(0x27A460_g, conversion_failure);
 			command::add("hqnative", status);
 			command::add("hqvendor", vendor_status);
 			command::add("hqmail", mail_status);
