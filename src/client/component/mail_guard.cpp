@@ -214,13 +214,20 @@ end
 				}
 				return false;
 			}
+			// The native breadcrumb polls every frame; do not copy the full economy at 60 Hz.
+			static std::chrono::steady_clock::time_point checked{};
+			static bool unread{};
+			const auto now = std::chrono::steady_clock::now();
+			if (now - checked < 1s) return unread;
+			checked = now;
 			try
 			{
 				const auto state = demonware::hq_economy::snapshot();
-				return std::any_of(demonware::hq_mail::deliveries.begin(), demonware::hq_mail::deliveries.end(),
+				unread = std::any_of(demonware::hq_mail::deliveries.begin(), demonware::hq_mail::deliveries.end(),
 					[&](const auto& d) { return demonware::hq_mail::pending(state, d); });
 			}
-			catch (...) { return false; }
+			catch (...) { unread = false; }
+			return unread;
 		}
 	}
 
