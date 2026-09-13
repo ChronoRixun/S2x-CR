@@ -230,7 +230,12 @@ namespace demonware::achievement_engine
 	{
 		const auto kills = event.name == "1" || event.name == "killed_a_player";
 		const auto payroll = event.name == "18" || event.name == "picked_up_payroll";
-		if (!kills && !payroll) return true;
+		const auto end_game = event.name == "5" || event.name == "end_game";
+		const auto multi_kill = event.name == "2" || event.name == "multi_kill";
+		const auto streak = event.name == "4" || event.name == "streak";
+		const auto duel = event.name == "7" || event.name == "one_v_one";
+		const auto social = event.name == "10" || event.name == "social";
+		if (!kills && !payroll && !end_game && !multi_kill && !streak && !duel && !social) return true;
 		const auto now = static_cast<std::uint64_t>(time(nullptr));
 		if (payroll && native_payroll)
 		{
@@ -325,11 +330,16 @@ namespace demonware::achievement_engine
 					entry.rewards = {{"GRANT_CURRENCY", hq_economy::armory_credits, hq_economy::payroll_amount}};
 				}
 			}
-			if (kills) for (auto& [name, entry] : data.achievements)
+			for (auto& [name, entry] : data.achievements)
 			{
 				if (entry.status != "inProgress") continue;
-				bool matches_event = name == "daily_ch_kills" || name == "weekly_ch_kills";
-				if (name == "daily_ch_headshots")
+				// dwgamechallenges.csv event column and predicate, for the enabled catalog.
+				// In particular weekly_ch_wins binds event 5 with no extra predicate.
+				bool matches_event = (kills && (name == "daily_ch_kills" || name == "weekly_ch_kills")) ||
+					(end_game && (name == "weekly_ch_wins" || name == "contract_mp_1")) ||
+					(multi_kill && name == "contract_mp_3") || (streak && name == "weekly_ch_scorestreak_calls") ||
+					(duel && name == "daily_ch_1v1_wins") || (social && name == "daily_ch_commend");
+				if (kills && (name == "daily_ch_headshots" || name == "contract_mp_2"))
 					for (const auto& parameter : event.parameters)
 						matches_event |= parameter.selector == "6" && parameter.value == 1;
 				if (!matches_event) continue;

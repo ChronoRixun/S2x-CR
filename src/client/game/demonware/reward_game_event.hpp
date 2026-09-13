@@ -34,4 +34,6 @@ namespace demonware
 		bool parse_report_for_users_request(byte_buffer* buffer,
 			std::vector<user_event_batch>& users);
 	}
+
+	bool submit_hq_event(const reward_game_events::event& event);
 }
