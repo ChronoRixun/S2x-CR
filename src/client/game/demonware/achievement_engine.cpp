@@ -58,16 +58,20 @@ namespace demonware::achievement_engine
 			value.AddMember("completionCount", entry.completion ? 1 : 0, alloc);
 			value.AddMember("completionTimestamp", entry.completion, alloc);
 			value.AddMember("activationTimestamp", entry.activation, alloc);
-			// Both keys, because the two consumers disagree. The native record parser
-			// (0x13EF20) fills the scheduled cache field at +0x18 from "expirationTimestamp"
-			// - with only "eventEndTimestamp" present aecache reports expires 0 - while
-			// "eventEndTimestamp" is the name that sits in the Achievement Engine string
-			// block beside get_scheduled_user_achievements/NextPeriodStartTimes and is what
-			// the last reply the Orders board rendered (run-61492) carried. Unknown members
-			// are ignored by the parser, so publish the same value under both.
+			// "expirationTimestamp" only. The native record parser 0x13A570 (every AE reply
+			// and every push goes through it: build/research/ghidra/decomp-payroll/13A605.c)
+			// maps "expirationTimestamp" to record+0x18 - the field AE_GetScheduledChallenges
+			// (0x121A00) and AE_GetPlayerActiveChallenges (0x121F40) publish as
+			// expirationTimestamp - but maps "eventEndTimestamp" to record+0x30 divided by
+			// 1000, and record+0x30 is the LAST COMPLETION TIME that
+			// AE_GetPlayerAchievementInfo (0x1213B0) turns into "timeSinceLastCompletion".
+			// Emitting it after "completionTimestamp" therefore overwrote the real completion
+			// time with period_end/1000 (~1970), so the mail kiosk's
+			// "14400 <= timeSinceLastCompletion" test always chose the collectable branch and
+			// the four-hour countdown never appeared. No shipped consumer reads the key:
+			// 0x13A570 and 0x13EC20 are its only two references in the image.
 			const auto expires = period_end(entry.kind, day);
 			value.AddMember("expirationTimestamp", expires, alloc);
-			value.AddMember("eventEndTimestamp", expires, alloc);
 			value.AddMember("usageTimeTarget", entry.usage_target, alloc);
 			value.AddMember("usageTimeRemaining", entry.usage_target - std::min(entry.usage_target, entry.usage), alloc);
 			rapidjson::Value rewards{rapidjson::kArrayType};
