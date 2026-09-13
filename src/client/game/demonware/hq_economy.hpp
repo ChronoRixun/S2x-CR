@@ -9,8 +9,16 @@
 
 namespace demonware::hq_economy
 {
-	// Lua trace: currency 7 is the hammer/Armory Credits; 2 is COD Points.
-	inline constexpr std::uint8_t armory_credits = 7;
+	// Recovered from the shipped image: Inventory_ConvertItemToArmoryCredit (binding b39390,
+	// 0x11EC10) calls the shared conversion builder 0x2764A0 through 0x276540, whose body is
+	// `mov dword ptr [rsp+20h], 6` - the destination currency id. Its neighbour 0x276560
+	// (`mov ..., 7`) is the only caller path of Inventory_ConvertItemToSocialScore, so 7 is
+	// Social Score, not Armory Credits. Retail agrees: Inventory_GetCachedCollectionItemSku-
+	// Price (0x274970) hard-codes currency 6 and the affordability gate (0x274570) compares
+	// the price against GetCurrencyBalance(0, 6). 2 is COD Points (owner-confirmed 'CP 200').
+	inline constexpr std::uint8_t armory_credits = 6;
+	// Balances this client parked in the wrong slots before that was recovered.
+	inline constexpr std::uint8_t legacy_credit_currencies[]{7, 2};
 	// Local policy; retail payroll amount has not been recovered.
 	inline constexpr std::uint32_t payroll_amount = 200;
 	bool migrate_payroll(struct state& data);

@@ -132,7 +132,7 @@ namespace hq_economy
 					const std::string_view target{cell(daily, row, 9)};
 					const auto parsed = std::from_chars(target.data(), target.data() + target.size(), entry.target);
 					if (parsed.ec != std::errc{} || parsed.ptr != target.data() + target.size() || !entry.target) continue;
-					// Column 10 is XP; currency 7/25 is a documented local AC reward,
+					// Column 10 is XP; 25 Armory Credits (currency 6) is a documented local reward,
 					// pending a verified XP reward mapping.
 					entry.rewards = {{"GRANT_CURRENCY", demonware::hq_economy::armory_credits, 25}};
 					catalog.push_back(entry);

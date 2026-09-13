@@ -219,7 +219,9 @@ namespace demonware::hq_economy
 
 	bool migrate_payroll(state& data)
 	{
-		constexpr auto marker = "migration:payroll-currency7-v1";
+		// v1 parked the payroll balance in currency 7 (Social Score). A new stamp lets the
+		// corrected pass run exactly once more on a store the old marker already touched.
+		constexpr auto marker = "migration:payroll-currency6-v1";
 		if (data.transactions.contains(marker)) return false;
 		// Legacy native receipts contain a microsecond timestamp; manual claim
 		// receipts contain payroll_officer:<day>. Native acknowledgement of a
@@ -241,22 +243,29 @@ namespace demonware::hq_economy
 		}
 		std::uint64_t accounted{};
 		for (const auto& [day, counts] : days) accounted += std::max(counts.first, counts.second) * std::uint64_t{payroll_amount};
-		const auto old = data.currencies.find(2);
-		const auto ac = data.currencies.find(armory_credits);
-		const auto balance = ac == data.currencies.end() ? 0 : ac->second;
-		const auto moved = static_cast<std::uint32_t>(std::min({accounted,
-			std::uint64_t{old == data.currencies.end() ? 0 : old->second}, std::uint64_t{UINT32_MAX - balance}}));
-		// moved != 0 implies a funded currency-2 row, but never dereference on that alone.
-		if (moved && old != data.currencies.end())
+		// Drain the Social Score parking slot first, then any CP this client never moved.
+		// The receipt total is the ceiling for BOTH legacy rows together, so a store that
+		// already ran v1 cannot be credited twice for the same payroll.
+		std::uint32_t moved{};
+		for (const auto legacy : legacy_credit_currencies)
 		{
-			old->second -= moved;
-			data.currencies[armory_credits] = balance + moved;
+			if (legacy == armory_credits || accounted <= moved) continue;
+			const auto source = data.currencies.find(legacy);
+			if (source == data.currencies.end() || !source->second) continue;
+			auto& balance = data.currencies[armory_credits];
+			const auto take = static_cast<std::uint32_t>(std::min({accounted - moved,
+				std::uint64_t{source->second}, std::uint64_t{UINT32_MAX - balance}}));
+			if (!take) continue;
+			source->second -= take;
+			balance += take;
+			moved += take;
 		}
-		// Persisted local AC reward definitions must also stop issuing CP.
+		// Persisted local AC reward definitions must also stop issuing CP or Social Score.
 		for (auto& [name, entry] : data.achievements)
 			if (name == "payroll_officer" || name.starts_with("daily_ch_") || name.starts_with("weekly_ch_") || name.starts_with("contract_"))
 				for (auto& reward : entry.rewards)
-					if (reward.type == "GRANT_CURRENCY" && reward.id == 2) reward.id = armory_credits;
+					if (reward.type == "GRANT_CURRENCY" && std::ranges::find(legacy_credit_currencies,
+						reward.id) != std::end(legacy_credit_currencies)) reward.id = armory_credits;
 		data.transactions.emplace(marker, std::to_string(moved));
 		return true;
 	}
