@@ -1,10 +1,20 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
+#include <cstdint>
 #include <string>
 
 namespace demonware::hq_mail
 {
+	inline std::atomic_uint32_t native_reads{}, native_redeems{}, rejected_indices{};
+
+	inline bool valid_slot(const int controller, const int slot, const std::uint32_t count)
+	{
+		return controller >= 0 && controller < 2 && count >= 14 && count <= 4096 &&
+			slot >= 0 && static_cast<std::uint32_t>(slot) < count;
+	}
+
 	inline std::string empty_slots(std::size_t count)
 	{
 		// 0x3721A0 clears a message by setting its ID (+0x10) to zero.

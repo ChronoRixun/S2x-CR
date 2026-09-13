@@ -2,6 +2,7 @@
 #include "loader/component_loader.hpp"
 #include "component/console/console.hpp"
 #include "game/game.hpp"
+#include "game/demonware/hq_mail.hpp"
 
 #include <utils/hook.hpp>
 
@@ -15,7 +16,7 @@ namespace mail_guard
 		// blocks starting at 0x8A14F60. For each block whose ready flag (+0x24) is set it
 		// reads message entries out of the array at +0xB0 - without ever checking that the
 		// array pointer is non-null. bdMarketingComms::getMessages now always answers with
-		// at least one message so the array is allocated, but a reply that fails, arrives
+		// at least 14 messages so the array is allocated, but a reply that fails, arrives
 		// late or is emptied by a future change must not be able to crash the frontend
 		// again, so refuse to run the poll while any ready block still has a null array.
 		// See build/research/ghidra/decomp-crash/372069.c.
@@ -26,6 +27,61 @@ namespace mail_guard
 		static_assert(mail_state_messages + sizeof(void*) <= mail_state_stride);
 
 		utils::hook::detour poll_hook;
+		utils::hook::detour message_hook;
+		utils::hook::detour redeem_hook;
+		utils::hook::detour success_hook;
+
+		void trace_access(const char* action, const int controller, const int category, const int index)
+		{
+			if (controller < 0 || controller >= 2)
+			{
+				++demonware::hq_mail::rejected_indices;
+				console::warn("[HQ mail] %s rejected controller=%d\n", action, controller);
+				return;
+			}
+			const auto* state = game::MarketingComms_MailState.get() + controller * mail_state_stride;
+			const auto count = *reinterpret_cast<const unsigned*>(state + 0xBC);
+			const auto slot = utils::hook::invoke<int>(0x3723B0_g, category, index);
+			const auto valid = demonware::hq_mail::valid_slot(controller, slot, count);
+			if (!valid) ++demonware::hq_mail::rejected_indices;
+			// Capture initial polls and changes without flooding the per-frame console.
+			static int last_controller = -1, last_category = -1, last_index = -1;
+			static unsigned logged{};
+			if (action[0] == 'r' && action[2] == 'a' && logged++ >= 32 &&
+				last_controller == controller && last_category == category && last_index == index) return;
+			last_controller = controller; last_category = category; last_index = index;
+			console::info("[HQ mail] %s controller=%d category=%d index=%d mapped=%d count=%u inRange=%u; local inbox has no claimable messages\n",
+				action, controller, category, index, slot, count, unsigned(valid));
+		}
+
+		bool message_stub(int controller, int category, int index, char* output, int capacity)
+		{
+			++demonware::hq_mail::native_reads;
+			trace_access("read", controller, category, index);
+			if (output && capacity > 0) *output = 0;
+			// Explicit MP empty-inbox policy. 125020 returns zero Lua values on false.
+			// Do not let 3722F0 dereference an unchecked category-to-slot result.
+			return false;
+		}
+
+		void redeem_stub(int controller, int category, int index)
+		{
+			++demonware::hq_mail::native_redeems;
+			trace_access("redeem suppressed", controller, category, index);
+			// No fabricated code/reward and no native task from a cleared/stale UI slot.
+		}
+
+		void success_stub(void* task)
+		{
+			success_hook.invoke<void>(task);
+			const auto controller = *reinterpret_cast<const int*>(static_cast<const std::byte*>(task) + 4);
+			if (controller < 0 || controller >= 2) return;
+			const auto* state = game::MarketingComms_MailState.get() + controller * mail_state_stride;
+			console::info("[HQ mail] native fetch success controller=%d ready=%d count=%u capacity=%u slots=%p; empty-inbox policy active\n",
+				controller, *reinterpret_cast<const int*>(state + 0x24),
+				*reinterpret_cast<const unsigned*>(state + 0xBC), *reinterpret_cast<const unsigned*>(state + 0xB8),
+				*reinterpret_cast<void* const*>(state + 0xB0));
+		}
 
 		bool has_null_message_array()
 		{
@@ -52,7 +108,8 @@ namespace mail_guard
 				}
 				return false;
 			}
-			return poll_hook.invoke<bool>();
+			// The local inbox advertises no unread messages; keep the allocation intact.
+			return false;
 		}
 	}
 
@@ -63,6 +120,9 @@ namespace mail_guard
 		{
 			if (game::environment::is_dedicated() || game::environment::is_zombies()) return;
 			poll_hook.create(game::MarketingComms_HasUnreadMail, poll_stub);
+			message_hook.create(0x3722F0_g, message_stub);
+			redeem_hook.create(0x3726F0_g, redeem_stub);
+			success_hook.create(0x3726A0_g, success_stub);
 		}
 	};
 }

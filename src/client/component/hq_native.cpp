@@ -6,6 +6,7 @@
 #include <utils/hook.hpp>
 #include "game/demonware/hq_vendor.hpp"
 #include "game/demonware/hq_payroll.hpp"
+#include "game/demonware/hq_mail.hpp"
 #include "component/scheduler.hpp"
 #include "hq_vendor_globals.hpp"
 
@@ -55,6 +56,11 @@ namespace hq_native
 						utils::hook::invoke<void>(0x13C480_g, 0, bridge);
 						console::info("[HQ payroll] delivered persisted completion push\n");
 					}
+					else
+					{
+						std::lock_guard lock{demonware::hq_payroll::notification_mutex};
+						if (!demonware::hq_payroll::notification) demonware::hq_payroll::notification = std::move(notification);
+					}
 				}
 				const auto data = demonware::hq_economy::snapshot();
 				for (const auto& [id, amount] : data.currencies)
@@ -81,7 +87,7 @@ namespace hq_native
 		{
 			// 276580 initializes this caller-owned bdString before validating a purchase.
 			// A null string returns Lua nil in 11FDF0, without creating a native task.
-			std::memset(transaction, 0, 25);
+			if (transaction) std::memset(transaction, 0, 25);
 			console::warn("[HQ vendor] SKU %u purchase unavailable (local display catalog)\n", sku);
 		}
 
@@ -103,8 +109,9 @@ namespace hq_native
 			console::info("[HQ vendor] catalogType=%u nonzeroSKUs=%u inventoryAndBalanceReady=%u\n",
 				*reinterpret_cast<const unsigned*>(0x81038AC_g), sku_count,
 				utils::hook::invoke<bool>(0x27A210_g, 0));
-			for (const auto address : vendor_globals)
+			for (const auto offset : vendor_globals)
 			{
+				const auto address = 0x0_g + offset;
 				MEMORY_BASIC_INFORMATION region{};
 				if (!VirtualQuery(reinterpret_cast<const void*>(address), &region, sizeof(region)) ||
 					region.State != MEM_COMMIT || (region.Protect & (PAGE_GUARD | PAGE_NOACCESS)) ||
@@ -112,7 +119,7 @@ namespace hq_native
 				std::uint64_t raw{};
 				std::memcpy(&raw, reinterpret_cast<const void*>(address), sizeof(raw));
 				console::info("[HQ vendor global] offset=%llX raw8=%016llX (table base or scalar; see lui-vendor-bindings.txt)\n",
-					address - 0x0_g, raw);
+					offset, raw);
 			}
 			console::info("[HQ vendor] Engine.Inventory_AreSKUsFetched=%u; 242 requests=%u replies=%u rejected=%u (conversion rule)\n",
 				utils::hook::invoke<bool>(0x278400_g), demonware::hq_vendor::requests.load(),
@@ -152,10 +159,14 @@ namespace hq_native
 
 		void mail_status()
 		{
+			console::info("[HQ mail native] policy=empty inbox; reads=%u redeemsSuppressed=%u invalidIndices=%u count=%u capacity=%u\n",
+				demonware::hq_mail::native_reads.load(), demonware::hq_mail::native_redeems.load(),
+				demonware::hq_mail::rejected_indices.load(), *reinterpret_cast<const unsigned*>(0x8A1501C_g),
+				*reinterpret_cast<const unsigned*>(0x8A15018_g));
 			const auto ready = *reinterpret_cast<const int*>(0x8A14F84_g);
 			const auto* slots = *reinterpret_cast<const unsigned char* const*>(0x8A15010_g);
 			console::info("[HQ mail native] ready=%d slots=%p; first 14 advertised slots\n", ready, slots);
-			if (!ready || !slots) return;
+			if (!ready || !slots || *reinterpret_cast<const unsigned*>(0x8A1501C_g) < 14) return;
 			MEMORY_BASIC_INFORMATION memory{};
 			if (!VirtualQuery(slots, &memory, sizeof(memory)) || memory.State != MEM_COMMIT ||
 				(memory.Protect & (PAGE_NOACCESS | PAGE_GUARD)) ||
