@@ -53,9 +53,17 @@ namespace demonware::hq_marketplace
 		// Local AC prices and bundle policy; tags/images and cosmetic GUIDs are shipped LUI data.
 		{2, 1000, 100, "t:MP", "LUA_MENU_RARE_SUPPLY_DROP;3 random items", {}, "", true},
 		{6, 1000, 100, "t:ZM", "LUA_MENU_RARE_ZOMBIE_SUPPLY_DROP;3 random items", {}, "", true},
-		{0x0800F021, 25, 201, "t:CONTRACT;c:33;C:33;i:s2_challenge_contracts", "Contract 1;Complete a match", {}, "contract_mp_1"},
-		{0x0800F022, 50, 201, "t:CONTRACT;c:34;C:34;i:s2_challenge_contracts", "Contract 2;Get a headshot", {}, "contract_mp_2"},
-		{0x0800F023, 75, 201, "t:CONTRACT;c:35;C:35;i:s2_challenge_contracts", "Contract 3;Get a multi-kill", {}, "contract_mp_3"},
+		// SKUType.Quartermaster (100), not SKUType.Contracts (201). The shipped LUI defines
+		// SKUType.Contracts but never fetches it: DwDataUtils._fetchSKUData only calls
+		// Engine.Inventory_FetchAllSKUs(controller, SKUType.Quartermaster) and
+		// DwDataUtils._updateSKUData only calls Engine.Inventory_GetAllSKUIDs(SKUType.Quartermaster),
+		// and every contract lookup - QuarterMasterUtils.GetContractCurrencies (key "c"), the
+		// sku_details "VIEW CONTRACT" option (key "C") - walks that one cached list. A record
+		// typed 201 in the native SKU cache (+0x04, written by hq_native::sku_lookup) is not a
+		// Quartermaster SKU. The contract id lives in the SKU data string, not in the type.
+		{0x0800F021, 25, 100, "t:CONTRACT;c:33;C:33;i:s2_challenge_contracts", "Contract 1;Complete a match", {}, "contract_mp_1"},
+		{0x0800F022, 50, 100, "t:CONTRACT;c:34;C:34;i:s2_challenge_contracts", "Contract 2;Get a headshot", {}, "contract_mp_2"},
+		{0x0800F023, 75, 100, "t:CONTRACT;c:35;C:35;i:s2_challenge_contracts", "Contract 3;Get a multi-kill", {}, "contract_mp_3"},
 		{0x200010c, 1000, 100, "t:CWL_EF;l:0x200010c|1", "Echo Fox Pack;5 CWL cosmetics", {0x200010c, 0x240042b, 0x6632175, 0x7000098, 0x7040004}},
 		{0x2000117, 1000, 100, "t:CWL_ENVY;l:0x2000117|1", "Team Envy Pack;5 CWL cosmetics", {0x2000117, 0x240042c, 0x6632181, 0x7000099, 0x704000f}},
 		{0x200010d, 1000, 100, "t:CWL_EPSI;l:0x200010d|1", "Epsilon Pack;5 CWL cosmetics", {0x200010d, 0x240042d, 0x6632176, 0x700009a, 0x7040005}},

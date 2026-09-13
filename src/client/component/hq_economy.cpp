@@ -164,6 +164,14 @@ namespace hq_economy
 				entry.challenge_name = name;
 				entry.kind = 4;
 				entry.usage_target = 3600;
+				// A contract has to carry a reward. AE_GetScheduledChallenges (0x121A00) and
+				// AE_GetPlayerActiveChallenges (0x121F40) only publish the Lua "reward" table when
+				// the record's reward pointer is non-null, so a contract with an empty
+				// successRewards array reaches the vendor with no reward at all while every daily
+				// and weekly carries one. Local policy: a completed contract pays twice what its
+				// Quartermaster SKU costs (25/50/75 Armory Credits, hq_marketplace::vendor_skus).
+				const auto payout = name == "contract_mp_1" ? 50u : name == "contract_mp_2" ? 100u : 150u;
+				entry.rewards = {{"GRANT_CURRENCY", demonware::hq_economy::armory_credits, payout}};
 				catalog.push_back(entry);
 			}
 			demonware::achievement_engine::set_catalog(std::move(catalog));

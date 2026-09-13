@@ -597,6 +597,60 @@ namespace hq_native
 					fulfilled, completion, since, countdown.c_str());
 			}
 		}
+		// What the Quartermaster's contract path actually sees.
+		// QuarterMasterUtils.GetContractCurrencies walks
+		// Engine.Inventory_GetAllSKUIDs(SKUType.Quartermaster), reads key "c" out of
+		// Engine.Inventory_GetSKUInfoSKUData and only keeps a contract when
+		// Inventory_GetItemQuantity(controller, items[1].guid) > 0; the vendor's "VIEW
+		// CONTRACT" option uses key "C" with AchievementEngineUtils.IsOrderAvailable, which
+		// requires the same id in the scheduled challenge cache (`aecache` prints that).
+		void contract_state()
+		{
+			for (const auto& entry : demonware::hq_marketplace::catalog())
+			{
+				if (!*entry.contract) continue;
+				void* record{};
+				const auto result = sku_lookup(entry.id, &record);
+				const auto* bytes = static_cast<const unsigned char*>(record);
+				if (result != 0 || !bytes)
+				{
+					console::warn("[HQ contracts] sku %u (%s) lookup failed (result=%u)\n", entry.id, entry.contract, result);
+					continue;
+				}
+				std::string items;
+				for (unsigned item = 0; item < bytes[0x244]; ++item)
+				{
+					const auto guid = *reinterpret_cast<const unsigned*>(bytes + 0x30 + item * 0x38);
+					const unsigned* native{};
+					utils::hook::invoke<void>(0x279300_g, 0, guid, &native);
+					if (!items.empty()) items += ",";
+					items += std::to_string(guid) + "x" + std::to_string(native ? native[1] : 0);
+				}
+				console::info("[HQ contracts] sku %u (%s) type=%u price=%u currency=%u data=\"%s\" owned=[%s]\n",
+					entry.id, entry.contract, *reinterpret_cast<const unsigned*>(bytes + 4),
+					*reinterpret_cast<const unsigned*>(bytes + 0x250),
+					*reinterpret_cast<const unsigned*>(bytes + 0x24C),
+					reinterpret_cast<const char*>(bytes + 0x29C), items.data());
+			}
+			const auto* table = reinterpret_cast<const unsigned char*>(0x60A4090_g);
+			for (std::size_t i = 0; i < user_achievement_records; ++i)
+			{
+				const auto* record = table + i * user_achievement_size;
+				const auto id = *reinterpret_cast<const std::int32_t*>(record + 0xC);
+				if (id == -1 || *reinterpret_cast<const std::int32_t*>(record + 8) != 4) continue;
+				console::info("[HQ contracts] native kind 4 record id %d status %d progress %u/%d timeLimit %d "
+					"timeLeft %d expires %llu reward %p\n", id,
+					*reinterpret_cast<const std::int32_t*>(record + 0x38),
+					*reinterpret_cast<const std::uint16_t*>(record + 0x28),
+					*reinterpret_cast<const std::int32_t*>(record + 0x10),
+					*reinterpret_cast<const std::int32_t*>(record + 4),
+					*reinterpret_cast<const std::int32_t*>(record + 0x3C),
+					*reinterpret_cast<const std::uint64_t*>(record + 0x18),
+					*reinterpret_cast<void* const*>(record + 0x20));
+			}
+			console::info("[HQ contracts] the tab's own menu is ui/s2/contracts_menu(_uc), which is not among "
+				"the 294 dumped scripts: run `dumpluafiles contract` to add it\n");
+		}
 		void sku_failure(void* task)
 		{
 			sku_failure_hook.invoke<void>(task);
@@ -630,6 +684,7 @@ namespace hq_native
 			command::add("hqtask99", task99);
 			command::add("hqskutest", sku_test);
 			command::add("hqpayrollstate", payroll_state);
+			command::add("hqcontracts", contract_state);
 		}
 	};
 }
