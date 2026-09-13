@@ -485,7 +485,10 @@ namespace demonware::achievement_engine
 			{
 				// Native 0x2B0850 sends column 4; 0x2AEEA0 counts column 5 item IDs.
 				const auto drop = string(request, "SupplyDropID");
-				const std::uint32_t drop_id = drop == "sd_mp" ? 1 : drop == "sd_mp_rare" ? 2 : 0;
+				// Item ids from mp/supplyDropTypes.csv column f5; sd_zombie_rare is the
+				// Quartermaster's "ZM" vendor SKU, opened from the same local loot pool.
+				const std::uint32_t drop_id = drop == "sd_mp" ? 1 : drop == "sd_mp_rare" ? 2 :
+					drop == "sd_zombie_rare" ? 6 : 0;
 				if (!drop_id) return fail("unsupported_supply_drop");
 				if (client_tx.empty() || client_tx.size() > 128 || client_tx.find('\0') != std::string::npos)
 					return fail("invalid_transaction");

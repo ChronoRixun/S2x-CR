@@ -19,6 +19,32 @@ namespace demonware::hq_marketplace
 	{
 		std::uint32_t id{}, price{};
 		unsigned char type{100};
+		// SKU data string, returned by Engine.Inventory_GetSKUInfoSKUData and parsed by
+		// QuarterMasterUtils.FindSkuDataByType as "key:value;key:value" (LUI.SingleSplit on
+		// ';' then ':'). Keys are single letters, QuarterMasterUtils.SKUDataKeys: t = tag,
+		// i = image override, f = flags, c/C = contract id, l = limiter "<guid>|<max>",
+		// u = unlock guid, s = special icons, e = experiment cohort. Native capacity 64
+		// bytes including the terminator; the collection catalog carries none of them.
+		const char* data{""};
+		// Promotional text, split on ';' by QuarterMasterUtils.ProcessSkuInfo into the
+		// vendor tile's name and description. Native capacity 135 bytes.
+		const char* promotional_text{""};
+	};
+	// The Quartermaster front page cannot be built without these two.
+	// QuarterMasterUtils.GetAvailableSkuIDList (decompiled:
+	// build/research/luafiles/dec/ui_utility_mp_quartermaster_utils.dec.lua) appends, after
+	// the optional scheduled specials, FindSKUIDByType(skus, SupplyDropTypeTag.ASD_MP = "MP")
+	// and FindSKUIDByType(skus, ASD_ZOMBIE = "ZM") - the tag is the "t" entry of the SKU data
+	// string. storeSKUInfo then walks that list through a bare `assert(entry.id)`, so a
+	// catalog with no "MP" and no "ZM" SKU raises "LUI.MenuBuilder.buildItems(): assertion
+	// failed" in the menu's PreLoadFunc and the menu never appears. The GUIDs are the supply
+	// drop item ids of mp/supplyDropTypes.csv column f5: sd_mp_rare = 2, sd_zombie_rare = 6.
+	// They lead the catalog because the native SKU cache only holds 400 of its entries and
+	// FindSKUIDByType returns the first match.
+	inline constexpr sku vendor_skus[]
+	{
+		{2, 1000, 100, "t:MP", "LUA_MENU_SUPPLY_DROP_MTX;LUA_MENU_SUPPLY_DROP_MTX_PLURAL"},
+		{6, 1000, 100, "t:ZM", "LUA_MENU_MTX5_ZOMBIE_CONSUMABLE;LUA_MENU_MTX5_ZOMBIE_CONSUMABLE_PLURAL"},
 	};
 	// Guessed local AC prices indexed by native item rarity (column29):
 	// common, rare, legendary, epic, heroic. Retail prices not recovered.

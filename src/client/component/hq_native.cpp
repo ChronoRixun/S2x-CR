@@ -167,7 +167,12 @@ namespace hq_native
 				put(0x30, id); put(0x34, 1); // first initialized product record
 				put(0x240, id); bytes[0x244] = 1; put(0x248, 1);
 				put(0x24C, demonware::hq_economy::armory_credits); bytes[0x2E1] = 1;
-				const auto text = std::to_string(id); std::memcpy(bytes + 0x29C, text.c_str(), text.size() + 1);
+				// +0x29C is the SKU data string Engine.Inventory_GetSKUInfoSKUData returns.
+				// QuarterMasterUtils.FindSkuDataByType parses it as "key:value;key:value";
+				// the decimal GUID that used to sit here parsed to nothing, which left the
+				// Quartermaster's "MP"/"ZM" tag lookups empty and asserted in buildItems.
+				const auto text = std::string_view{entry->data}.substr(0, 63);
+				std::memcpy(bytes + 0x29C, text.data(), text.size()); bytes[0x29C + text.size()] = 0;
 			}
 			std::memcpy(bytes + 0x250, &entry->price, 4);
 			if (output) *output = bytes;

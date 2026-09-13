@@ -61,13 +61,13 @@ namespace demonware::hq_vendor
 			buffer->write_uint32(entry.id); // +20 SKU ID
 			buffer->write_uint32(entry.id); // +24 product ID
 			buffer->write_ubyte(1); // +28
-			buffer->write_blob(std::to_string(entry.id) + '\0'); // +29 bounded SKU data (64 bytes)
+			buffer->write_blob(std::string{entry.data} + '\0'); // +29 bounded SKU data (64 bytes)
 			buffer->write_ubyte(1); // +6A
 			buffer->write_uint32(0); // +6C
 			buffer->write_uint32(0); // +70 sale end
 			buffer->write_uint32(0); // +74
 			buffer->write_ubyte(0); // +78
-			buffer->write_blob(std::string(1, '\0')); // +80 promotional text (135 bytes)
+			buffer->write_blob(std::string{entry.promotional_text} + '\0'); // +80 promotional text (135 bytes)
 			buffer->write_uint32(0); // +10C
 			buffer->write_uint16(0); // +110
 			buffer->write_uint32(0); // +114

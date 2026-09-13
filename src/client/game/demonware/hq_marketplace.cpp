@@ -20,6 +20,10 @@ namespace demonware::hq_marketplace
 	{
 		std::lock_guard lock{sku_mutex};
 		std::vector<sku> result;
+		result.reserve(std::size(vendor_skus) + std::size(collection_items));
+		// The tagged supply drops come first: only the first 400 entries reach the native
+		// SKU cache, and the Quartermaster's FindSKUIDByType scan stops at the first match.
+		for (const auto& entry : vendor_skus) result.push_back(entry);
 		for (const auto id : collection_items)
 		{
 			const auto found = item_rarities.find(id);
@@ -31,6 +35,8 @@ namespace demonware::hq_marketplace
 
 	std::optional<sku> find_sku(const std::uint32_t id)
 	{
+		// The vendor drops are not collection items and carry a fixed price and SKU data.
+		for (const auto& entry : vendor_skus) if (entry.id == id) return entry;
 		// Collection rendering queries this once per item, often repeatedly.
 		if (!std::binary_search(std::begin(collection_items), std::end(collection_items), id)) return std::nullopt;
 		std::lock_guard lock{sku_mutex};
@@ -107,8 +113,12 @@ namespace demonware::hq_marketplace
 				error = BD_MARKETPLACE_RESOURCE_CONFLICT;
 				return prior->second == fingerprint;
 			}
+			// Collection items are owned once; the vendor supply drops are consumables and
+			// stay purchasable while one is still in the inventory.
+			const auto consumable = std::any_of(std::begin(vendor_skus), std::end(vendor_skus),
+				[&](const sku& value) { return value.id == id; });
 			const auto owned = next.inventory.find({id, 0});
-			if (owned != next.inventory.end() && owned->second.quantity)
+			if (!consumable && owned != next.inventory.end() && owned->second.quantity)
 			{ error = BD_MARKETPLACE_ITEM_MULTIPLE_PURCHASE_ERROR; return false; }
 			auto& balance = next.currencies[hq_economy::armory_credits];
 			if (balance < entry->price) { error = BD_MARKETPLACE_INSUFFICIENT_FUNDS_ERROR; return false; }
