@@ -2,9 +2,122 @@
 #include "hq_marketplace.hpp"
 #include "hq_protocol.hpp"
 #include <set>
+#include "hq_collection_items.hpp"
+#include <charconv>
+#include "game/types/demonware.hpp"
+
+using namespace game::demonware;
 
 namespace demonware::hq_marketplace
 {
+	namespace
+	{
+		std::mutex sku_mutex;
+		std::map<std::uint32_t, unsigned> item_rarities;
+	}
+
+	std::vector<sku> catalog()
+	{
+		std::lock_guard lock{sku_mutex};
+		std::vector<sku> result;
+		for (const auto id : collection_items)
+		{
+			const auto found = item_rarities.find(id);
+			const auto rarity = found == item_rarities.end() ? 0 : found->second;
+			result.push_back({id, rarity_prices[rarity], 100});
+		}
+		return result;
+	}
+
+	std::optional<sku> find_sku(const std::uint32_t id)
+	{
+		const auto entries = catalog();
+		const auto it = std::find_if(entries.begin(), entries.end(), [&](const auto& entry) { return entry.id == id; });
+		return it == entries.end() ? std::nullopt : std::optional<sku>{*it};
+	}
+
+	void set_rarities(const std::map<std::uint32_t, unsigned>& rarities)
+	{
+		std::lock_guard lock{sku_mutex};
+		for (const auto& [id, rarity] : rarities)
+			if (rarity < std::size(rarity_prices)) item_rarities[id] = rarity;
+	}
+
+	bool parse_skus(byte_buffer* buffer, sku_request& request)
+	{
+		sku_request parsed;
+		bool show_all{};
+		std::uint32_t count{}, id{};
+		unsigned char type{};
+		std::string token;
+		if (!context(buffer) || !buffer->read_uint32(&parsed.page) || !parsed.page ||
+			!buffer->read_uint32(&parsed.limit) || !parsed.limit || parsed.limit > 100 ||
+			!buffer->read_bool(&show_all) || !buffer->read_uint32(&count) || count > 100) return false;
+		for (unsigned i = 0; i < count; ++i) { if (!buffer->read_uint32(&id)) return false; parsed.ids.push_back(id); }
+		if (!buffer->read_uint32(&count) || count > 256) return false;
+		for (unsigned i = 0; i < count; ++i) { if (!buffer->read_ubyte(&type)) return false; parsed.types.push_back(type); }
+		if (!buffer->read_string(&token) || token.size() > 64 || !hq_protocol::padding(buffer)) return false;
+		// Native278D30 uses page numbers and an empty string. Accept a matching
+		// decimal page token for explicit callers; never silently restart paging.
+		if (!token.empty())
+		{
+			unsigned page{};
+			const auto p = std::from_chars(token.data(), token.data() + token.size(), page);
+			if (p.ec != std::errc{} || p.ptr != token.data() + token.size() || page != parsed.page) return false;
+		}
+		request = std::move(parsed);
+		return true;
+	}
+
+	std::vector<sku> sku_page(const sku_request& request)
+	{
+		std::vector<sku> selected, result;
+		if (!request.page || !request.limit || request.limit > 100) return result;
+		// Both captured types are supported:100 generic cache,150 collection fetch.
+		// Empty type filter selects the canonical100 catalog, without duplicates.
+		for (const auto type : {100, 150})
+		{
+			if (request.types.empty() ? type != 100 : std::find(request.types.begin(), request.types.end(), type) == request.types.end()) continue;
+			for (auto entry : catalog())
+			{
+				if (!request.ids.empty() && std::find(request.ids.begin(), request.ids.end(), entry.id) == request.ids.end()) continue;
+				entry.type = static_cast<unsigned char>(type); selected.push_back(entry);
+			}
+		}
+		const auto offset = (std::uint64_t{request.page} - 1) * request.limit;
+		for (auto i = offset; i < selected.size() && result.size() < request.limit; ++i) result.push_back(selected[static_cast<std::size_t>(i)]);
+		return result;
+	}
+
+	unsigned purchase(const std::string& transaction, const std::uint32_t id, const std::uint32_t quantity)
+	{
+		if (transaction.empty() || transaction.size() > 128 || transaction.find('\0') != std::string::npos || quantity != 1)
+			return BD_MARKETPLACE_INVALID_PARAMETER;
+		const auto entry = find_sku(id);
+		if (!entry) return BD_MARKETPLACE_RESOURCE_NOT_FOUND;
+		unsigned error = BD_MARKETPLACE_STORAGE_ERROR;
+		const auto ok = hq_economy::transact([&](auto& next)
+		{
+			const auto key = "purchase:" + transaction;
+			const auto fingerprint = std::to_string(id) + ":1";
+			if (const auto prior = next.transactions.find(key); prior != next.transactions.end())
+			{
+				error = BD_MARKETPLACE_RESOURCE_CONFLICT;
+				return prior->second == fingerprint;
+			}
+			const auto owned = next.inventory.find({id, 0});
+			if (owned != next.inventory.end() && owned->second.quantity)
+			{ error = BD_MARKETPLACE_ITEM_MULTIPLE_PURCHASE_ERROR; return false; }
+			auto& balance = next.currencies[hq_economy::armory_credits];
+			if (balance < entry->price) { error = BD_MARKETPLACE_INSUFFICIENT_FUNDS_ERROR; return false; }
+			balance -= entry->price;
+			if (!hq_economy::grant(next, {"GRANT_PRODUCT", id, 1})) return false;
+			next.transactions.emplace(key, fingerprint);
+			return true;
+		});
+		return ok ? BD_NO_ERROR : error;
+	}
+
 	bool context(byte_buffer* buffer)
 	{
 		std::string value{};
@@ -14,28 +127,10 @@ namespace demonware::hq_marketplace
 	bool parse_skus(byte_buffer* buffer, inventory_request& request, bool* includes_local_sku)
 	{
 		if (includes_local_sku) *includes_local_sku = false;
-		bool show_all{};
-		std::uint32_t ids{}, types{}, id{};
-		unsigned char type{};
-		std::string token{};
-		if (!context(buffer) || !buffer->read_uint32(&request.page) || !request.page ||
-			!buffer->read_uint32(&request.limit) || !request.limit || request.limit > 100 ||
-			!buffer->read_bool(&show_all) || !buffer->read_uint32(&ids) || ids > 100) return false;
-		bool selected_id = ids == 0;
-		for (std::uint32_t i = 0; i < ids; ++i)
-		{
-			if (!buffer->read_uint32(&id)) return false;
-			selected_id |= id == 1;
-		}
-		if (!buffer->read_uint32(&types) || types > 256) return false;
-		bool selected_type = types == 0;
-		for (std::uint32_t i = 0; i < types; ++i)
-		{
-			if (!buffer->read_ubyte(&type)) return false;
-			selected_type |= type == 100;
-		}
-		if (!buffer->read_string(&token) || token.size() > 64 || !hq_protocol::padding(buffer)) return false;
-		if (includes_local_sku) *includes_local_sku = request.page == 1 && selected_id && selected_type && token.empty();
+		sku_request parsed;
+		if (!parse_skus(buffer, parsed)) return false;
+		request = parsed;
+		if (includes_local_sku) *includes_local_sku = !sku_page(parsed).empty();
 		return true;
 	}
 

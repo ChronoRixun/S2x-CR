@@ -6,6 +6,8 @@
 #include "component/command.hpp"
 #include "component/console/console.hpp"
 #include <charconv>
+#include "game/demonware/hq_marketplace.hpp"
+#include <utils/hook.hpp>
 
 namespace hq_economy
 {
@@ -95,6 +97,13 @@ namespace hq_economy
 					if (parse_number(cell(items, row, static_cast<int>(col)), id)) pool.push_back(id);
 				}
 			}
+			std::map<std::uint32_t, unsigned> rarities;
+			for (const auto id : pool)
+			{
+				const auto rarity = utils::hook::invoke<int>(0x652330_g, id);
+				if (rarity >= 0) rarities[id] = static_cast<unsigned>(rarity);
+			}
+			demonware::hq_marketplace::set_rarities(rarities);
 			demonware::achievement_engine::set_loot_catalog(std::move(pool));
 		}
 

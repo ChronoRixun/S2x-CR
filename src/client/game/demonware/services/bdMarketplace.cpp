@@ -254,24 +254,26 @@ namespace demonware
 				return;
 			}
 			hq_protocol::trace("marketplace_111", buffer->get_remaining());
-			hq_marketplace::inventory_request request{};
-			bool includes_local_sku{};
-			if (!game::environment::is_zombies() && !hq_marketplace::parse_skus(buffer, request, &includes_local_sku))
+			hq_marketplace::sku_request request{};
+			if (!game::environment::is_zombies() && !hq_marketplace::parse_skus(buffer, request))
 			{
 				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send();
 				return;
 			}
 			auto reply = server->create_reply(this->task_id());
-			if (includes_local_sku)
+			const auto page = game::environment::is_zombies() ? std::vector<hq_marketplace::sku>{} : hq_marketplace::sku_page(request);
+			for (const auto& entry : page)
 			{
 				auto result = std::make_unique<hq_vendor::catalog_result>();
+				result->entry = entry;
 				byte_buffer encoded; result->serialize(&encoded);
 				hq_protocol::trace("marketplace_111_sku", encoded.get_buffer());
 				reply.add(result);
 			}
-			// SDK count is the paging signal; page2 is empty even for limit1.
-			console::info("[HQ marketplace] SKU page %u limit %u count %u (local display offer; purchases rejected)\n",
-				request.page, request.limit, unsigned(includes_local_sku));
+			// 27B700 continues on count==limit; short/empty page terminates.
+			// Task111 has no NextPageToken result field; do not append JSON/string bytes.
+			console::info("[HQ marketplace] SKU page %u limit %u count %u (collection catalog)\n",
+				request.page, request.limit, unsigned(page.size()));
 			reply.send();
 		});
 	}

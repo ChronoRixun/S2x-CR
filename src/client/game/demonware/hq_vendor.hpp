@@ -1,6 +1,7 @@
 #pragma once
 
 #include "hq_protocol.hpp"
+#include "hq_marketplace.hpp"
 
 namespace demonware::hq_vendor
 {
@@ -40,17 +41,17 @@ namespace demonware::hq_vendor
 	}
 
 	// Read-side chain A4A5A0 -> A4A510 -> A4A2C0, native stride 0x370.
-	// One local display offer: table supplydroptypes.csv sd_mp, item GUID 1.
-	// SKU/product ID and price are local policy; purchasing is unsupported.
+	// SKU and product ID equal the purchasable item GUID (local policy).
 	class catalog_result final : public bdTaskResult
 	{
 	public:
+		hq_marketplace::sku entry;
 		void serialize(byte_buffer* buffer) override
 		{
-			buffer->write_uint32(1); // +20 SKU ID
-			buffer->write_uint32(1); // +24 product ID
+			buffer->write_uint32(entry.id); // +20 SKU ID
+			buffer->write_uint32(entry.id); // +24 product ID
 			buffer->write_ubyte(1); // +28
-			buffer->write_blob(std::string{"sd_mp", 6}); // +29 bounded SKU data (64 bytes)
+			buffer->write_blob(std::to_string(entry.id) + '\0'); // +29 bounded SKU data (64 bytes)
 			buffer->write_ubyte(1); // +6A
 			buffer->write_uint32(0); // +6C
 			buffer->write_uint32(0); // +70 sale end
@@ -62,9 +63,9 @@ namespace demonware::hq_vendor
 			buffer->write_uint32(0); // +114
 			buffer->write_ubyte(0); // +6B
 			buffer->write_uint32(1); // +118 price count, fixed native capacity 10
-			buffer->write_ubyte(2); // price +20 currency ID
-			buffer->write_uint32(200); // price +24 absolute price
-			buffer->write_ubyte(100); // +350 SKU type, excludes collection type150
+			buffer->write_ubyte(hq_economy::armory_credits); // price +20 currency ID
+			buffer->write_uint32(entry.price); // price +24 absolute price
+			buffer->write_ubyte(entry.type); // +350 SKU type
 			buffer->write_uint32(1); // +358 max quantity
 			buffer->write_bool(false); // +35C sold out
 		}
