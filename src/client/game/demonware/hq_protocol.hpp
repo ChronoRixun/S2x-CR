@@ -59,4 +59,25 @@ namespace demonware::hq_protocol
 		if (!utils::io::write_file(path, bytes)) console::error("[HQ protocol] cannot write %s\n", path.c_str());
 		console::info("[HQ protocol] %s: %zu raw bytes at %s\n", label, bytes.size(), path.c_str());
 	}
+
+	// Per-row traces fire once for every catalog entry: one vendor visit wrote 1648 files
+	// and 1648 console lines (run-39688), all synchronously on the Demonware thread while
+	// the client was waiting on that same reply. Keep the first rows for schema work and
+	// account for the rest, so a full catalog page cannot stall the task queue.
+	inline void trace_row(const char* label, const std::string& bytes, const std::size_t keep = 4)
+	{
+		static const auto enabled = utils::flags::has_flag("-demonware_debug");
+		if (!enabled) return;
+		static std::mutex mutex{};
+		static std::map<std::string, std::uint64_t> rows{};
+		std::uint64_t index{};
+		{
+			std::lock_guard lock{mutex};
+			index = rows[label]++;
+		}
+		if (index < keep) { trace(label, bytes); return; }
+		if (index == keep) console::info("[HQ protocol] %s: dumping only the first %zu rows\n", label, keep);
+		else if ((index + 1) % 512 == 0)
+			console::info("[HQ protocol] %s: %llu rows served\n", label, index + 1);
+	}
 }

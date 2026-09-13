@@ -276,7 +276,7 @@ namespace demonware
 				auto result = std::make_unique<hq_vendor::catalog_result>();
 				result->entry = entry;
 				byte_buffer encoded; result->serialize(&encoded);
-				hq_protocol::trace("marketplace_111_sku", encoded.get_buffer());
+				hq_protocol::trace_row("marketplace_111_sku", encoded.get_buffer());
 				reply.add(result);
 			}
 			// 27B700 continues on count==limit; short/empty page terminates.
