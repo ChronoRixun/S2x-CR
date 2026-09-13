@@ -73,7 +73,7 @@ namespace demonware::hq_vendor
 			buffer->write_uint32(0); // +114
 			buffer->write_ubyte(0); // +6B
 			buffer->write_uint32(1); // +118 price count, fixed native capacity 10
-			buffer->write_ubyte(hq_economy::armory_credits); // price +20 currency ID
+			buffer->write_ubyte(entry.currency); // price +20 currency ID
 			buffer->write_uint32(entry.price); // price +24 absolute price
 			buffer->write_ubyte(entry.type); // +350 SKU type
 			buffer->write_uint32(1); // +358 max quantity

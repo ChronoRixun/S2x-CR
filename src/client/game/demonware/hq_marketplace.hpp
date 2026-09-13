@@ -36,6 +36,13 @@ namespace demonware::hq_marketplace
 		std::array<std::uint32_t, 5> items{};
 		const char* contract{""};
 		bool consumable{};
+		// Currency id of the single price record the client reads: task 111 catalog record
+		// price +0x20 (hq_vendor::catalog_result) and native SKU cache slot +0x24C
+		// (hq_native::sku_lookup, the field Inventory_GetSKUInfo returns as
+		// prices[1].currency). Everything this store sells is priced in Armory Credits and
+		// hq_marketplace::purchase debits nothing else, so the two writers must never fall
+		// back to a hard-coded constant of their own.
+		std::uint8_t currency{hq_economy::armory_credits};
 	};
 	// The Quartermaster front page cannot be built without these two.
 	// QuarterMasterUtils.GetAvailableSkuIDList (decompiled:
@@ -70,6 +77,16 @@ namespace demonware::hq_marketplace
 		{0x0800F027, 350, 100, "t:CONTRACT;c:164;C:164;i:s2_challenge_contracts", "Headshots Contract;Timed objective", {0x50F0007}, "contract_9_headshots"},
 		{0x0800F028, 100, 100, "t:CONTRACT;c:204;C:204;i:s2_challenge_contracts", "LMG Kill Contract;Timed objective", {0x50F0008}, "contract_25_kills_lmg"},
 		{0x0800F029, 450, 100, "t:CONTRACT;c:562;C:562;i:s2_challenge_contracts", "LMG Supply Contract;Timed objective", {0x50F0009}, "contract_50_kills_lmg"},
+		// Owner decision (build/research/hq-economy-slice1-report.md, "Retail alignment"):
+		// retail sells the 16 CWL team packs for 500 CoD Points, but this store has no CoD
+		// Points economy, so they stay deliberately purchasable at 1000 Armory Credits -
+		// currency 6, the same as the two rare drops above and the currency
+		// hq_marketplace::purchase debits. Every row below therefore keeps the default
+		// sku::currency. The CoD Points glyph on the Quartermaster's CWL tab is NOT SKU
+		// data: ui_s2_quartermaster_cwl_menu_uc.dec.lua binds prices[1].value straight into
+		// the tile's CoDPointsPrice model field and never reads prices[1].currency, while
+		// QuarterMasterUtils.ProcessSkuInfo only fills CoDPointsPrice for currency 2. The
+		// sku_details page the tile opens is currency-driven and renders Armory Credits.
 		{0x200010c, 1000, 100, "t:CWL_EF;l:0x200010c|1", "Echo Fox Pack;5 CWL cosmetics", {0x200010c, 0x240042b, 0x6632175, 0x7000098, 0x7040004}},
 		{0x2000117, 1000, 100, "t:CWL_ENVY;l:0x2000117|1", "Team Envy Pack;5 CWL cosmetics", {0x2000117, 0x240042c, 0x6632181, 0x7000099, 0x704000f}},
 		{0x200010d, 1000, 100, "t:CWL_EPSI;l:0x200010d|1", "Epsilon Pack;5 CWL cosmetics", {0x200010d, 0x240042d, 0x6632176, 0x700009a, 0x7040005}},

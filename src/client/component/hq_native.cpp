@@ -191,7 +191,7 @@ namespace hq_native
 		unsigned long long collection_price(const unsigned id)
 		{
 			const auto entry = demonware::hq_marketplace::find_sku(id);
-			return entry ? (std::uint64_t{entry->price} << 32) | demonware::hq_economy::armory_credits : 0;
+			return entry ? (std::uint64_t{entry->price} << 32) | entry->currency : 0;
 		}
 
 		unsigned sku_lookup(const unsigned id, void** output)
@@ -223,7 +223,7 @@ namespace hq_native
 					put(0x30 + i * 0x38, items[i]); put(0x34 + i * 0x38, 1);
 				}
 				put(0x240, id); bytes[0x244] = static_cast<unsigned char>(items.size()); put(0x248, 1);
-				put(0x24C, demonware::hq_economy::armory_credits); bytes[0x2E1] = 1;
+				put(0x24C, entry->currency); bytes[0x2E1] = 1;
 				// +0x29C is the SKU data string Engine.Inventory_GetSKUInfoSKUData returns.
 				// QuarterMasterUtils.FindSkuDataByType parses it as "key:value;key:value";
 				// the decimal GUID that used to sit here parsed to nothing, which left the
@@ -535,19 +535,44 @@ namespace hq_native
 		// from the console). The catalog leads with the two tagged supply drops, the
 		// three contract SKUs and the five-item CWL packs, i.e. every shape the slice-7
 		// out-of-bounds item writes crashed on.
-		void sku_test()
+		// `hqskutest` walks the head of the catalog; `hqskutest <decimal|0xGUID>` reports one
+		// SKU, so the price currency a tile renders can be read back from the console. The
+		// price fields are the ones Inventory_GetSKUInfo (0x11FF90) publishes to Lua as
+		// prices[1]: currency at +0x24C, value at +0x250, count at +0x2E1.
+		void sku_test(const command::params& params)
 		{
 			constexpr std::size_t sku_test_entries = 12;
 			const auto entries = demonware::hq_marketplace::catalog();
-			const auto count = entries.size() < sku_test_entries ? entries.size() : sku_test_entries;
-			for (std::size_t i = 0; i < count; ++i)
+			std::vector<std::uint32_t> requested;
+			if (params.size() == 2)
+			{
+				std::string_view value = params[1];
+				const auto hex = value.starts_with("0x") || value.starts_with("0X");
+				if (hex) value.remove_prefix(2);
+				unsigned guid{};
+				const auto parsed = std::from_chars(value.data(), value.data() + value.size(), guid, hex ? 16 : 10);
+				if (value.empty() || parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size() || !guid ||
+					!demonware::hq_marketplace::find_sku(guid))
+				{
+					console::info("Usage: hqskutest [decimal|0xGUID] (no id walks the first %u catalog SKUs)\n",
+						static_cast<unsigned>(sku_test_entries));
+					return;
+				}
+				requested.push_back(guid);
+			}
+			else
+			{
+				const auto count = entries.size() < sku_test_entries ? entries.size() : sku_test_entries;
+				for (std::size_t i = 0; i < count; ++i) requested.push_back(entries[i].id);
+			}
+			for (const auto id : requested)
 			{
 				void* record{};
-				const auto result = sku_lookup(entries[i].id, &record);
+				const auto result = sku_lookup(id, &record);
 				const auto* bytes = static_cast<const unsigned char*>(record);
 				if (result != 0 || !bytes)
 				{
-					console::warn("[HQ skutest] id=%u lookup failed (result=%u)\n", entries[i].id, result);
+					console::warn("[HQ skutest] id=%u lookup failed (result=%u)\n", id, result);
 					continue;
 				}
 				std::string items;
@@ -556,13 +581,15 @@ namespace hq_native
 					if (!items.empty()) items += ",";
 					items += std::to_string(*reinterpret_cast<const unsigned*>(bytes + 0x30 + item * 0x38));
 				}
-				console::info("[HQ skutest] id=%u type=%u numItems=%u items=[%s] product=%u data=\"%s\" promo=\"%s\"\n",
-					entries[i].id, *reinterpret_cast<const unsigned*>(bytes + 4), bytes[0x244], items.data(),
-					*reinterpret_cast<const unsigned*>(bytes + 0x240),
+				console::info("[HQ skutest] id=%u type=%u price=%u currency=%u prices=%u numItems=%u items=[%s] product=%u data=\"%s\" promo=\"%s\"\n",
+					id, *reinterpret_cast<const unsigned*>(bytes + 4),
+					*reinterpret_cast<const unsigned*>(bytes + 0x250),
+					*reinterpret_cast<const unsigned*>(bytes + 0x24C), bytes[0x2E1],
+					bytes[0x244], items.data(), *reinterpret_cast<const unsigned*>(bytes + 0x240),
 					reinterpret_cast<const char*>(bytes + 0x29C), reinterpret_cast<const char*>(bytes + 0x25C));
 			}
 			console::info("[HQ skutest] populated %u of %u catalog SKU record(s), no fault\n",
-				static_cast<unsigned>(count), static_cast<unsigned>(entries.size()));
+				static_cast<unsigned>(requested.size()), static_cast<unsigned>(entries.size()));
 		}
 
 		// The native user achievement table: 0x13890 bytes per controller, 1000 records of
