@@ -137,46 +137,29 @@ namespace hq_economy
 			const auto* daily = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/dailychallengestable.csv", false).stringTable;
 			const auto* definitions = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "dw/dwgamechallenges.csv", false).stringTable;
 			if (!daily || !definitions) return;
-			// The UI table has no AE foreign key. Only unambiguous semantic joins are enabled.
-			const std::map<std::string, std::string> joins
+			std::vector<demonware::hq_economy::achievement> catalog;
+			// Six native daily identities. Retail observed win Social Score and rifle 2x drops;
+			// the other rewards/targets are local choices, not a recovered daily rotation.
+			for (const auto& [name, target, currency, amount] :
+				std::vector<std::tuple<const char*, unsigned, unsigned, unsigned>>{
+				{"daily_ch_1v1_wins", 1, 7, 250}, {"daily_ch_assault_kills", 35, 0, 2},
+				{"daily_ch_kills", 25, 0, 1}, {"daily_ch_headshots", 3, 0, 1},
+				{"daily_ch_commend", 1, 7, 250}, {"daily_ch_shotgun_kills", 100, 0, 2}})
 			{
-				{"ch_daily_0", "daily_ch_kills"}, {"ch_daily_1", "daily_ch_headshots"},
-				{"ch_daily_2", "daily_ch_1v1_wins"}, {"ch_daily_5", "daily_ch_commend"},
-			};
-			std::vector<demonware::hq_economy::achievement> catalog{};
-			for (int row = 0; row < daily->rowCount; ++row)
-			{
-				const auto join = joins.find(cell(daily, row, 0));
-				if (join == joins.end()) continue;
-				for (int definition = 0; definition < definitions->rowCount; ++definition)
-				{
-					if (join->second != cell(definitions, definition, 1) || std::string_view{cell(definitions, definition, 2)} != "1") continue;
-					demonware::hq_economy::achievement entry{};
-					entry.name = join->second;
-					entry.challenge_name = join->first;
-					const std::string_view target{cell(daily, row, 9)};
-					const auto parsed = std::from_chars(target.data(), target.data() + target.size(), entry.target);
-					if (parsed.ec != std::errc{} || parsed.ptr != target.data() + target.size() || !entry.target) continue;
-					// Column 10 is XP; 25 Armory Credits (currency 6) is a documented local reward,
-					// pending a verified XP reward mapping.
-					entry.rewards = {{"GRANT_CURRENCY", demonware::hq_economy::armory_credits, 25}};
-					catalog.push_back(entry);
-				}
+				demonware::hq_economy::achievement entry;
+				entry.name = entry.challenge_name = name; entry.target = target;
+				entry.rewards = {{currency ? "GRANT_CURRENCY" : "GRANT_PRODUCT", currency ? currency : 1, amount}};
+				// Existing collection loot GUID (itemscollections.csv row 27), a local item offer.
+				if (std::string_view{name} == "daily_ch_shotgun_kills") entry.rewards = {{"GRANT_PRODUCT", 0x20000D, 1}};
+				catalog.push_back(entry);
 			}
-			// The copied weekly UI table is empty. These definition-backed offers use
-			// explicit local targets; see Slice 2 report, not inferred retail values.
-			for (const auto& [name, target] : std::map<std::string, std::uint32_t>{
-				{"weekly_ch_kills", 100}, {"weekly_ch_wins", 10}, {"weekly_ch_scorestreak_calls", 25}})
+			for (const auto& [name, target] : std::map<std::string, unsigned>{
+				{"weekly_ch_kills", 500}, {"weekly_ch_wins", 10}, {"weekly_ch_scorestreak_calls", 25}})
 			{
-				for (int row = 0; row < definitions->rowCount; ++row)
-				{
-					if (name != cell(definitions, row, 1) || std::string_view{cell(definitions, row, 2)} != "2") continue;
-					demonware::hq_economy::achievement entry{};
-					entry.name = name; entry.challenge_name = name;
-					entry.kind = 2; entry.target = target;
-					entry.rewards = {{"GRANT_CURRENCY", demonware::hq_economy::armory_credits, 100}};
-					catalog.push_back(entry);
-				}
+				demonware::hq_economy::achievement entry;
+				entry.name = entry.challenge_name = name; entry.kind = 2; entry.target = target;
+				entry.rewards = {{"GRANT_PRODUCT", 2, 1}};
+				catalog.push_back(entry);
 			}
 			for (const auto& definition : demonware::hq_contract_catalog::entries)
 			{

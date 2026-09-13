@@ -51,7 +51,7 @@ namespace demonware::achievement_engine
 				entry.status == "finished" ? "completed" : entry.status.c_str()) :
 				(entry.status == "available" ? "inactive" : entry.status.c_str());
 			value.AddMember("status", text(status, alloc), alloc);
-			value.AddMember("requiresClaim", true, alloc);
+			value.AddMember("requiresClaim", !entry.name.starts_with("above_beyond_"), alloc);
 			value.AddMember("progress", entry.progress, alloc);
 			value.AddMember("progressTarget", entry.target, alloc);
 			value.AddMember("globalProgressTarget", 0, alloc);
@@ -143,7 +143,7 @@ namespace demonware::achievement_engine
 				std::vector<hq_economy::achievement> pool{};
 				for (const auto& entry : definitions) if (entry.kind == kind) pool.push_back(entry);
 				const auto period = kind == 2 ? day / 7 : day;
-				for (std::size_t i = 0; i < std::min<std::size_t>(kind == 4 ? 9 : 3, pool.size()); ++i)
+				for (std::size_t i = 0; i < std::min<std::size_t>(kind == 4 ? 9 : kind == 1 ? 6 : 3, pool.size()); ++i)
 				{
 					auto entry = pool[(period + i) % pool.size()];
 					entry.offer_day = kind == 2 ? period * 7 : day;
@@ -188,11 +188,16 @@ namespace demonware::achievement_engine
 			std::vector<hq_economy::achievement> pool;
 			for (const auto& entry : definitions) if (entry.kind == kind) pool.push_back(entry);
 			if (pool.empty()) continue; // table loading has not completed
+			const auto limit = kind == 1 ? 6u : 3u;
 			const auto current = [&](const auto& entry) { return kind == 2 ? entry.offer_day / 7 == day / 7 : entry.offer_day == day; };
 			std::size_t live{};
 			for (auto& [name, entry] : data.achievements)
 			{
 				if (entry.kind != kind) continue;
+				const auto definition = std::find_if(pool.begin(), pool.end(), [&](const auto& d) { return d.name == name; });
+				if (definition != pool.end() && !std::equal(entry.rewards.begin(), entry.rewards.end(), definition->rewards.begin(), definition->rewards.end(),
+					[](const auto& a, const auto& b) { return a.type == b.type && a.id == b.id && a.amount == b.amount && a.achievement_name == b.achievement_name; }))
+				{ entry.rewards = definition->rewards; changed = true; }
 				if (entry.status == "inProgress" || entry.status == "claimable")
 				{
 					++live;
@@ -200,6 +205,7 @@ namespace demonware::achievement_engine
 					// offer date, so its UI expiration uses the current boundary.
 					if (entry.offer_day != day) { entry.offer_day = day; changed = true; }
 				}
+				else if (entry.status == "finished" && current(entry)) ++live;
 				else if (entry.status == "available" && !current(entry))
 				{ entry.status = "expired"; changed = true; }
 			}
@@ -207,7 +213,7 @@ namespace demonware::achievement_engine
 			for (auto& [name, entry] : data.achievements)
 			{
 				if (entry.kind != kind || entry.status != "available") continue;
-				if (live >= 3) { entry.status = "expired"; changed = true; continue; }
+				if (live >= limit) { entry.status = "expired"; changed = true; continue; }
 				++live;
 				if (entry.offer_day != day) { entry.offer_day = day; changed = true; }
 			}
@@ -215,8 +221,8 @@ namespace demonware::achievement_engine
 			// Prefer unused definitions; if the small local pool is exhausted,
 			// completed definitions may be offered again to maintain three slots.
 			// The old receipt remains until activation, and cannot grant twice.
-			for (const auto reuse_completed : {false, true})
-				for (std::size_t i = 0; live < 3 && i < pool.size(); ++i)
+			for (const auto reuse_completed : {false})
+				for (std::size_t i = 0; live < limit && i < pool.size(); ++i)
 				{
 					auto entry = pool[(period + i) % pool.size()];
 					const auto found = data.achievements.find(entry.name);
@@ -233,6 +239,19 @@ namespace demonware::achievement_engine
 					++live; changed = true;
 				}
 		}
+		if (std::any_of(definitions.begin(), definitions.end(), [](const auto& d) { return d.name == "daily_ch_assault_kills"; }))
+			for (const auto kind : {1, 2})
+			{
+				const auto name = kind == 1 ? "above_beyond_daily" : "above_beyond_weekly";
+				const auto period = kind == 1 ? day : day / 7 * 7;
+				auto& counter = data.achievements[name];
+				if (counter.name.empty() || counter.offer_day != period)
+				{
+					counter = {}; counter.name = counter.challenge_name = name; counter.kind = 5;
+					counter.offer_day = period; counter.target = kind == 1 ? 6 : 3; counter.status = "inProgress";
+					counter.rewards = {{"GRANT_PRODUCT", kind == 1 ? 1u : 2u, 1}}; changed = true;
+				}
+			}
 		return changed;
 	}
 
@@ -453,7 +472,8 @@ namespace demonware::achievement_engine
 			}
 			std::erase_if(scheduled, [](const auto& entry) { return entry.kind == 1 || entry.kind == 2; });
 			for (const auto& [name, entry] : data.achievements)
-				if ((entry.kind == 1 || entry.kind == 2) && (entry.status == "available" || entry.status == "inProgress" || entry.status == "claimable")) scheduled.push_back(entry);
+				if ((entry.kind == 1 || entry.kind == 2) && (entry.status == "available" || entry.status == "inProgress" || entry.status == "claimable" ||
+					(entry.status == "finished" && (entry.kind == 2 ? entry.offer_day / 7 == day / 7 : entry.offer_day == day)))) scheduled.push_back(entry);
 			if (action == "get_user_achievements_for_users")
 			{
 				if (request.HasMember("UserIDs") && !request["UserIDs"].IsArray()) return fail("invalid_user_ids");
@@ -735,6 +755,19 @@ namespace demonware::achievement_engine
 							entry.completion = now;
 							entry.claim_transaction = client_tx;
 							next.transactions[transaction_key] = fingerprint;
+							if (entry.kind == 1 || entry.kind == 2)
+							{
+								const auto counter = next.achievements.find(entry.kind == 1 ? "above_beyond_daily" : "above_beyond_weekly");
+								if (counter != next.achievements.end() && counter->second.status == "inProgress")
+								{
+									auto& bonus = counter->second;
+									if (++bonus.progress >= bonus.target)
+									{
+										for (const auto& reward : bonus.rewards) if (!hq_economy::grant(next, reward)) return false;
+										bonus.status = "finished"; bonus.completion = now; bonus.claim_transaction = client_tx;
+									}
+								}
+							}
 						}
 					}
 					updated = entry;
