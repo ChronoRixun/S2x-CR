@@ -163,9 +163,9 @@ namespace demonware::achievement_engine
 			std::string notification;
 			const auto ok = hq_economy::transact([&](hq_economy::state& data)
 			{
-				const auto before = data.currencies.contains(2) ? data.currencies.at(2) : 0;
+				const auto before = data.currencies.contains(hq_economy::armory_credits) ? data.currencies.at(hq_economy::armory_credits) : 0;
 				if (!hq_payroll::settle(data, event.timestamp, now)) return false;
-				const auto after = data.currencies.contains(2) ? data.currencies.at(2) : 0;
+				const auto after = data.currencies.contains(hq_economy::armory_credits) ? data.currencies.at(hq_economy::armory_credits) : 0;
 				if (after != before)
 				{
 					rapidjson::Document push{rapidjson::kObjectType};
@@ -176,7 +176,7 @@ namespace demonware::achievement_engine
 					push.AddMember("reason", "completed", alloc);
 					rapidjson::Value triggers{rapidjson::kArrayType}, trigger{rapidjson::kObjectType};
 					rapidjson::Value inventory{rapidjson::kObjectType}, currencies{rapidjson::kArrayType}, currency{rapidjson::kObjectType};
-					currency.AddMember("currency_id", 2, alloc);
+					currency.AddMember("currency_id", hq_economy::armory_credits, alloc);
 					currency.AddMember("balance_before", before, alloc);
 					currency.AddMember("balance_delta", after - before, alloc);
 					currencies.PushBack(currency, alloc);
@@ -219,7 +219,7 @@ namespace demonware::achievement_engine
 					entry.kind = 5; entry.target = 1; entry.progress = 1;
 					entry.activation = now; entry.offer_day = now / 86400;
 					entry.status = "claimable";
-					entry.rewards = {{"GRANT_CURRENCY", 2, 200}};
+					entry.rewards = {{"GRANT_CURRENCY", hq_economy::armory_credits, hq_economy::payroll_amount}};
 				}
 			}
 			if (kills) for (auto& [name, entry] : data.achievements)

@@ -2,6 +2,7 @@
 #include "hq_economy.hpp"
 #include "component/console/console.hpp"
 #include <utils/io.hpp>
+#include <charconv>
 
 namespace demonware::hq_economy
 {
@@ -212,13 +213,59 @@ namespace demonware::hq_economy
 		}
 	}
 
+	bool migrate_payroll(state& data)
+	{
+		constexpr auto marker = "migration:payroll-currency7-v1";
+		if (data.transactions.contains(marker)) return false;
+		// Legacy native receipts contain a microsecond timestamp; manual claim
+		// receipts contain payroll_officer:<day>. Native acknowledgement of a
+		// manual claim is not another payment: conservatively take max per day.
+		std::map<std::uint64_t, std::pair<unsigned, unsigned>> days;
+		const auto parse = [](const std::string_view text, std::uint64_t& value)
+		{
+			const auto result = std::from_chars(text.data(), text.data() + text.size(), value);
+			return !text.empty() && result.ec == std::errc{} && result.ptr == text.data() + text.size();
+		};
+		for (const auto& [id, request] : data.transactions)
+		{
+			std::uint64_t period{}, timestamp{};
+			if (id.starts_with("payroll:") && parse(std::string_view{id}.substr(8), period) &&
+				parse(request, timestamp) && timestamp && timestamp / 1000000 / 14400 == period)
+				++days[timestamp / 1000000 / 86400].first;
+			if (id.starts_with("claim:") && request.starts_with("payroll_officer:") &&
+				parse(std::string_view{request}.substr(16), period)) ++days[period].second;
+		}
+		std::uint64_t accounted{};
+		for (const auto& [day, counts] : days) accounted += std::max(counts.first, counts.second) * std::uint64_t{payroll_amount};
+		const auto old = data.currencies.find(2);
+		const auto ac = data.currencies.find(armory_credits);
+		const auto balance = ac == data.currencies.end() ? 0 : ac->second;
+		const auto moved = static_cast<std::uint32_t>(std::min({accounted,
+			std::uint64_t{old == data.currencies.end() ? 0 : old->second}, std::uint64_t{UINT32_MAX - balance}}));
+		if (moved) { old->second -= moved; data.currencies[armory_credits] = balance + moved; }
+		// Persisted local AC reward definitions must also stop issuing CP.
+		for (auto& [name, entry] : data.achievements)
+			if (name == "payroll_officer" || name.starts_with("daily_ch_") || name.starts_with("weekly_ch_") || name.starts_with("contract_"))
+				for (auto& reward : entry.rewards)
+					if (reward.type == "GRANT_CURRENCY" && reward.id == 2) reward.id = armory_credits;
+		data.transactions.emplace(marker, std::to_string(moved));
+		return true;
+	}
+
 	state snapshot()
 	{
 		std::lock_guard lock{state_mutex};
 		if (!cached)
 		{
 			const file_lock disk_lock{};
-			cached = load();
+			auto next = load();
+			if (migrate_payroll(next))
+			{
+				if (next.revision == UINT64_MAX) throw std::runtime_error("economy revision overflow");
+				++next.revision;
+				if (!save(next)) throw std::runtime_error("payroll migration save failed");
+			}
+			cached = std::move(next);
 		}
 		return *cached;
 	}
@@ -236,6 +283,7 @@ namespace demonware::hq_economy
 			std::lock_guard lock{state_mutex};
 			const file_lock disk_lock{};
 			auto next = load(); // always validate the on-disk copy before mutating it
+			migrate_payroll(next);
 			if (!mutation(next) || next.revision == UINT64_MAX || next.inventory.size() > 10000 ||
 				next.achievements.size() > 10000 || next.transactions.size() > 10000) return false;
 			++next.revision;

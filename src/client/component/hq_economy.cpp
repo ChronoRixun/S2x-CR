@@ -123,9 +123,9 @@ namespace hq_economy
 					const std::string_view target{cell(daily, row, 9)};
 					const auto parsed = std::from_chars(target.data(), target.data() + target.size(), entry.target);
 					if (parsed.ec != std::errc{} || parsed.ptr != target.data() + target.size() || !entry.target) continue;
-					// Column 10 is XP; currency 2/25 is a documented local AC reward,
+					// Column 10 is XP; currency 7/25 is a documented local AC reward,
 					// pending a verified XP reward mapping.
-					entry.rewards = {{"GRANT_CURRENCY", 2, 25}};
+					entry.rewards = {{"GRANT_CURRENCY", demonware::hq_economy::armory_credits, 25}};
 					catalog.push_back(entry);
 				}
 			}
@@ -140,7 +140,7 @@ namespace hq_economy
 					demonware::hq_economy::achievement entry{};
 					entry.name = name; entry.challenge_name = name;
 					entry.kind = 2; entry.target = target;
-					entry.rewards = {{"GRANT_CURRENCY", 2, 100}};
+					entry.rewards = {{"GRANT_CURRENCY", demonware::hq_economy::armory_credits, 100}};
 					catalog.push_back(entry);
 				}
 			}

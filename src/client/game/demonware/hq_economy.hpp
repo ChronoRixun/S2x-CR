@@ -9,6 +9,12 @@
 
 namespace demonware::hq_economy
 {
+	// Lua trace: currency 7 is the hammer/Armory Credits; 2 is COD Points.
+	inline constexpr std::uint8_t armory_credits = 7;
+	// Local policy; retail payroll amount has not been recovered.
+	inline constexpr std::uint32_t payroll_amount = 200;
+	bool migrate_payroll(struct state& data);
+
 	struct item
 	{
 		std::uint32_t guid{};

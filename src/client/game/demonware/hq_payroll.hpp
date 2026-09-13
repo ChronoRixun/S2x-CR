@@ -26,13 +26,13 @@ namespace demonware::hq_payroll
 		// Respect a legacy manual claim in this period too.
 		if (!entry.completion || entry.completion / period < seconds / period)
 		{
-			if (!hq_economy::grant(data, {"GRANT_CURRENCY", 2, 200})) return false;
+			if (!hq_economy::grant(data, {"GRANT_CURRENCY", hq_economy::armory_credits, hq_economy::payroll_amount})) return false;
 			entry = {};
 			entry.name = "payroll_officer"; entry.challenge_name = entry.name;
 			entry.kind = 5; entry.target = 1; entry.progress = 1;
 			entry.activation = seconds; entry.completion = now; entry.offer_day = now / 86400;
 			entry.status = "finished"; entry.claim_transaction = receipt;
-			entry.rewards = {{"GRANT_CURRENCY", 2, 200}};
+			entry.rewards = {{"GRANT_CURRENCY", hq_economy::armory_credits, hq_economy::payroll_amount}};
 		}
 		data.transactions[receipt] = std::to_string(timestamp);
 		return true;

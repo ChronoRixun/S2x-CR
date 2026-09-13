@@ -26,7 +26,7 @@ namespace hq_native
 			console::info("[HQ wallet] ready=%u count=%u ArmoryCredits=%u (Inventory_GetCurrencyBalance)\n",
 				*reinterpret_cast<const unsigned char*>(0x7F6FE94_g),
 				*reinterpret_cast<const unsigned*>(0x7F6FE90_g),
-				utils::hook::invoke<unsigned>(0x279780_g, 0, 2));
+				utils::hook::invoke<unsigned>(0x279780_g, 0, unsigned(demonware::hq_economy::armory_credits)));
 			for (unsigned i = 0; i < 13; ++i)
 			{
 				const auto* slot = reinterpret_cast<const unsigned char*>(0x7F6FBB8_g) + i * 0x38;
