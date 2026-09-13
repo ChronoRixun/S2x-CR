@@ -12,6 +12,9 @@
 #include "game/demonware/hq_inventory_cache.hpp"
 #include "component/scheduler.hpp"
 #include "hq_vendor_globals.hpp"
+#include "game/ui_scripting/execution.hpp"
+#include "ui_scripting.hpp"
+#include <charconv>
 
 namespace hq_native
 {
@@ -264,6 +267,7 @@ namespace hq_native
 
 		void refresh_item(const demonware::hq_economy::item& entry)
 		{
+			if (!entry.guid || entry.collision || entry.metadata.size() > 64) return;
 			const auto item = demonware::hq_inventory_cache::project(entry, static_cast<std::uint64_t>(time(nullptr)));
 			utils::hook::invoke<unsigned>(0x27DD30_g, 0, &item, 0, 0, entry.metadata.data(), static_cast<unsigned char>(entry.metadata.size()));
 		}
@@ -664,9 +668,52 @@ namespace hq_native
 					*reinterpret_cast<const std::uint64_t*>(record + 0x18),
 					*reinterpret_cast<void* const*>(record + 0x20));
 			}
-			console::info("[HQ contracts] the tab's own menu is ui/s2/contracts_menu(_uc), which is not among "
-				"the 294 dumped scripts: run `dumpluafiles contract` to add it\n");
+			console::info("[HQ contracts] local periodic rows 33..35: AEC_CONTRACT, cost tokens 0x5000001..3, timeLimit=3600, no display gates\n");
 		}
+		void ownership_status(const command::params& params)
+		{
+			std::string_view value = params.size() == 2 ? params[1] : "";
+			const auto hex = value.starts_with("0x") || value.starts_with("0X");
+			if (hex) value.remove_prefix(2);
+			unsigned guid{};
+			const auto parsed = std::from_chars(value.data(), value.data() + value.size(), guid, hex ? 16 : 10);
+			if (value.empty() || parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size() || !guid)
+			{
+				console::info("Usage: hqownership <decimal|0xGUID> (read-only native/CAC ownership)\n");
+				return;
+			}
+			scheduler::once([guid]
+			{
+				try
+				{
+					if (!*reinterpret_cast<const unsigned char*>(0x80385A8_g))
+					{
+						console::info("[HQ ownership] inventory not ready\n");
+						return;
+					}
+					const demonware::hq_inventory_cache::record* cached{};
+					utils::hook::invoke<unsigned short>(0x279300_g, 0, guid, &cached);
+					const auto quantity = utils::hook::invoke<unsigned>(0x279480_g, 0, guid);
+					const auto usable = utils::hook::invoke<bool>(0x27A310_g, 0, guid);
+					const auto lock = utils::hook::invoke<int>(0xCF850_g, 0, guid, nullptr);
+					console::info("[HQ ownership] guid=0x%x cached=%u quantity=%u expires=%u duration=%lld usable=%u lock=%d (0=unlocked)\n",
+						guid, cached ? cached->quantity : 0, quantity, cached ? cached->expires : 0,
+						cached ? cached->duration : 0, unsigned(usable), lock);
+					demonware::hq_protocol::trace("ownership_native", std::to_string(guid) + ":quantity=" +
+						std::to_string(quantity) + ":usable=" + std::to_string(usable) + ":lock=" + std::to_string(lock));
+					if (!*game::hks::lui_lua_state) return;
+					const auto lua = ui_scripting::get_globals();
+					const std::string key = utils::string::va("0x%x", guid);
+					const auto unlocked = lua["Engine"]["IsGuidUnlocked"](0, key);
+					const auto cac = lua["Cac"]["GetItemGuidLockState"](0, key);
+					console::info("[HQ ownership] IsGuidUnlocked=%u CAC=%s\n", unsigned(unlocked.at(0).as<bool>()),
+						cac.at(0).as<std::string>().c_str());
+				}
+				catch (const std::exception& error) { console::warn("[HQ ownership] probe unavailable: %s\n", error.what()); }
+				catch (...) { console::warn("[HQ ownership] probe unavailable\n"); }
+			}, scheduler::pipeline::main);
+		}
+
 		void sku_failure(void* task)
 		{
 			sku_failure_hook.invoke<void>(task);
@@ -701,6 +748,7 @@ namespace hq_native
 			command::add("hqskutest", sku_test);
 			command::add("hqpayrollstate", payroll_state);
 			command::add("hqcontracts", contract_state);
+			command::add("hqownership", ownership_status);
 		}
 	};
 }
