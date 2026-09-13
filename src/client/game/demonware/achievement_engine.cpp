@@ -776,6 +776,12 @@ namespace demonware::achievement_engine
 				if (!ok) return fail("achievement_transition_rejected_or_save_failed");
 				rapidjson::Value entries{rapidjson::kArrayType};
 				entries.PushBack(serialize(updated, alloc, day), alloc);
+				if (action == "claim_achievement_reward" && (updated.kind == 1 || updated.kind == 2))
+				{
+					const auto state = hq_economy::snapshot();
+					const auto bonus = state.achievements.find(updated.kind == 1 ? "above_beyond_daily" : "above_beyond_weekly");
+					if (bonus != state.achievements.end()) entries.PushBack(serialize(bonus->second, alloc, day), alloc);
+				}
 				response.AddMember("Achievements", entries, alloc);
 				if (action == "claim_achievement_reward")
 				{

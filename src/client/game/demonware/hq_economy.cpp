@@ -130,6 +130,23 @@ namespace demonware::hq_economy
 			return data;
 		}
 
+		bool migrate_contracts(state& data)
+		{
+			constexpr auto marker = "migration:retail-contracts-v1";
+			if (data.transactions.contains(marker)) return false;
+			// Run before the asset catalog is ready, so an early AE fetch cannot publish
+			// the owner's synthetic Slice-9 completions into the native cache.
+			for (const auto* name : {"contract_mp_1", "contract_mp_2", "contract_mp_3"})
+			{
+				const auto entry = data.achievements.find(name);
+				if (entry != data.achievements.end() && entry->second.kind == 4) data.achievements.erase(entry);
+			}
+			for (const auto id : {0x5000001u, 0x5000002u, 0x5000003u})
+				if (const auto item = data.inventory.find({id, 0}); item != data.inventory.end()) item->second.quantity = 0;
+			data.transactions.emplace(marker, "retired placeholder progress and tokens; receipts retained");
+			return true;
+		}
+
 		std::string encode(const state& data)
 		{
 			rapidjson::StringBuffer buffer{};
@@ -277,7 +294,8 @@ namespace demonware::hq_economy
 		{
 			const file_lock disk_lock{};
 			auto next = load();
-			if (migrate_payroll(next))
+			const auto payroll_changed = migrate_payroll(next);
+			if (migrate_contracts(next) || payroll_changed)
 			{
 				if (next.revision == UINT64_MAX) throw std::runtime_error("economy revision overflow");
 				if (next.transactions.size() > 10000) throw std::runtime_error("no room for payroll migration receipt");
@@ -303,6 +321,7 @@ namespace demonware::hq_economy
 			const file_lock disk_lock{};
 			auto next = load(); // always validate the on-disk copy before mutating it
 			migrate_payroll(next);
+			migrate_contracts(next);
 			if (!mutation(next) || next.revision == UINT64_MAX || next.inventory.size() > 10000 ||
 				next.achievements.size() > 10000 || next.transactions.size() > 10000) return false;
 			++next.revision;

@@ -6,7 +6,7 @@
 
 namespace hq_contracts
 {
-	// Explicit local periodic-table policy for our nine scheduled offers. The retail
+	// Explicit local periodic-table policy for our scheduled Contracts and Orders. The retail
 	// periodic table is not in the saved asset dumps; do not pretend its display gates,
 	// cost tokens or timing agree with a locally generated AE catalog. Keep the adapter
 	// scoped to these IDs and this table, including when another mode reuses the VM.
@@ -22,6 +22,15 @@ local rows = {
 	[164] = {"164", "AEC_CONTRACT", "contract_9_headshots", "Headshots Contract", "Get 9 headshots", "", "1", "", "9", "", "2400", "0x50f0007"},
 	[204] = {"204", "AEC_CONTRACT", "contract_25_kills_lmg", "LMG Kill Contract", "Get 25 LMG kills", "", "1", "", "25", "", "1200", "0x50f0008"},
 	[562] = {"562", "AEC_CONTRACT", "contract_50_kills_lmg", "LMG Supply Contract", "Get 50 LMG kills", "", "1", "", "50", "", "3000", "0x50f0009"},
+	[5] = {"5", "AEC_DAILY", "daily_ch_1v1_wins", "Single Minded", "Win 1 match in the 1v1 Pit", "", "1", "", "1", "", "0", "", ""},
+	[45] = {"45", "AEC_DAILY", "daily_ch_assault_kills", "Rifle Adept", "Get 35 rifle kills", "", "1", "", "35", "", "0", "", "", "2x Supply Drops", "s2_supply_drop_icon"},
+	[10] = {"10", "AEC_DAILY", "daily_ch_kills", "Daily Kills", "Get 25 kills", "", "1", "", "25", "", "0", "", ""},
+	[11] = {"11", "AEC_DAILY", "daily_ch_headshots", "Daily Headshots", "Get 3 headshots", "", "1", "", "3", "", "0", "", ""},
+	[6] = {"6", "AEC_DAILY", "daily_ch_commend", "Commend a Soldier", "Give 1 commendation", "", "1", "", "1", "", "0", "", ""},
+	[48] = {"48", "AEC_DAILY", "daily_ch_shotgun_kills", "Shotgun Kills", "Get 100 shotgun kills", "", "1", "", "100", "", "0", "", ""},
+	[29] = {"29", "AEC_WEEKLY", "weekly_ch_kills", "Turning the Tide", "Get 500 kills", "", "1", "", "500", "", "0", "", ""},
+	[30] = {"30", "AEC_WEEKLY", "weekly_ch_wins", "Weekly Wins", "Win 10 matches", "", "1", "", "10", "", "0", "", ""},
+	[25] = {"25", "AEC_WEEKLY", "weekly_ch_scorestreak_calls", "Weekly Scorestreaks", "Call in 25 scorestreaks", "", "1", "", "25", "", "0", "", ""},
 }
 local rewards = {
 	[162] = { currencyID = 1, currencyAmount = 3000 },
@@ -33,6 +42,15 @@ local rewards = {
 	[164] = { currencyID = 1, currencyAmount = 3000 },
 	[204] = { currencyID = 1, currencyAmount = 3000 },
 	[562] = { productID = "0x1", itemID = "0x1" },
+	[5] = { currencyID = 7, currencyAmount = 250 },
+	[45] = { productID = "0x1", itemID = "0x1" },
+	[10] = { productID = "0x1", itemID = "0x1" },
+	[11] = { productID = "0x1", itemID = "0x1" },
+	[6] = { currencyID = 7, currencyAmount = 250 },
+	[48] = { productID = "0x20000d", itemID = "0x20000d" },
+	[29] = { productID = "0x2", itemID = "0x2" },
+	[30] = { productID = "0x2", itemID = "0x2" },
+	[25] = { productID = "0x2", itemID = "0x2" },
 }
 for _, name in ipairs({"AE_GetScheduledChallenges", "AE_GetPlayerActiveChallenges"}) do
 	local original = Engine[name]
