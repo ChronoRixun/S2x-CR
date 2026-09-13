@@ -2,6 +2,8 @@
 
 #include "hq_economy.hpp"
 #include "reward_game_event.hpp"
+#include "hq_event_predicate.hpp"
+#include <map>
 
 namespace demonware::achievement_engine
 {
@@ -11,6 +13,7 @@ namespace demonware::achievement_engine
 	// Start of the period after the one containing 'day' (next UTC midnight for kinds 1/4,
 	// next UTC week boundary for kind 2). Always strictly greater than any time in that day.
 	std::uint64_t period_end(int kind, std::uint64_t day);
+	void set_event_rules(std::map<std::string, hq_event_predicate::rule> rules);
 	void set_catalog(std::vector<hq_economy::achievement> catalog);
 	void set_loot_catalog(std::vector<std::uint32_t> items);
 	bool submit_event(const reward_game_events::event& event, bool native_payroll = false);

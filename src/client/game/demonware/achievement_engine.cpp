@@ -15,6 +15,7 @@ namespace demonware::achievement_engine
 		std::mutex catalog_mutex{};
 		std::vector<hq_economy::achievement> definitions{};
 		std::vector<std::uint32_t> loot_items{};
+		std::map<std::string, hq_event_predicate::rule> event_rules;
 		using allocator = rapidjson::Document::AllocatorType;
 
 		rapidjson::Value text(const std::string_view value, allocator& alloc)
@@ -214,6 +215,17 @@ namespace demonware::achievement_engine
 		return changed;
 	}
 
+	void set_event_rules(std::map<std::string, hq_event_predicate::rule> rules)
+	{
+		// A bad asset row fails closed; neither it nor saved progress supplies code.
+		std::erase_if(rules, [](const auto& pair)
+		{
+			return !pair.second.event_id || !hq_event_predicate::evaluate(pair.second.expression, {}).valid;
+		});
+		std::lock_guard lock{catalog_mutex};
+		event_rules = std::move(rules);
+	}
+
 	void set_catalog(std::vector<hq_economy::achievement> catalog)
 	{
 		std::lock_guard lock{catalog_mutex};
@@ -232,14 +244,15 @@ namespace demonware::achievement_engine
 
 	bool submit_event(const reward_game_events::event& event, const bool native_payroll)
 	{
-		const auto kills = event.name == "1" || event.name == "killed_a_player";
-		const auto payroll = event.name == "18" || event.name == "picked_up_payroll";
-		const auto end_game = event.name == "5" || event.name == "end_game";
-		const auto multi_kill = event.name == "2" || event.name == "multi_kill";
-		const auto streak = event.name == "4" || event.name == "streak";
-		const auto duel = event.name == "7" || event.name == "one_v_one";
-		const auto social = event.name == "10" || event.name == "social";
-		if (!kills && !payroll && !end_game && !multi_kill && !streak && !duel && !social) return true;
+		const auto event_type = hq_event_predicate::event_id(event.name);
+		const auto payroll = event_type == 18;
+		if (!event_type) return true;
+		if (event.timestamp < 0 || !hq_event_predicate::evaluate({}, event).valid) return false;
+		std::map<std::string, hq_event_predicate::rule> rules;
+		{
+			std::lock_guard lock{catalog_mutex};
+			rules = event_rules;
+		}
 		const auto now = static_cast<std::uint64_t>(time(nullptr));
 		if (payroll && native_payroll)
 		{
@@ -311,9 +324,19 @@ namespace demonware::achievement_engine
 
 		// Timestamp plus parameters identifies a repeated native event. Zero timestamps
 		// are not deduplicated because multiple genuine kills could otherwise collapse.
-		std::string fingerprint = event.name + ":" + std::to_string(event.timestamp);
+		// Normalize aliases and parameter order so task 11, task 12 and retransmits
+		// share the same receipt even when their serialization order differs.
+		std::vector<std::pair<unsigned, std::uint64_t>> parameters;
 		for (const auto& parameter : event.parameters)
-			fingerprint += ":" + parameter.selector + "=" + std::to_string(parameter.value);
+		{
+			unsigned selector{};
+			std::from_chars(parameter.selector.data(), parameter.selector.data() + parameter.selector.size(), selector);
+			parameters.emplace_back(selector, parameter.value);
+		}
+		std::sort(parameters.begin(), parameters.end());
+		std::string fingerprint = std::to_string(event_type) + ":" + std::to_string(event.timestamp);
+		for (const auto& [selector, value] : parameters)
+			fingerprint += ":" + std::to_string(selector) + "=" + std::to_string(value);
 		std::uint64_t hash = 14695981039346656037ULL;
 		for (const auto byte : fingerprint) { hash ^= static_cast<unsigned char>(byte); hash *= 1099511628211ULL; }
 		const auto key = "event:" + std::to_string(hash);
@@ -337,16 +360,11 @@ namespace demonware::achievement_engine
 			for (auto& [name, entry] : data.achievements)
 			{
 				if (entry.status != "inProgress") continue;
-				// dwgamechallenges.csv event column and predicate, for the enabled catalog.
-				// In particular weekly_ch_wins binds event 5 with no extra predicate.
-				bool matches_event = (kills && (name == "daily_ch_kills" || name == "weekly_ch_kills")) ||
-					(end_game && (name == "weekly_ch_wins" || name == "contract_mp_1")) ||
-					(multi_kill && name == "contract_mp_3") || (streak && name == "weekly_ch_scorestreak_calls") ||
-					(duel && name == "daily_ch_1v1_wins") || (social && name == "daily_ch_commend");
-				if (kills && (name == "daily_ch_headshots" || name == "contract_mp_2"))
-					for (const auto& parameter : event.parameters)
-						matches_event |= parameter.selector == "6" && parameter.value == 1;
-				if (!matches_event) continue;
+				const auto rule = rules.find(name);
+				if (rule == rules.end() || rule->second.event_id != event_type ||
+					!hq_event_predicate::evaluate(rule->second.expression, event).matches) continue;
+				// One occurrence per matching event. Column 4 is a filter, not a count
+				// selector; multi_kill (2) never also counts as killed_a_player (1).
 				if (entry.progress < entry.target) ++entry.progress;
 				if (entry.progress >= entry.target) entry.status = "claimable";
 			}

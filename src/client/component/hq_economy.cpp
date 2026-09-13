@@ -174,6 +174,16 @@ namespace hq_economy
 				entry.rewards = {{"GRANT_CURRENCY", demonware::hq_economy::armory_credits, payout}};
 				catalog.push_back(entry);
 			}
+			// Rules live in the asset catalog, never in editable persisted progress records.
+			std::map<std::string, demonware::hq_event_predicate::rule> rules;
+			for (int row = 0; row < definitions->rowCount; ++row)
+			{
+				std::uint32_t kind{}, event{};
+				if (!parse_number(cell(definitions, row, 2), kind) || kind < 1 || kind > 4 ||
+					!parse_number(cell(definitions, row, 3), event) || !event) continue;
+				rules.emplace(cell(definitions, row, 1), demonware::hq_event_predicate::rule{event, cell(definitions, row, 4)});
+			}
+			demonware::achievement_engine::set_event_rules(std::move(rules));
 			demonware::achievement_engine::set_catalog(std::move(catalog));
 		}
 	}
