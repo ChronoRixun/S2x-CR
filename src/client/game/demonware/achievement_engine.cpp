@@ -673,7 +673,7 @@ namespace demonware::achievement_engine
 							const auto sku = std::find_if(std::begin(hq_marketplace::vendor_skus),
 								std::end(hq_marketplace::vendor_skus), [&](const auto& value) { return name == value.contract; });
 							if (sku == std::end(hq_marketplace::vendor_skus)) return false;
-							const auto token = next.inventory.find({sku->items[0], 0});
+							const auto token = next.inventory.find({hq_marketplace::granted_items(*sku).front(), 0});
 							if (token == next.inventory.end() || !token->second.quantity ||
 								(token->second.expires && token->second.expires <= now)) return false;
 							--token->second.quantity;
