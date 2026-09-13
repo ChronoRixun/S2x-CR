@@ -4,6 +4,7 @@
 #include "../hq_protocol.hpp"
 #include "../hq_vendor.hpp"
 #include "../hq_item_data.hpp"
+#include "../hq_inventory_cache.hpp"
 #include "../hq_products.hpp"
 #include "steam/steam.hpp"
 #include "game/game.hpp"
@@ -15,16 +16,7 @@ namespace demonware
 		void add_inventory(service_reply& reply, const hq_economy::item& item)
 		{
 			auto result = std::make_unique<bdMarketplaceInventory>();
-			result->m_playerId = steam::SteamUser()->GetSteamID().bits;
-			result->unk = "steam";
-			result->m_itemId = item.guid;
-			result->m_itemQuantity = item.quantity;
-			result->m_itemXp = 0;
-			result->m_itemData = item.metadata;
-			result->m_expireDateTime = item.expires;
-			result->m_expiryDuration = -1;
-			result->m_collisionField = item.collision;
-			result->m_modDateTime = item.modified;
+			hq_inventory_cache::fill_result(*result, item, steam::SteamUser()->GetSteamID().bits, time(nullptr));
 			reply.add(result);
 		}
 

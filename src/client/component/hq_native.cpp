@@ -230,11 +230,15 @@ namespace hq_native
 					// HQ grants/drops/purchases use collision0. Do not collapse a
 					// foreign collision record into this native GUID-only cache.
 					if (entry.collision || !entry.guid || entry.metadata.size() > 64) continue;
-					const auto expected = demonware::hq_inventory_cache::project(entry, now).quantity;
+					const auto projected = demonware::hq_inventory_cache::project(entry, now);
+					const auto expected = projected.quantity;
 					const unsigned* native{};
 					utils::hook::invoke<void>(0x279300_g, 0, entry.guid, &native);
 					const auto quantity = native ? native[1] : 0;
-					if (quantity == expected) continue;
+					// Repair legacy expiry sentinels too; quantity alone hid unusable items.
+					const auto* cached = reinterpret_cast<const demonware::hq_inventory_cache::record*>(native);
+					if (quantity == expected && (!cached ||
+						(cached->expires == projected.expires && cached->duration == projected.duration))) continue;
 					refresh_item(entry);
 					changed = true;
 					demonware::hq_protocol::trace("inventory_native_refresh", std::to_string(entry.guid) + ":" + std::to_string(quantity) + "->" + std::to_string(expected));
