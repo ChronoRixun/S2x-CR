@@ -23,6 +23,48 @@ namespace hq_native
 		utils::hook::detour conversion_success_hook;
 		utils::hook::detour conversion_failure_hook;
 		std::atomic_uint32_t conversion_successes{}, conversion_failures{};
+		// Distance between the queued 242 reply and its native callback, and the
+		// game-thread stall record: build/research/quartermaster-fable.md explains why
+		// both numbers decide whether a vendor walk can be trusted at all.
+		std::atomic<std::int64_t> last_conversion_round_trip_ms{-1};
+		std::atomic_bool last_conversion_succeeded{};
+		constexpr std::int64_t stall_threshold_ms = 2000;
+		std::atomic_uint32_t stall_count{};
+		std::atomic<std::int64_t> longest_stall_ms{};
+		std::atomic<std::uint64_t> longest_stall_lines{};
+
+		std::int64_t conversion_round_trip()
+		{
+			const auto queued = demonware::hq_vendor::last_reply_ms.load();
+			return queued ? demonware::hq_vendor::now_ms() - queued : -1;
+		}
+
+		// Main pipeline, every 100 ms: a gap far above that means Com_Frame did not run,
+		// so neither did the Demonware pump that completes tasks (it lives on this thread).
+		void watchdog_tick()
+		{
+			static std::int64_t last_tick{};
+			static std::uint64_t last_lines{};
+			const auto now = demonware::hq_vendor::now_ms();
+			const auto lines = console::lines_printed();
+			if (last_tick)
+			{
+				const auto gap = now - last_tick;
+				if (gap > stall_threshold_ms)
+				{
+					++stall_count;
+					if (gap > longest_stall_ms.load())
+					{
+						longest_stall_ms = gap;
+						longest_stall_lines = lines - last_lines;
+					}
+					console::warn("[HQ watchdog] main loop gap %lld ms (%llu console lines printed meanwhile; level loads are expected, vendor/hub stalls are not)\n",
+						gap, lines - last_lines);
+				}
+			}
+			last_tick = now;
+			last_lines = lines;
+		}
 		// 7F6FBB8 holds 13 fixed currency slots of 0x38 bytes each (wallet_status walks them).
 		constexpr unsigned native_wallet_slots = 13;
 
@@ -238,25 +280,32 @@ namespace hq_native
 			}, scheduler::pipeline::main);
 		}
 
-		void vendor_status()
+		// `full` prints every native SKU slot and the recovered globals (~500 lines).
+		// The default keeps the output small: with a 400-entry catalog the old dump
+		// alone was ~5 s of synchronous console output on the game thread.
+		void vendor_status(const bool full)
 		{
 			status();
 			wallet_status();
 			unsigned sku_count{};
+			constexpr unsigned sku_preview = 3;
 			for (unsigned i = 0; i < 400; ++i)
 			{
 				const auto* sku = reinterpret_cast<const unsigned char*>(0x81038B0_g) + i * 0x2E8;
 				if (!*reinterpret_cast<const unsigned*>(sku)) continue;
 				++sku_count;
+				if (!full && sku_count > sku_preview) continue;
 				console::info("[HQ vendor] SKU slot=%u id=%u type=%u max=%u prices=%u product=%u items=%u\n", i,
 					*reinterpret_cast<const unsigned*>(sku), *reinterpret_cast<const unsigned*>(sku + 4),
 					*reinterpret_cast<const unsigned*>(sku + 12), sku[0x2E1],
 					*reinterpret_cast<const unsigned*>(sku + 0x240), sku[0x244]);
 			}
+			if (!full && sku_count > sku_preview)
+				console::info("[HQ vendor] ... %u more SKU slot(s); `hqvendor full` lists them and the raw globals\n", sku_count - sku_preview);
 			console::info("[HQ vendor] catalogType=%u nonzeroSKUs=%u inventoryAndBalanceReady=%u\n",
 				*reinterpret_cast<const unsigned*>(0x81038AC_g), sku_count,
 				utils::hook::invoke<bool>(0x27A210_g, 0));
-			for (const auto offset : vendor_globals)
+			if (full) for (const auto offset : vendor_globals)
 			{
 				const auto address = 0x0_g + offset;
 				MEMORY_BASIC_INFORMATION region{};
@@ -288,23 +337,43 @@ namespace hq_native
 				*reinterpret_cast<const std::uint64_t*>(0x81960E0_g),
 				*reinterpret_cast<const unsigned*>(0x8196254_g), *reinterpret_cast<const unsigned*>(0x8196264_g),
 				*reinterpret_cast<const unsigned*>(0x8196274_g));
+			console::info("[HQ vendor] conversion last reply queued %lld ms ago; last callback %s after %lld ms (healthy: a few ms; ~30000 = timed out behind a game-thread stall)\n",
+				conversion_round_trip(), last_conversion_round_trip_ms.load() < 0 ? "none" : last_conversion_succeeded.load() ? "success" : "FAILURE",
+				last_conversion_round_trip_ms.load());
+			console::info("[HQ watchdog] main loop gaps >%lld ms: %u, longest %lld ms with %llu console lines in it\n",
+				stall_threshold_ms, stall_count.load(), longest_stall_ms.load(), longest_stall_lines.load());
 			console::info("[HQ vendor] entitlement fetched flag and final LUI enable expression unresolved\n");
 		}
 
+		void vendor_status_command(const command::params& params)
+		{
+			vendor_status(params.size() > 1 && std::string_view{params[1]} == "full");
+		}
+
+		// The callbacks run on the game thread: one line each, never the full dump,
+		// otherwise the diagnostic itself stalls the frame it is diagnosing.
 		void conversion_success(void* task)
 		{
 			conversion_success_hook.invoke<void>(task);
 			++conversion_successes;
-			console::info("[HQ vendor] conversion-rule native success callback\n");
-			vendor_status();
+			const auto round_trip = conversion_round_trip();
+			last_conversion_round_trip_ms = round_trip;
+			last_conversion_succeeded = true;
+			console::info("[HQ vendor] conversion-rule native success callback %lld ms after the 242 reply was queued (successes=%u failures=%u); `hqvendor` for state\n",
+				round_trip, conversion_successes.load(), conversion_failures.load());
 		}
 
 		void conversion_failure(void* task)
 		{
 			conversion_failure_hook.invoke<void>(task);
 			++conversion_failures;
-			console::warn("[HQ vendor] conversion-rule native failure callback\n");
-			vendor_status();
+			const auto round_trip = conversion_round_trip();
+			last_conversion_round_trip_ms = round_trip;
+			last_conversion_succeeded = false;
+			console::warn("[HQ vendor] conversion-rule native FAILURE callback %lld ms after the 242 reply was queued (successes=%u failures=%u): %s\n",
+				round_trip, conversion_successes.load(), conversion_failures.load(),
+				round_trip >= 20000 ? "the reply sat unread for the whole task timeout, i.e. the game thread was stalled (see [HQ watchdog])" :
+				round_trip < 0 ? "no 242 reply was ever queued" : "the client rejected a reply it received promptly; compare the 242 dumps");
 		}
 
 		void mail_status()
@@ -403,7 +472,8 @@ namespace hq_native
 			command::add("hqwallet", wallet_status);
 			scheduler::loop(sync_wallet, scheduler::pipeline::main, 100ms);
 			scheduler::loop(sync_inventory, scheduler::pipeline::main, 100ms);
-			command::add("hqvendor", vendor_status);
+			command::add("hqvendor", vendor_status_command);
+			scheduler::loop(watchdog_tick, scheduler::pipeline::main, 100ms);
 			command::add("hqmail", mail_status);
 			command::add("hqopendrop", open_drop);
 			command::add("hqtask99", task99);

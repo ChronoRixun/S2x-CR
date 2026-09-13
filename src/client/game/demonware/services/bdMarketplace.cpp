@@ -386,6 +386,7 @@ namespace demonware
 			auto reply = server->create_reply(this->task_id());
 			reply.add(result);
 			reply.send_struct();
+			hq_vendor::last_reply_ms = hq_vendor::now_ms();
 		}, true);
 	}
 

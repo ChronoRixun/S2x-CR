@@ -19,6 +19,9 @@ namespace console
 
 	void dispatch_message(int type, const std::string& message);
 
+	// Lines handed to dispatch_message so far (any thread); used by stall diagnostics.
+	std::uint64_t lines_printed();
+
 	void print(int type, const char* fmt, ...);
 
 	template <typename... Args>

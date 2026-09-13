@@ -7,6 +7,16 @@ namespace demonware::hq_vendor
 {
 	inline std::atomic_uint32_t requests{}, replies{}, rejected{};
 
+	inline std::int64_t now_ms()
+	{
+		return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+	}
+
+	// steady_clock ms at which the last 242 reply was queued for the client (0 = none).
+	// The native callbacks report their distance from it: a healthy round trip is a few
+	// ms; ~30 s means the reply sat in the socket queue while the game thread was stalled.
+	inline std::atomic<std::int64_t> last_reply_ms{};
+
 	// Task 242 is applyConversionRule. Native response reader A4C850 expects
 	// transaction string, uint64, rule object, then repeated currency/item records.
 	inline bool reply_body(const std::string& request, std::string& response)
