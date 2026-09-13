@@ -166,9 +166,14 @@ namespace hq_native
 			{
 				utils::hook::invoke<void>(0x20D440_g, bytes + 0x10);
 				const auto put = [&](const std::size_t offset, const unsigned value) { std::memcpy(bytes + offset, &value, 4); };
-				put(0, id); put(4, 100); put(8, id); put(12, 1);
-				put(0x30, id); put(0x34, 1); // first initialized product record
-				put(0x240, id); bytes[0x244] = 1; put(0x248, 1);
+				put(0, id); put(4, entry->type); put(8, id); put(12, 1);
+				const auto items = demonware::hq_marketplace::granted_items(*entry);
+				for (std::size_t i = 0; i < items.size(); ++i)
+				{
+					if (i) utils::hook::invoke<void>(0x20D440_g, bytes + 0x10 + i * 0x38);
+					put(0x30 + i * 0x38, items[i]); put(0x34 + i * 0x38, 1);
+				}
+				put(0x240, id); bytes[0x244] = static_cast<unsigned char>(items.size()); put(0x248, 1);
 				put(0x24C, demonware::hq_economy::armory_credits); bytes[0x2E1] = 1;
 				// +0x29C is the SKU data string Engine.Inventory_GetSKUInfoSKUData returns.
 				// QuarterMasterUtils.FindSkuDataByType parses it as "key:value;key:value";
@@ -193,9 +198,10 @@ namespace hq_native
 			const auto valid = state->m_apistack.top - state->m_apistack.base == 1 &&
 				state->m_apistack.base->t == game::hks::TNUMBER;
 			const auto type = valid ? state->m_apistack.base->v.number : 0.0f;
-			const auto entries = demonware::hq_marketplace::catalog();
+			auto entries = demonware::hq_marketplace::catalog();
+			if (type == 201.0f) std::erase_if(entries, [](const auto& entry) { return !*entry.contract; });
 			const auto ready = *reinterpret_cast<const unsigned char*>(0x81038A8_g) != 0;
-			const auto count = ready && (type == 100.0f || type == 150.0f) ? entries.size() : 0;
+			const auto count = ready && (type == 100.0f || type == 150.0f || type == 201.0f) ? entries.size() : 0;
 			game::hks::HksObject table{}; table.t = game::hks::TTABLE;
 			table.v.table = game::hks::Hashtable_Create(state, static_cast<unsigned>(count), 0);
 			*state->m_apistack.top++ = table; // GC root throughout string allocation
@@ -265,7 +271,7 @@ namespace hq_native
 		{
 			if (!transaction) return;
 			std::memset(transaction, 0, 25);
-			if (controller != 0 || (type != 0 && type != 100 && type != 150)) return;
+			if (controller != 0 || (type != 0 && type != 100 && type != 150 && type != 201)) return;
 			// Keep native transaction generation and eventType24 completion contract.
 			std::array<unsigned char, 25> tx{};
 			utils::hook::invoke<void>(0x8390A0_g, tx.data());
@@ -285,7 +291,8 @@ namespace hq_native
 					{
 						const auto data = demonware::hq_economy::snapshot();
 						utils::hook::invoke<void>(0x27D510_g, 0, unsigned(demonware::hq_economy::armory_credits), data.currencies.at(demonware::hq_economy::armory_credits));
-						refresh_item(data.inventory.at({id, 0}));
+						if (const auto entry = demonware::hq_marketplace::find_sku(id))
+							for (const auto item : demonware::hq_marketplace::granted_items(*entry)) refresh_item(data.inventory.at({item, 0}));
 						utils::hook::invoke<void>(0xD5F30_g, 0);
 						utils::hook::invoke<void>(0x2752E0_g, 0, 2);
 					}

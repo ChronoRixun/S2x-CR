@@ -16,6 +16,14 @@ namespace demonware::hq_marketplace
 		std::map<std::uint32_t, unsigned> item_rarities;
 	}
 
+	std::vector<std::uint32_t> granted_items(const sku& entry)
+	{
+		std::vector<std::uint32_t> result;
+		for (const auto id : entry.items) if (id) result.push_back(id);
+		if (result.empty()) result.push_back(entry.id);
+		return result;
+	}
+
 	std::vector<sku> catalog()
 	{
 		std::lock_guard lock{sku_mutex};
@@ -26,6 +34,7 @@ namespace demonware::hq_marketplace
 		for (const auto& entry : vendor_skus) result.push_back(entry);
 		for (const auto id : collection_items)
 		{
+			if (std::any_of(std::begin(vendor_skus), std::end(vendor_skus), [id](const auto& entry) { return entry.id == id; })) continue;
 			const auto found = item_rarities.find(id);
 			const auto rarity = found == item_rarities.end() ? 0 : found->second;
 			result.push_back({id, rarity_prices[rarity], 100});
@@ -83,11 +92,12 @@ namespace demonware::hq_marketplace
 		if (!request.page || !request.limit || request.limit > 100) return result;
 		// Both captured types are supported:100 generic cache,150 collection fetch.
 		// Empty type filter selects the canonical100 catalog, without duplicates.
-		for (const auto type : {100, 150})
+		for (const auto type : {100, 150, 201})
 		{
 			if (request.types.empty() ? type != 100 : std::find(request.types.begin(), request.types.end(), type) == request.types.end()) continue;
 			for (auto entry : catalog())
 			{
+				if (type == 201 && !*entry.contract) continue;
 				if (!request.ids.empty() && std::find(request.ids.begin(), request.ids.end(), entry.id) == request.ids.end()) continue;
 				entry.type = static_cast<unsigned char>(type); selected.push_back(entry);
 			}
@@ -115,15 +125,15 @@ namespace demonware::hq_marketplace
 			}
 			// Collection items are owned once; the vendor supply drops are consumables and
 			// stay purchasable while one is still in the inventory.
-			const auto consumable = std::any_of(std::begin(vendor_skus), std::end(vendor_skus),
-				[&](const sku& value) { return value.id == id; });
+			const auto consumable = entry->consumable;
 			const auto owned = next.inventory.find({id, 0});
 			if (!consumable && owned != next.inventory.end() && owned->second.quantity)
 			{ error = BD_MARKETPLACE_ITEM_MULTIPLE_PURCHASE_ERROR; return false; }
 			auto& balance = next.currencies[hq_economy::armory_credits];
 			if (balance < entry->price) { error = BD_MARKETPLACE_INSUFFICIENT_FUNDS_ERROR; return false; }
 			balance -= entry->price;
-			if (!hq_economy::grant(next, {"GRANT_PRODUCT", id, 1})) return false;
+			for (const auto item : granted_items(*entry))
+				if (!hq_economy::grant(next, {"GRANT_PRODUCT", item, 1})) return false;
 			next.transactions.emplace(key, fingerprint);
 			return true;
 		});

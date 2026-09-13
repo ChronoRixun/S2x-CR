@@ -29,12 +29,16 @@ namespace demonware::hq_event_relay
 			return value;
 		};
 		std::uint64_t user{};
-		unsigned version{}, id{}, count{};
+		unsigned version{}, count{};
 		reward_game_events::event parsed{};
 		if (token() != command || !number(token(), version) || version != 1 ||
-			!number(token(), user) || user != local_user || !number(token(), parsed.timestamp) || parsed.timestamp < 0 ||
-			!number(token(), id) || id == 0 || id > 46 || !number(token(), count) || count > maximum_parameters) return false;
-		parsed.name = std::to_string(id);
+			!number(token(), user) || user != local_user || !number(token(), parsed.timestamp) || parsed.timestamp < 0) return false;
+		const auto name = token();
+		if (name.empty() || name.size() > 64) return false;
+		for (const auto byte : name)
+			if ((byte < '0' || byte > '9') && (byte < 'a' || byte > 'z') && byte != '_') return false;
+		if (!number(token(), count) || count > maximum_parameters) return false;
+		parsed.name = name;
 		for (unsigned i = 0; i < count; ++i)
 		{
 			unsigned selector{};
@@ -50,7 +54,7 @@ namespace demonware::hq_event_relay
 
 	inline std::string encode(const std::uint64_t user, const reward_game_events::event& event)
 	{
-		if (event.parameters.size() > maximum_parameters) return {};
+		if (event.name.empty() || event.name.size() > 64 || event.parameters.size() > maximum_parameters) return {};
 		std::string wire = std::string{command} + " 1 " + std::to_string(user) + " " +
 			std::to_string(event.timestamp) + " " + event.name + " " + std::to_string(event.parameters.size());
 		for (const auto& parameter : event.parameters)

@@ -3,6 +3,7 @@
 #include "byte_buffer.hpp"
 #include "data_types.hpp"
 #include "hq_protocol.hpp"
+#include "hq_marketplace.hpp"
 
 #include <atomic>
 #include <mutex>
@@ -35,7 +36,7 @@
 //     callback 0x27B4C0 is empty, so a rejected or empty reply only delays the retry.
 //
 // Local policy (same as task 111): SKU id = product id = collection item GUID, so every
-// product carries exactly one item, the GUID itself, quantity 1.
+// collection product carries its GUID at quantity 1. CWL bundles carry five cosmetics.
 namespace demonware::hq_products
 {
 	inline constexpr std::uint8_t task = 99;
@@ -107,7 +108,9 @@ namespace demonware::hq_products
 		{
 			product_result product{};
 			product.id = value.ids[static_cast<std::size_t>(i)];
-			product.items = {{product.id, 1}};
+			if (const auto entry = hq_marketplace::find_sku(product.id))
+				for (const auto id : hq_marketplace::granted_items(*entry)) product.items.emplace_back(id, 1);
+			else product.items = {{product.id, 1}};
 			result.push_back(std::move(product));
 		}
 		return result;

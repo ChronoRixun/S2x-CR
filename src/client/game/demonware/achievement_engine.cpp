@@ -594,7 +594,7 @@ namespace demonware::achievement_engine
 						item.AddMember("item_id", id, alloc);
 						item.AddMember("item_quantity", entry.quantity, alloc);
 						item.AddMember("collision_field", entry.collision, alloc);
-						item.AddMember("expiry_duration", -1, alloc);
+						item.AddMember("expiry_duration", std::numeric_limits<std::int64_t>::max(), alloc);
 						item.AddMember("mod_date_time", entry.modified, alloc);
 						inventory.PushBack(item, alloc);
 					}
