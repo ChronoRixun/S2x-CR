@@ -95,7 +95,11 @@ namespace mail_guard
 				if (!game::environment::is_zombies()) ui_scripting::notify("inventory", {
 					{"controller", controller}, {"inventoryEventType", 4}, {"inventoryTaskType", 126}, {"success", ok}});
 			}, scheduler::pipeline::main, 250ms);
-			return true;
+			// Report the grant, not merely that a valid slot was found: Engine.
+			// Inventory_RedeemVoucherItem returns this synchronously to the kiosk Lua, so a
+			// failed transact() must not read as a successful redemption. The message id is
+			// deliberately left uncleared above, which keeps the delivery claimable.
+			return ok;
 		}
 
 		bool message_stub(int controller, int category, int index, char* output, int capacity)
