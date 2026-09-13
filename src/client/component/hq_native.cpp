@@ -122,6 +122,22 @@ namespace hq_native
 					}
 					else
 					{
+						// Requeue and make the stall visible. A null user context is the condition
+						// that produced the "Unable to get payroll at this time" banner: without it
+						// 13C480 would resolve controller -1, so the push is held back instead. That
+						// is normally a tick or two around sign-in; if it never clears, the payroll
+						// completion never reaches the kiosk, so warn (rate limited to one line per
+						// five seconds, plus the first requeue) rather than failing silently.
+						static std::chrono::steady_clock::time_point last_requeue_warning{};
+						static unsigned long long requeues{};
+						const auto now = std::chrono::steady_clock::now();
+						if (!requeues++ || now - last_requeue_warning >= std::chrono::seconds{5})
+						{
+							last_requeue_warning = now;
+							console::warn("[HQ payroll] completion push requeued: %s (retry %llu); the kiosk"
+								" will show \"Unable to get payroll at this time\" until it is delivered\n",
+								context ? "AE_SetResponseString failed" : "AE_GetUserContext(0) is null", requeues);
+						}
 						std::lock_guard lock{demonware::hq_payroll::notification_mutex};
 						if (!demonware::hq_payroll::notification) demonware::hq_payroll::notification = std::move(notification);
 					}
