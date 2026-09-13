@@ -14,6 +14,7 @@ namespace demonware::hq_marketplace
 	{
 		std::mutex sku_mutex;
 		std::map<std::uint32_t, unsigned> item_rarities;
+		std::map<std::uint32_t, std::string> item_types;
 	}
 
 	std::vector<std::uint32_t> granted_items(const sku& entry)
@@ -37,7 +38,7 @@ namespace demonware::hq_marketplace
 			if (std::any_of(std::begin(vendor_skus), std::end(vendor_skus), [id](const auto& entry) { return entry.id == id; })) continue;
 			const auto found = item_rarities.find(id);
 			const auto rarity = found == item_rarities.end() ? 0 : found->second;
-			result.push_back({id, rarity_prices[rarity], 100});
+			result.push_back({id, collection_price(rarity, item_types[id]), 100});
 		}
 		return result;
 	}
@@ -50,7 +51,13 @@ namespace demonware::hq_marketplace
 		if (!std::binary_search(std::begin(collection_items), std::end(collection_items), id)) return std::nullopt;
 		std::lock_guard lock{sku_mutex};
 		const auto found = item_rarities.find(id);
-		return sku{id, rarity_prices[found == item_rarities.end() ? 0 : found->second], 100};
+		return sku{id, collection_price(found == item_rarities.end() ? 0 : found->second, item_types[id]), 100};
+	}
+
+	void set_item_types(const std::map<std::uint32_t, std::string>& types)
+	{
+		std::lock_guard lock{sku_mutex};
+		for (const auto& [id, type] : types) if (type.size() <= 64) item_types[id] = type;
 	}
 
 	void set_rarities(const std::map<std::uint32_t, unsigned>& rarities)

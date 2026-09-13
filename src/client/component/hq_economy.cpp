@@ -99,12 +99,17 @@ namespace hq_economy
 				}
 			}
 			std::map<std::uint32_t, unsigned> rarities;
+			std::map<std::uint32_t, std::string> types;
 			for (const auto id : pool)
 			{
 				const auto rarity = utils::hook::invoke<int>(0x652330_g, id);
 				if (rarity >= 0) rarities[id] = static_cast<unsigned>(rarity);
+				// 0x652330 calls this same GUID-column reader for rarity (29).
+				const auto* type = utils::hook::invoke<const char*>(0x71BA0_g, id, 0);
+				if (type) types[id] = type;
 			}
 			demonware::hq_marketplace::set_rarities(rarities);
+			demonware::hq_marketplace::set_item_types(types);
 			demonware::achievement_engine::set_loot_catalog(std::move(pool));
 		}
 

@@ -87,9 +87,25 @@ namespace demonware::hq_marketplace
 		{0x2000118, 1000, 100, "t:CWL_KALI;l:0x2000118|1", "Team Kaliber Pack;5 CWL cosmetics", {0x2000118, 0x2400438, 0x6632182, 0x700009e, 0x7040010}},
 		{0x200012f, 1000, 100, "t:CWL_CWL;l:0x200012f|1", "CWL Pack;5 CWL cosmetics", {0x200012f, 0x240042a, 0x6632177, 0x7000097, 0x7040013}},
 	};
-	// Guessed local AC prices indexed by native item rarity (column29):
-	// common, rare, legendary, epic, heroic. Retail prices not recovered.
-	inline constexpr std::uint32_t rarity_prices[]{50, 250, 1000, 3000, 5000};
+	// Retail capture 2026-09-13: native loot rarity column 29 AND StatsTable Group column 0.
+	inline constexpr std::uint32_t rarity_prices[]{125, 275, 600, 7300, 8900};
+	inline std::uint32_t collection_price(unsigned rarity, std::string_view type)
+	{
+		if (rarity >= std::size(rarity_prices)) rarity = 0;
+		const bool camo = type == "weapon_camo" || type == "weapon_class_camo" || type == "universal_camo";
+		const bool weapon = type.starts_with("weapon") && !camo && type != "weapon_charm" &&
+			type != "weapon_reticle" && type != "weapon_attachment" && type != "weapon_grenade";
+		if (rarity == 1 && camo) return 250;
+		if (rarity == 2)
+		{
+			if (camo) return 550;
+			if (type == "weapon_charm") return 2275;
+			if (weapon || type == "costume" || type == "uniforms") return 3250;
+		}
+		if (rarity >= 3 && weapon) return 8900;
+		return rarity_prices[rarity];
+	}
+	void set_item_types(const std::map<std::uint32_t, std::string>& types);
 	std::vector<sku> catalog();
 	std::vector<std::uint32_t> granted_items(const sku& entry);
 	std::optional<sku> find_sku(std::uint32_t id);
