@@ -88,7 +88,7 @@ namespace hq_native
 			if (!*reinterpret_cast<const unsigned char*>(0x7F6FE94_g)) return;
 			try
 			{
-				std::optional<std::string> notification;
+				std::optional<demonware::hq_payroll::push> notification;
 				{
 					std::lock_guard lock{demonware::hq_payroll::notification_mutex};
 					notification.swap(demonware::hq_payroll::notification);
@@ -96,12 +96,15 @@ namespace hq_native
 				if (notification)
 				{
 					auto* bridge = game::AE_UserAchievementTaskData.get() + 0xF8;
-					if (game::AE_SetResponseString(bridge, notification->c_str()))
+					if (game::AE_SetResponseString(bridge, notification->json.c_str()))
 					{
-						demonware::hq_protocol::trace("payroll_native_push", *notification);
-						// 13C480 is the achievement push handler, distinct from task replies.
+						demonware::hq_protocol::trace("payroll_native_push", notification->json);
+						// 13C480 is the achievement push handler, distinct from task replies. It
+						// resolves the record name to an achievement ID, updates the native user
+						// achievement table and raises the LUI event the mail kiosk waits for:
+						// achievementEngine {eventType 0 = CompletionUpdate, success, ID, kind}.
 						utils::hook::invoke<void>(0x13C480_g, 0, bridge);
-						console::info("[HQ payroll] delivered persisted completion push\n");
+						console::info("[HQ payroll] delivered completion push: %s\n", notification->summary.c_str());
 					}
 					else
 					{
@@ -173,6 +176,12 @@ namespace hq_native
 				// Quartermaster's "MP"/"ZM" tag lookups empty and asserted in buildItems.
 				const auto text = std::string_view{entry->data}.substr(0, 63);
 				std::memcpy(bytes + 0x29C, text.data(), text.size()); bytes[0x29C + text.size()] = 0;
+				// +0x25C is the promotional text Engine.Inventory_GetSKUInfo returns: the
+				// binding 0x11FF90 emits promotionalText from record+0x25C and skuData from
+				// record+0x29C, so this field is the same 64 bytes. ProcessSkuInfo splits it
+				// on ';' into the tile's name and description, both passed to Engine.Localize.
+				const auto promo = std::string_view{entry->promotional_text}.substr(0, 63);
+				std::memcpy(bytes + 0x25C, promo.data(), promo.size()); bytes[0x25C + promo.size()] = 0;
 			}
 			std::memcpy(bytes + 0x250, &entry->price, 4);
 			if (output) *output = bytes;

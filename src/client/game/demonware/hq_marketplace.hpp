@@ -27,7 +27,9 @@ namespace demonware::hq_marketplace
 		// bytes including the terminator; the collection catalog carries none of them.
 		const char* data{""};
 		// Promotional text, split on ';' by QuarterMasterUtils.ProcessSkuInfo into the
-		// vendor tile's name and description. Native capacity 135 bytes.
+		// vendor tile's name and description (both Localize()d). The Demonware blob holds
+		// 135 bytes; the native SKU cache slot only 64, at +0x25C (Inventory_GetSKUInfo,
+		// binding 0x11FF90, reads promotionalText there and skuData at +0x29C).
 		const char* promotional_text{""};
 	};
 	// The Quartermaster front page cannot be built without these two.
@@ -43,8 +45,13 @@ namespace demonware::hq_marketplace
 	// FindSKUIDByType returns the first match.
 	inline constexpr sku vendor_skus[]
 	{
-		{2, 1000, 100, "t:MP", "LUA_MENU_SUPPLY_DROP_MTX;LUA_MENU_SUPPLY_DROP_MTX_PLURAL"},
-		{6, 1000, 100, "t:ZM", "LUA_MENU_MTX5_ZOMBIE_CONSUMABLE;LUA_MENU_MTX5_ZOMBIE_CONSUMABLE_PLURAL"},
+		// Promotional text = "<nameKey>;<descriptionKey>"; both halves go through
+		// Engine.Localize (ui_s2_quartermaster_supply_drop_uc.dec.lua). These two name keys
+		// are the game's own QuarterMasterUtils.SupplyDropPromoText entries for the MP and
+		// Zombies rare drop tiles. No shipped key describes them, so the description half is
+		// omitted: LUI.Split then yields nil and ProcessSkuInfo stores "".
+		{2, 1000, 100, "t:MP", "LUA_MENU_RARE_SUPPLY_DROP"},
+		{6, 1000, 100, "t:ZM", "LUA_MENU_RARE_ZOMBIE_SUPPLY_DROP"},
 	};
 	// Guessed local AC prices indexed by native item rarity (column29):
 	// common, rare, legendary, epic, heroic. Retail prices not recovered.

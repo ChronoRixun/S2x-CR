@@ -234,36 +234,65 @@ namespace demonware::achievement_engine
 		const auto now = static_cast<std::uint64_t>(time(nullptr));
 		if (payroll && native_payroll)
 		{
-			std::string notification;
+			// GrabPayroll is AEComplexEvents {event 18, key {1,2}, value {1, masterPrestige}};
+			// Rank.GetPayrollAchievement returns 757 (payroll_officer_masterprestige) for a
+			// master prestige player and 345 (payroll_officer) otherwise, and the kiosk
+			// compares the pushed ID against it. The native ID is resolved from the record's
+			// name (dw/dwGameChallenges.csv column 1, resolver 0x139D50), so publish the name
+			// that player's kiosk waits for; the store keeps one payroll_officer entry.
+			bool master_prestige{};
+			for (const auto& parameter : event.parameters)
+				if (parameter.selector == "2" && parameter.value) master_prestige = true;
+			const auto* published = master_prestige ? "payroll_officer_masterprestige" : "payroll_officer";
+
+			hq_payroll::push notification{};
 			const auto ok = hq_economy::transact([&](hq_economy::state& data)
 			{
 				const auto before = data.currencies.contains(hq_economy::armory_credits) ? data.currencies.at(hq_economy::armory_credits) : 0;
-				if (!hq_payroll::settle(data, event.timestamp, now)) return false;
+				const auto result = hq_payroll::settle(data, event.timestamp, now);
+				if (result == hq_payroll::outcome::rejected) return false;
+				// A batch from another period is acknowledged but describes no pickup the
+				// kiosk is waiting on, so it must not animate a collection.
+				if (result == hq_payroll::outcome::stale) return true;
 				const auto after = data.currencies.contains(hq_economy::armory_credits) ? data.currencies.at(hq_economy::armory_credits) : 0;
-				if (after != before)
-				{
-					rapidjson::Document push{rapidjson::kObjectType};
-					auto& alloc = push.GetAllocator();
-					auto record = serialize(data.achievements.at("payroll_officer"), alloc, now / 86400);
-					push.CopyFrom(record, alloc);
-					push.AddMember("type", "CHALLENGE", alloc);
-					push.AddMember("reason", "completed", alloc);
-					rapidjson::Value triggers{rapidjson::kArrayType}, trigger{rapidjson::kObjectType};
-					rapidjson::Value inventory{rapidjson::kObjectType}, currencies{rapidjson::kArrayType}, currency{rapidjson::kObjectType};
-					currency.AddMember("currency_id", hq_economy::armory_credits, alloc);
-					currency.AddMember("balance_before", before, alloc);
-					currency.AddMember("balance_delta", after - before, alloc);
-					currencies.PushBack(currency, alloc);
-					inventory.AddMember("currencies", currencies, alloc);
-					trigger.AddMember("type", "SET_CURRENCY_BALANCE", alloc);
-					trigger.AddMember("inventory", inventory, alloc);
-					triggers.PushBack(trigger, alloc);
-					push.AddMember("triggers", triggers, alloc);
-					notification = encode(push);
-				}
+				// Published on a replay as well: the currency grant stays once per period, but
+				// the kiosk arms a 5 s "Unable to get payroll at this time" banner on every
+				// click and only an achievementEngine CompletionUpdate for this achievement
+				// cancels it, so a second pickup inside the period needs the event too.
+				auto entry = data.achievements.at("payroll_officer");
+				entry.name = published; entry.challenge_name = published;
+				// The pickup itself pays out, so the published copy always describes a
+				// completed payroll even when the stored record is mid-claim; the store's
+				// own status stays where the claim flow left it.
+				entry.status = "finished"; entry.progress = entry.target;
+				if (!entry.completion) entry.completion = now;
+				rapidjson::Document push{rapidjson::kObjectType};
+				auto& alloc = push.GetAllocator();
+				auto record = serialize(entry, alloc, now / 86400);
+				push.CopyFrom(record, alloc);
+				push.AddMember("type", "CHALLENGE", alloc);
+				push.AddMember("reason", "completed", alloc);
+				// 0x13C480 raises the Lua event only when "triggers" is present, and a
+				// SET_CURRENCY_BALANCE trigger must carry inventory.currencies; a replay
+				// publishes the unchanged balance (delta 0) instead of omitting the array.
+				rapidjson::Value triggers{rapidjson::kArrayType}, trigger{rapidjson::kObjectType};
+				rapidjson::Value inventory{rapidjson::kObjectType}, currencies{rapidjson::kArrayType}, currency{rapidjson::kObjectType};
+				currency.AddMember("currency_id", hq_economy::armory_credits, alloc);
+				currency.AddMember("balance_before", before, alloc);
+				currency.AddMember("balance_delta", after - before, alloc);
+				currencies.PushBack(currency, alloc);
+				inventory.AddMember("currencies", currencies, alloc);
+				trigger.AddMember("type", "SET_CURRENCY_BALANCE", alloc);
+				trigger.AddMember("inventory", inventory, alloc);
+				triggers.PushBack(trigger, alloc);
+				push.AddMember("triggers", triggers, alloc);
+				notification.json = encode(push);
+				notification.summary = std::string{published} + " kind 5 status finished reason completed, currency " +
+					std::to_string(unsigned{hq_economy::armory_credits}) + " " + std::to_string(before) + " -> " + std::to_string(after) +
+					(result == hq_payroll::outcome::granted ? " (settled)" : " (replayed, already settled this period)");
 				return true;
 			});
-			if (ok && !notification.empty())
+			if (ok && !notification.json.empty())
 			{
 				std::lock_guard lock{hq_payroll::notification_mutex};
 				hq_payroll::notification = std::move(notification);
