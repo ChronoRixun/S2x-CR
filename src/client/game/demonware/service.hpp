@@ -2,6 +2,7 @@
 #include <utils/string.hpp>
 
 #include "component/console/console.hpp"
+#include "game/types/demonware.hpp"
 
 #include "servers/service_server.hpp"
 
@@ -56,7 +57,22 @@ namespace demonware
 			{
 				console::demonware("[DW] %s: executing task '%d' (transaction ID: %llu)\n", name_.data(), this->task_id_, service_reply::transaction_id + 1);
 
-				it->second(server, &buffer);
+				// Last line of defence: a handler runs on the transport thread inside a
+				// native frame, so an escaping exception would terminate the game.
+				try
+				{
+					it->second(server, &buffer);
+				}
+				catch (const std::exception& error)
+				{
+					console::error("[DW] %s: task '%d' threw: %s\n", name_.data(), this->task_id_, error.what());
+					server->create_reply(this->task_id_, game::demonware::BD_HANDLE_TASK_FAILED).send();
+				}
+				catch (...)
+				{
+					console::error("[DW] %s: task '%d' threw an unknown exception\n", name_.data(), this->task_id_);
+					server->create_reply(this->task_id_, game::demonware::BD_HANDLE_TASK_FAILED).send();
+				}
 			}
 			else
 			{

@@ -22,6 +22,8 @@ namespace hq_native
 		utils::hook::detour conversion_success_hook;
 		utils::hook::detour conversion_failure_hook;
 		std::atomic_uint32_t conversion_successes{}, conversion_failures{};
+		// 7F6FBB8 holds 13 fixed currency slots of 0x38 bytes each (wallet_status walks them).
+		constexpr unsigned native_wallet_slots = 13;
 
 		void wallet_status()
 		{
@@ -65,9 +67,14 @@ namespace hq_native
 					}
 				}
 				const auto data = demonware::hq_economy::snapshot();
+				// The native wallet is a fixed 13-slot table; never hand it more distinct
+				// currency ids than it can hold, whatever the store file contains.
+				unsigned pushed{};
 				for (const auto& [id, amount] : data.currencies)
 				{
-					if (!id || utils::hook::invoke<unsigned>(0x279780_g, 0, unsigned(id)) == amount) continue;
+					if (!id || pushed >= native_wallet_slots) continue;
+					++pushed;
+					if (utils::hook::invoke<unsigned>(0x279780_g, 0, unsigned(id)) == amount) continue;
 					// Native absolute setter + inventory eventType 5; no second grant.
 					utils::hook::invoke<void>(0x27D510_g, 0, unsigned(id), amount);
 				}
@@ -76,6 +83,11 @@ namespace hq_native
 			{
 				static bool warned{};
 				if (!std::exchange(warned, true)) console::warn("[HQ wallet] sync failed: %s\n", error.what());
+			}
+			catch (...)
+			{
+				static bool unknown{};
+				if (!std::exchange(unknown, true)) console::warn("[HQ wallet] sync failed with an unknown exception\n");
 			}
 		}
 
@@ -181,6 +193,11 @@ namespace hq_native
 				static bool warned{};
 				if (!std::exchange(warned, true)) console::warn("[HQ inventory] sync failed: %s\n", error.what());
 			}
+			catch (...)
+			{
+				static bool unknown{};
+				if (!std::exchange(unknown, true)) console::warn("[HQ inventory] sync failed with an unknown exception\n");
+			}
 		}
 
 		void purchase_entry(const unsigned controller, const unsigned id, const unsigned quantity, void* transaction, const int type)
@@ -213,6 +230,7 @@ namespace hq_native
 					}
 				}
 				catch (const std::exception& e) { console::warn("[HQ purchase] %s\n", e.what()); }
+				catch (...) { console::warn("[HQ purchase] unknown exception\n"); }
 				demonware::hq_protocol::trace("native_purchase", key + ":" + std::to_string(id) + ":" + std::to_string(quantity) + ":error=" + std::to_string(error));
 				console::info("[HQ purchase] sku=%u quantity=%u error=%u tx=%s\n", id, quantity, error, key.c_str());
 				utils::hook::invoke<void>(0x275360_g, 0, 24, error == 0, tx.data());

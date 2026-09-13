@@ -39,12 +39,16 @@ namespace demonware::hq_economy
 			return value[key].GetUint64();
 		}
 
-		std::string string(const rapidjson::Value& value, const char* key)
+		std::string string(const rapidjson::Value& value, const char* key, const std::size_t maximum = 1024)
 		{
-			if (!value.IsObject() || !value.HasMember(key) || !value[key].IsString() || value[key].GetStringLength() > 1024)
+			if (!value.IsObject() || !value.HasMember(key) || !value[key].IsString() || value[key].GetStringLength() > maximum)
 				throw std::runtime_error(std::string{"invalid economy string: "} + key);
 			return {value[key].GetString(), value[key].GetStringLength()};
 		}
+
+		// Identifiers reach the game through AE JSON and native string fields, so they
+		// are bounded well below the generic payload limit.
+		constexpr std::size_t identifier_limit = 128;
 
 		state load()
 		{
@@ -91,8 +95,8 @@ namespace demonware::hq_economy
 			for (const auto& value : document["achievements"].GetArray())
 			{
 				achievement entry{};
-				entry.name = string(value, "name");
-				entry.challenge_name = string(value, "challengeName");
+				entry.name = string(value, "name", identifier_limit);
+				entry.challenge_name = string(value, "challengeName", identifier_limit);
 				entry.kind = static_cast<int>(number(value, "kind", 13));
 				entry.progress = static_cast<std::uint32_t>(number(value, "progress", UINT32_MAX));
 				entry.target = static_cast<std::uint32_t>(number(value, "progressTarget", UINT32_MAX));
@@ -101,8 +105,8 @@ namespace demonware::hq_economy
 				entry.offer_day = number(value, "offerDay");
 				entry.usage_target = static_cast<std::uint32_t>(number(value, "usageTimeTarget", UINT32_MAX));
 				entry.usage = static_cast<std::uint32_t>(number(value, "usageTime", entry.usage_target));
-				entry.status = string(value, "status");
-				entry.claim_transaction = string(value, "claimTransaction");
+				entry.status = string(value, "status", identifier_limit);
+				entry.claim_transaction = string(value, "claimTransaction", identifier_limit);
 				if (entry.name.empty() || !entry.kind || !entry.target ||
 					(entry.status != "available" && entry.status != "inactive" && entry.status != "inProgress" &&
 					entry.status != "claimable" && entry.status != "finished" && entry.status != "expired"))
@@ -112,8 +116,8 @@ namespace demonware::hq_economy
 				for (const auto& reward_value : value["successRewards"].GetArray())
 				{
 					reward result{};
-					result.type = string(reward_value, "type");
-					if (reward_value.HasMember("achievementName")) result.achievement_name = string(reward_value, "achievementName");
+					result.type = string(reward_value, "type", identifier_limit);
+					if (reward_value.HasMember("achievementName")) result.achievement_name = string(reward_value, "achievementName", identifier_limit);
 					result.id = static_cast<std::uint32_t>(number(reward_value, "id", UINT32_MAX));
 					result.amount = static_cast<std::uint32_t>(number(reward_value, "amount", UINT32_MAX));
 					entry.rewards.push_back(result);
@@ -121,7 +125,7 @@ namespace demonware::hq_economy
 				if (!data.achievements.emplace(entry.name, entry).second) throw std::runtime_error("duplicate achievement");
 			}
 			for (const auto& value : document["transactions"].GetArray())
-				if (!data.transactions.emplace(string(value, "id"), string(value, "request")).second)
+				if (!data.transactions.emplace(string(value, "id", identifier_limit), string(value, "request")).second)
 					throw std::runtime_error("duplicate transaction");
 			return data;
 		}
@@ -242,7 +246,12 @@ namespace demonware::hq_economy
 		const auto balance = ac == data.currencies.end() ? 0 : ac->second;
 		const auto moved = static_cast<std::uint32_t>(std::min({accounted,
 			std::uint64_t{old == data.currencies.end() ? 0 : old->second}, std::uint64_t{UINT32_MAX - balance}}));
-		if (moved) { old->second -= moved; data.currencies[armory_credits] = balance + moved; }
+		// moved != 0 implies a funded currency-2 row, but never dereference on that alone.
+		if (moved && old != data.currencies.end())
+		{
+			old->second -= moved;
+			data.currencies[armory_credits] = balance + moved;
+		}
 		// Persisted local AC reward definitions must also stop issuing CP.
 		for (auto& [name, entry] : data.achievements)
 			if (name == "payroll_officer" || name.starts_with("daily_ch_") || name.starts_with("weekly_ch_") || name.starts_with("contract_"))

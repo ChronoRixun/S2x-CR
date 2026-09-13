@@ -4,6 +4,7 @@
 #include "scheduler.hpp"
 
 #include "game/game.hpp"
+#include "component/console/console.hpp"
 
 #include <cassert>
 #include <utils/hook.hpp>
@@ -53,7 +54,23 @@ namespace scheduler
 
 						i->last_call = now;
 
-						const auto res = i->handler();
+						// Scheduler callbacks run inside game frames. An escaping exception
+						// would unwind through native frames and terminate the process, so
+						// a failing task is logged and simply keeps its slot.
+						auto res = cond_continue;
+						try
+						{
+							res = i->handler();
+						}
+						catch (const std::exception& error)
+						{
+							console::error("[scheduler] task threw: %s\n", error.what());
+						}
+						catch (...)
+						{
+							console::error("[scheduler] task threw an unknown exception\n");
+						}
+
 						if (res == cond_end)
 						{
 							i = tasks.erase(i);

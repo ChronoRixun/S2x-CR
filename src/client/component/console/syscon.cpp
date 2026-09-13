@@ -294,7 +294,9 @@ namespace syscon
 				const auto length = GetWindowTextA(s_wcd.hwndInputLine, s_wcd.consoleText, sizeof(s_wcd.consoleText));
 				if (length && add_console_text_if_ready(s_wcd.consoleText))
 				{
-					sprintf_s(dest, sizeof(dest), "]%s\n", s_wcd.consoleText);
+					// Truncate: dest and consoleText are the same size, so the two extra
+					// characters would otherwise reach the fail-fast invalid parameter handler.
+					_snprintf_s(dest, sizeof(dest), _TRUNCATE, "]%s\n", s_wcd.consoleText);
 					SetWindowTextA(s_wcd.hwndInputLine, "");
 
 					Sys_Print(dest);

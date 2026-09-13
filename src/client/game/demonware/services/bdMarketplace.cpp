@@ -39,6 +39,13 @@ namespace demonware
 				if (structured) reply.send_struct();
 				else reply.send();
 			}
+			catch (...)
+			{
+				console::error("[HQ marketplace] task %u failed with an unknown exception\n", task);
+				auto reply = server->create_reply(task, BD_HANDLE_TASK_FAILED);
+				if (structured) reply.send_struct();
+				else reply.send();
+			}
 		}
 	}
 
