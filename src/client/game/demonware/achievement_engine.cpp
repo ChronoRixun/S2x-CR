@@ -159,7 +159,43 @@ namespace demonware::achievement_engine
 		if (!kills && !payroll) return true;
 		const auto now = static_cast<std::uint64_t>(time(nullptr));
 		if (payroll && native_payroll)
-			return hq_economy::transact([&](hq_economy::state& data) { return hq_payroll::settle(data, event.timestamp, now); });
+		{
+			std::string notification;
+			const auto ok = hq_economy::transact([&](hq_economy::state& data)
+			{
+				const auto before = data.currencies.contains(2) ? data.currencies.at(2) : 0;
+				if (!hq_payroll::settle(data, event.timestamp, now)) return false;
+				const auto after = data.currencies.contains(2) ? data.currencies.at(2) : 0;
+				if (after != before)
+				{
+					rapidjson::Document push{rapidjson::kObjectType};
+					auto& alloc = push.GetAllocator();
+					auto record = serialize(data.achievements.at("payroll_officer"), alloc);
+					push.CopyFrom(record, alloc);
+					push.AddMember("type", "CHALLENGE", alloc);
+					push.AddMember("reason", "completed", alloc);
+					rapidjson::Value triggers{rapidjson::kArrayType}, trigger{rapidjson::kObjectType};
+					rapidjson::Value inventory{rapidjson::kObjectType}, currencies{rapidjson::kArrayType}, currency{rapidjson::kObjectType};
+					currency.AddMember("currency_id", 2, alloc);
+					currency.AddMember("balance_before", before, alloc);
+					currency.AddMember("balance_delta", after - before, alloc);
+					currencies.PushBack(currency, alloc);
+					inventory.AddMember("currencies", currencies, alloc);
+					trigger.AddMember("type", "SET_CURRENCY_BALANCE", alloc);
+					trigger.AddMember("inventory", inventory, alloc);
+					triggers.PushBack(trigger, alloc);
+					push.AddMember("triggers", triggers, alloc);
+					notification = encode(push);
+				}
+				return true;
+			});
+			if (ok && !notification.empty())
+			{
+				std::lock_guard lock{hq_payroll::notification_mutex};
+				hq_payroll::notification = std::move(notification);
+			}
+			return ok;
+		}
 
 		// Timestamp plus parameters identifies a repeated native event. Zero timestamps
 		// are not deduplicated because multiple genuine kills could otherwise collapse.

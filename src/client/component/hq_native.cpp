@@ -5,6 +5,8 @@
 #include "component/console/console.hpp"
 #include <utils/hook.hpp>
 #include "game/demonware/hq_vendor.hpp"
+#include "game/demonware/hq_payroll.hpp"
+#include "component/scheduler.hpp"
 
 namespace hq_native
 {
@@ -15,6 +17,57 @@ namespace hq_native
 		utils::hook::detour conversion_success_hook;
 		utils::hook::detour conversion_failure_hook;
 		std::atomic_uint32_t conversion_successes{}, conversion_failures{};
+
+		void wallet_status()
+		{
+			console::info("[HQ wallet] ready=%u count=%u ArmoryCredits=%u (Inventory_GetCurrencyBalance)\n",
+				*reinterpret_cast<const unsigned char*>(0x7F6FE94_g),
+				*reinterpret_cast<const unsigned*>(0x7F6FE90_g),
+				utils::hook::invoke<unsigned>(0x279780_g, 0, 2));
+			for (unsigned i = 0; i < 13; ++i)
+			{
+				const auto* slot = reinterpret_cast<const unsigned char*>(0x7F6FBB8_g) + i * 0x38;
+				console::info("[HQ wallet] slot %u currency=%u balance=%u\n", i, slot[0x20],
+					*reinterpret_cast<const unsigned*>(slot + 0x24));
+			}
+		}
+
+		void sync_wallet()
+		{
+			// Never race the initial native balance fetch or run native UI on the DW thread.
+			if (!*reinterpret_cast<const unsigned char*>(0x7F6FE94_g)) return;
+			try
+			{
+				std::optional<std::string> notification;
+				{
+					std::lock_guard lock{demonware::hq_payroll::notification_mutex};
+					notification.swap(demonware::hq_payroll::notification);
+				}
+				if (notification)
+				{
+					auto* bridge = game::AE_UserAchievementTaskData.get() + 0xF8;
+					if (game::AE_SetResponseString(bridge, notification->c_str()))
+					{
+						demonware::hq_protocol::trace("payroll_native_push", *notification);
+						// 13C480 is the achievement push handler, distinct from task replies.
+						utils::hook::invoke<void>(0x13C480_g, 0, bridge);
+						console::info("[HQ payroll] delivered persisted completion push\n");
+					}
+				}
+				const auto data = demonware::hq_economy::snapshot();
+				for (const auto& [id, amount] : data.currencies)
+				{
+					if (!id || utils::hook::invoke<unsigned>(0x279780_g, 0, unsigned(id)) == amount) continue;
+					// Native absolute setter + inventory eventType 5; no second grant.
+					utils::hook::invoke<void>(0x27D510_g, 0, unsigned(id), amount);
+				}
+			}
+			catch (const std::exception& error)
+			{
+				static bool warned{};
+				if (!std::exchange(warned, true)) console::warn("[HQ wallet] sync failed: %s\n", error.what());
+			}
+		}
 
 		void status()
 		{
@@ -125,6 +178,8 @@ namespace hq_native
 			conversion_success_hook.create(0x27A4C0_g, conversion_success);
 			conversion_failure_hook.create(0x27A460_g, conversion_failure);
 			command::add("hqnative", status);
+			command::add("hqwallet", wallet_status);
+			scheduler::loop(sync_wallet, scheduler::pipeline::main, 100ms);
 			command::add("hqvendor", vendor_status);
 			command::add("hqmail", mail_status);
 			command::add("hqopendrop", open_drop);

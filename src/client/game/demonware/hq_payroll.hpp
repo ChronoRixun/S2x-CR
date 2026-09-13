@@ -1,9 +1,16 @@
 #pragma once
 
 #include "hq_economy.hpp"
+#include <mutex>
+#include <optional>
 
 namespace demonware::hq_payroll
 {
+	// Transport thread publishes only after a new settlement has persisted. The
+	// main thread consumes the native notification; retries cannot publish twice.
+	inline std::mutex notification_mutex;
+	inline std::optional<std::string> notification;
+
 	// Local policy: one pickup settlement per UTC four-hour period. The event's
 	// microsecond timestamp selects the period, so delayed retries cannot earn again.
 	inline bool settle(hq_economy::state& data, const std::int64_t timestamp, const std::uint64_t now)

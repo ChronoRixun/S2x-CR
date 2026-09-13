@@ -135,15 +135,20 @@ namespace demonware
 	void bdMarketplace::getBalance(service_server* server, byte_buffer* buffer) const
 	{
 
-		hq_protocol::trace("marketplace_130", buffer->get_remaining());		// TODO:
-		auto reply = server->create_reply(this->task_id());
-		reply.send();
+		if (game::environment::is_zombies())
+		{
+			hq_protocol::trace("marketplace_130", buffer->get_remaining());
+			server->create_reply(this->task_id()).send();
+			return;
+		}
+		// Both SDK balance variants use the same currency reader (A49900).
+		getBalanceV2(server, buffer);
 	}
 
 	void bdMarketplace::getBalanceV2(service_server* server, byte_buffer* buffer) const
 	{
 
-		hq_protocol::trace("marketplace_132", buffer->get_remaining());		guarded(server, this->task_id(), [&]
+		hq_protocol::trace(this->task_id() == 130 ? "marketplace_130" : "marketplace_132", buffer->get_remaining());		guarded(server, this->task_id(), [&]
 		{
 			std::uint32_t limit{};
 			if (!hq_marketplace::context(buffer) || !buffer->read_uint32(&limit) || !limit || limit > 256 || !hq_protocol::padding(buffer))
@@ -160,6 +165,11 @@ namespace demonware
 				auto result = std::make_unique<bdMarketplaceCurrency>();
 				result->m_currencyId = id;
 				result->m_value = amount;
+				if (!game::environment::is_zombies())
+				{
+					byte_buffer encoded; result->serialize(&encoded);
+					hq_protocol::trace(this->task_id() == 130 ? "marketplace_130_currency" : "marketplace_132_currency", encoded.get_buffer());
+				}
 				reply.add(result);
 			}
 			reply.send();
