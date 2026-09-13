@@ -381,6 +381,14 @@ namespace game
 	WEAK symbol<void(void* task)> AE_ScheduledTaskSucceeded{ 0x13C220 };
 	WEAK symbol<void(void* task)> AE_ScheduledTaskFailed{ 0x13C120 };
 	WEAK symbol<bool(void* response, const char* value)> AE_SetResponseString{ 0xA3B8F0 };
+	// Achievement Engine user context for a controller: 0x789870 is
+	// "return (&table)[controller * 0xd]" over the two-entry table at 0xD8ACED8 (stride
+	// 0x68). The achievement push handler 0x13C480 takes that pointer as its first
+	// argument and maps it back to a controller index with 0x7897A0, which returns -1
+	// for a null pointer - and a -1 controller makes the LUI lookup 0x4A0D90 fail, so no
+	// achievementEngine event is raised and the user achievement table is indexed at
+	// -0x13890. Never call 0x13C480 with 0.
+	WEAK symbol<void*(int controllerIndex)> AE_GetUserContext{ 0x789870 };
 	// Per-group native task tables used by the task lookup 0x208270(group, controller, type):
 	// AE_TaskGroupTables[group] is the table pointer (null when the group is not initialised),
 	// its entries start at table + 8 with a stride of 0x50 and there are 32 of them. The

@@ -95,16 +95,30 @@ namespace hq_native
 				}
 				if (notification)
 				{
+					// 13C480 does NOT take a controller index: its first argument is the
+					// Achievement Engine user context pointer (the retail caller 0x8327B0 passes
+					// *(void**)(task + 0x30)), which it maps back to a controller index with
+					// 0x7897A0 - a linear search of the context table that returns -1 for a null
+					// pointer. A -1 controller makes the LUI instance lookup 0x4A0D90 fail, so the
+					// achievementEngine event the mail kiosk waits for is never raised (hence the
+					// "Unable to get payroll at this time" banner after a delivered push) and the
+					// user achievement table is indexed at base - 0x13890. Never pass 0.
+					auto* context = game::AE_GetUserContext(0);
 					auto* bridge = game::AE_UserAchievementTaskData.get() + 0xF8;
-					if (game::AE_SetResponseString(bridge, notification->json.c_str()))
+					if (context && game::AE_SetResponseString(bridge, notification->json.c_str()))
 					{
 						demonware::hq_protocol::trace("payroll_native_push", notification->json);
+						// The whole record goes to the console, not just the summary: 13C480 bails
+						// silently when name/kind/reason/status/progress/type or triggers is missing
+						// or malformed, so the next run has to show exactly what it was handed.
+						console::info("[HQ payroll] completion push json: %s\n", notification->json.c_str());
 						// 13C480 is the achievement push handler, distinct from task replies. It
 						// resolves the record name to an achievement ID, updates the native user
 						// achievement table and raises the LUI event the mail kiosk waits for:
 						// achievementEngine {eventType 0 = CompletionUpdate, success, ID, kind}.
-						utils::hook::invoke<void>(0x13C480_g, 0, bridge);
-						console::info("[HQ payroll] delivered completion push: %s\n", notification->summary.c_str());
+						utils::hook::invoke<void>(0x13C480_g, context, bridge);
+						console::info("[HQ payroll] delivered completion push: %s (context %p resolves to controller %d)\n",
+							notification->summary.c_str(), context, utils::hook::invoke<int>(0x7897A0_g, context));
 					}
 					else
 					{
@@ -531,6 +545,58 @@ namespace hq_native
 				static_cast<unsigned>(count), static_cast<unsigned>(entries.size()));
 		}
 
+		// The native user achievement table: 0x13890 bytes per controller, 1000 records of
+		// 0x40 bytes, "user achievements fetched" byte at table - 0x10. The layout is the one
+		// the record parser 0x13A570 writes and AE_GetPlayerAchievementInfo (0x1213B0) and
+		// AE_GetPlayerActiveChallenges (0x121F40) read back (decompiles under
+		// build/research/ghidra/decomp-payroll).
+		constexpr std::size_t user_achievement_stride = 0x13890;
+		constexpr std::size_t user_achievement_records = 1000;
+		constexpr std::size_t user_achievement_size = 0x40;
+
+		const unsigned char* user_achievement(const unsigned controller, const int id)
+		{
+			const auto* table = reinterpret_cast<const unsigned char*>(0x60A4090_g) + controller * user_achievement_stride;
+			for (std::size_t i = 0; i < user_achievement_records; ++i)
+			{
+				const auto* record = table + i * user_achievement_size;
+				if (*reinterpret_cast<const std::int32_t*>(record + 0xC) == id) return record;
+			}
+			return nullptr;
+		}
+
+		// Exactly the inputs the Headquarters Post kiosk decides on
+		// (ui/s2/mail_officer_menu_uc.lua): "if 14400 <= timeSinceLastCompletion or
+		// fullfilledTimes <= 0 then canCollectPayroll = true else secondsUntilNextPayroll =
+		// 14400 - timeSinceLastCompletion end", where AE_GetPlayerAchievementInfo derives
+		// timeSinceLastCompletion as now - record+0x30 and fullfilledTimes is record+0x2C.
+		void payroll_state()
+		{
+			const auto now = static_cast<std::uint64_t>(time(nullptr));
+			console::info("[HQ payroll] user achievements fetched=%d\n",
+				static_cast<int>(*reinterpret_cast<const unsigned char*>(0x60A4080_g)));
+			for (const auto id : {345, 757})
+			{
+				const auto* record = user_achievement(0, id);
+				if (!record)
+				{
+					console::info("[HQ payroll] achievement %d: no native record\n", id);
+					continue;
+				}
+				const auto fulfilled = *reinterpret_cast<const std::int32_t*>(record + 0x2C);
+				const auto completion = *reinterpret_cast<const std::uint64_t*>(record + 0x30);
+				const auto since = completion && completion <= now ? now - completion : 0;
+				const auto collectable = since >= 14400 || fulfilled <= 0;
+				const auto countdown = collectable ? std::string{"PAYROLL available"} : "countdown " + std::to_string(14400 - since) + "s";
+				console::info("[HQ payroll] achievement %d kind %d status %d progress %u/%d fullfilledTimes %d "
+					"lastCompletionTime %llu timeSinceLastCompletion %llu -> %s\n",
+					id, *reinterpret_cast<const std::int32_t*>(record + 8),
+					*reinterpret_cast<const std::int32_t*>(record + 0x38),
+					*reinterpret_cast<const std::uint16_t*>(record + 0x28),
+					*reinterpret_cast<const std::int32_t*>(record + 0x10),
+					fulfilled, completion, since, countdown.c_str());
+			}
+		}
 		void sku_failure(void* task)
 		{
 			sku_failure_hook.invoke<void>(task);
@@ -563,6 +629,7 @@ namespace hq_native
 			command::add("hqopendrop", open_drop);
 			command::add("hqtask99", task99);
 			command::add("hqskutest", sku_test);
+			command::add("hqpayrollstate", payroll_state);
 		}
 	};
 }
