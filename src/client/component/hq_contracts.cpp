@@ -13,15 +13,15 @@ namespace hq_contracts
 	constexpr auto policy = R"lua(
 local lookup = Engine.TableLookup
 local rows = {
-	[162] = {"162", "AEC_CONTRACT", "contract_4_headshots_tdm", "TDM Headshots Contract", "Get 4 headshots in Team Deathmatch", "", "1", "", "4", "", "1200", "0x50F0001"},
-	[561] = {"561", "AEC_CONTRACT", "contract_50_kills_smg", "SMG Kill Contract", "Get 50 SMG kills", "", "1", "", "50", "", "2400", "0x50F0002"},
-	[146] = {"146", "AEC_CONTRACT", "contract_55_kills_tdm", "TDM Kill Contract", "Get 55 kills in Team Deathmatch", "", "1", "", "55", "", "3000", "0x50F0003"},
-	[3048] = {"3048", "AEC_CONTRACT", "contract_ch_lad", "LAD Machine Gun Contract", "Get 10 headshots with LMGs", "", "1", "", "10", "", "4800", "0x50F0004"},
-	[149] = {"149", "AEC_CONTRACT", "contract_45_kills", "Kill Contract", "Get 45 kills", "", "1", "", "45", "", "2400", "0x50F0005"},
-	[153] = {"153", "AEC_CONTRACT", "contract_25_kills_dom", "Domination Kill Contract", "Get 25 kills in Domination", "", "1", "", "25", "", "1200", "0x50F0006"},
-	[164] = {"164", "AEC_CONTRACT", "contract_9_headshots", "Headshots Contract", "Get 9 headshots", "", "1", "", "9", "", "2400", "0x50F0007"},
-	[204] = {"204", "AEC_CONTRACT", "contract_25_kills_lmg", "LMG Kill Contract", "Get 25 LMG kills", "", "1", "", "25", "", "1200", "0x50F0008"},
-	[562] = {"562", "AEC_CONTRACT", "contract_50_kills_lmg", "LMG Supply Contract", "Get 50 LMG kills", "", "1", "", "50", "", "3000", "0x50F0009"},
+	[162] = {"162", "AEC_CONTRACT", "contract_4_headshots_tdm", "TDM Headshots Contract", "Get 4 headshots in Team Deathmatch", "", "1", "", "4", "", "1200", "0x50f0001"},
+	[561] = {"561", "AEC_CONTRACT", "contract_50_kills_smg", "SMG Kill Contract", "Get 50 SMG kills", "", "1", "", "50", "", "2400", "0x50f0002"},
+	[146] = {"146", "AEC_CONTRACT", "contract_55_kills_tdm", "TDM Kill Contract", "Get 55 kills in Team Deathmatch", "", "1", "", "55", "", "3000", "0x50f0003"},
+	[3048] = {"3048", "AEC_CONTRACT", "contract_ch_lad", "LAD Machine Gun Contract", "Get 10 headshots with LMGs", "", "1", "", "10", "", "4800", "0x50f0004"},
+	[149] = {"149", "AEC_CONTRACT", "contract_45_kills", "Kill Contract", "Get 45 kills", "", "1", "", "45", "", "2400", "0x50f0005"},
+	[153] = {"153", "AEC_CONTRACT", "contract_25_kills_dom", "Domination Kill Contract", "Get 25 kills in Domination", "", "1", "", "25", "", "1200", "0x50f0006"},
+	[164] = {"164", "AEC_CONTRACT", "contract_9_headshots", "Headshots Contract", "Get 9 headshots", "", "1", "", "9", "", "2400", "0x50f0007"},
+	[204] = {"204", "AEC_CONTRACT", "contract_25_kills_lmg", "LMG Kill Contract", "Get 25 LMG kills", "", "1", "", "25", "", "1200", "0x50f0008"},
+	[562] = {"562", "AEC_CONTRACT", "contract_50_kills_lmg", "LMG Supply Contract", "Get 50 LMG kills", "", "1", "", "50", "", "3000", "0x50f0009"},
 }
 local rewards = {
 	[162] = { currencyID = 1, currencyAmount = 3000 },

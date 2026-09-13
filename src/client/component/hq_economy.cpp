@@ -105,7 +105,7 @@ namespace hq_economy
 				const auto rarity = utils::hook::invoke<int>(0x652330_g, id);
 				if (rarity >= 0) rarities[id] = static_cast<unsigned>(rarity);
 				// 0x652330 calls this same GUID-column reader for rarity (29).
-				const auto* type = utils::hook::invoke<const char*>(0x71BA0_g, id, 0);
+				const auto* type = utils::hook::invoke<const char*>(0xD1BA0_g, id, 0);
 				if (type) types[id] = type;
 			}
 			demonware::hq_marketplace::set_rarities(rarities);
