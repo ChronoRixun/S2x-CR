@@ -14,7 +14,7 @@ namespace hq_native
 		utils::hook::detour sku_failure_hook;
 		utils::hook::detour conversion_success_hook;
 		utils::hook::detour conversion_failure_hook;
-		unsigned conversion_successes{}, conversion_failures{};
+		std::atomic_uint32_t conversion_successes{}, conversion_failures{};
 
 		void status()
 		{
@@ -38,7 +38,7 @@ namespace hq_native
 				*reinterpret_cast<const unsigned char*>(0x80385A8_g),
 				*reinterpret_cast<const unsigned*>(0x80385A4_g), *reinterpret_cast<const unsigned*>(0x819B568_g));
 			console::info("[HQ vendor] conversion successes=%u failures=%u responseTx=%.*s scalar=%llu currencyCount=%u inventoryCount=%u extraCount=%u\n",
-				conversion_successes, conversion_failures, 24, reinterpret_cast<const char*>(0x81960C0_g),
+				conversion_successes.load(), conversion_failures.load(), 24, reinterpret_cast<const char*>(0x81960C0_g),
 				*reinterpret_cast<const std::uint64_t*>(0x81960E0_g),
 				*reinterpret_cast<const unsigned*>(0x8196254_g), *reinterpret_cast<const unsigned*>(0x8196264_g),
 				*reinterpret_cast<const unsigned*>(0x8196274_g));
