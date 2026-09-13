@@ -55,7 +55,7 @@ namespace demonware::achievement_engine
 			value.AddMember("completionCount", entry.completion ? 1 : 0, alloc);
 			value.AddMember("completionTimestamp", entry.completion, alloc);
 			value.AddMember("activationTimestamp", entry.activation, alloc);
-			value.AddMember("expirationTimestamp", (entry.offer_day + (entry.kind == 2 ? 7 : 1)) * 86400, alloc);
+			value.AddMember("expirationTimestamp", (entry.kind == 2 ? (entry.offer_day / 7 + 1) * 7 : entry.offer_day + 1) * 86400, alloc);
 			value.AddMember("usageTimeTarget", entry.usage_target, alloc);
 			value.AddMember("usageTimeRemaining", entry.usage_target - std::min(entry.usage_target, entry.usage), alloc);
 			rapidjson::Value rewards{rapidjson::kArrayType};
@@ -134,6 +134,63 @@ namespace demonware::achievement_engine
 			}
 			return result;
 		}
+	}
+
+	bool reconcile_offers(hq_economy::state& data, const std::uint64_t day)
+	{
+		std::lock_guard lock{catalog_mutex};
+		bool changed{};
+		for (const auto kind : {1, 2})
+		{
+			std::vector<hq_economy::achievement> pool;
+			for (const auto& entry : definitions) if (entry.kind == kind) pool.push_back(entry);
+			if (pool.empty()) continue; // table loading has not completed
+			const auto current = [&](const auto& entry) { return kind == 2 ? entry.offer_day / 7 == day / 7 : entry.offer_day == day; };
+			std::size_t live{};
+			for (auto& [name, entry] : data.achievements)
+			{
+				if (entry.kind != kind) continue;
+				if (entry.status == "inProgress" || entry.status == "claimable")
+				{
+					++live;
+					// A carried order keeps progress/activation/reward and gets today's
+					// offer date, so its UI expiration uses the current boundary.
+					if (entry.offer_day != day) { entry.offer_day = day; changed = true; }
+				}
+				else if (entry.status == "available" && !current(entry))
+				{ entry.status = "expired"; changed = true; }
+			}
+			// Preserve current available offers, including the just-abandoned one.
+			for (auto& [name, entry] : data.achievements)
+			{
+				if (entry.kind != kind || entry.status != "available") continue;
+				if (live >= 3) { entry.status = "expired"; changed = true; continue; }
+				++live;
+				if (entry.offer_day != day) { entry.offer_day = day; changed = true; }
+			}
+			const auto period = kind == 2 ? day / 7 : day;
+			// Prefer unused definitions; if the small local pool is exhausted,
+			// completed definitions may be offered again to maintain three slots.
+			// The old receipt remains until activation, and cannot grant twice.
+			for (const auto reuse_completed : {false, true})
+				for (std::size_t i = 0; live < 3 && i < pool.size(); ++i)
+				{
+					auto entry = pool[(period + i) % pool.size()];
+					const auto found = data.achievements.find(entry.name);
+					if (found != data.achievements.end())
+					{
+						const auto& old = found->second;
+						if (old.status == "available" || old.status == "inProgress" || old.status == "claimable") continue;
+						if (!reuse_completed && old.status == "finished" && current(old)) continue;
+						if (old.status == "finished" && current(old))
+						{ entry.claim_transaction = old.claim_transaction; }
+					}
+					entry.offer_day = day; entry.status = "available";
+					data.achievements[entry.name] = entry;
+					++live; changed = true;
+				}
+		}
+		return changed;
 	}
 
 	void set_catalog(std::vector<hq_economy::achievement> catalog)
@@ -270,18 +327,34 @@ namespace demonware::achievement_engine
 			};
 			const auto now = static_cast<std::uint64_t>(time(nullptr));
 			const auto day = now / 86400;
-			const auto scheduled = offers(day);
+			auto scheduled = offers(day);
 			hq_economy::state data{};
+			bool economy_available = true;
 			if (action != "pump_global_achievement_counters")
 			{
 				try { data = hq_economy::snapshot(); }
 				catch (const std::exception& error)
 				{
+					economy_available = false;
 					if (action != "get_user_achievements") throw;
 					// A damaged HQ file must not hide independently persisted Zombies records.
 					console::error("[HQ AE] HQ records unavailable: %s\n", error.what());
 				}
 			}
+			const auto fetch = action == "get_user_achievements" || action == "get_scheduled_user_achievements" ||
+				action == "get_expired_user_achievements" || action == "get_user_achievements_for_users";
+			if (economy_available && (fetch || action.starts_with("activate_") || action == "deactivate_user_achievement"))
+			{
+				auto preview = data;
+				if (reconcile_offers(preview, day))
+				{
+					if (!hq_economy::transact([&](auto& next) { reconcile_offers(next, day); return true; })) return fail("offer_save_failed");
+					data = hq_economy::snapshot();
+				}
+			}
+			std::erase_if(scheduled, [](const auto& entry) { return entry.kind == 1 || entry.kind == 2; });
+			for (const auto& [name, entry] : data.achievements)
+				if ((entry.kind == 1 || entry.kind == 2) && (entry.status == "available" || entry.status == "inProgress" || entry.status == "claimable")) scheduled.push_back(entry);
 			if (action == "get_user_achievements_for_users")
 			{
 				if (request.HasMember("UserIDs") && !request["UserIDs"].IsArray()) return fail("invalid_user_ids");
@@ -512,6 +585,7 @@ namespace demonware::achievement_engine
 						});
 						if (active >= 3) return false;
 						updated = *offer;
+						updated.claim_transaction.clear(); updated.completion = 0;
 						updated.activation = now;
 						updated.status = "inProgress";
 						next.achievements[name] = updated;
@@ -524,6 +598,8 @@ namespace demonware::achievement_engine
 						if (entry.status != "inProgress" && entry.status != "claimable" && entry.status != "inactive") return false;
 						if (entry.kind != 1 && entry.kind != 2 && entry.kind != 4) return false;
 						entry.status = "available";
+						entry.offer_day = day;
+						entry.claim_transaction.clear(); entry.completion = 0;
 						entry.progress = 0;
 						entry.activation = 0;
 						entry.usage = 0;
@@ -535,7 +611,7 @@ namespace demonware::achievement_engine
 						const auto previous = next.transactions.find(transaction_key);
 						if (previous != next.transactions.end() &&
 							(previous->second != fingerprint || entry.claim_transaction != client_tx)) return false;
-						if (entry.status == "finished") replay = true;
+						if (entry.status == "finished" || (entry.status == "available" && entry.claim_transaction == client_tx)) replay = true;
 						else
 						{
 							if (entry.status != "claimable" || entry.progress < entry.target) return false;
