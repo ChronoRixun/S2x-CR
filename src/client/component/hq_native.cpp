@@ -7,7 +7,7 @@
 #include <utils/hook.hpp>
 #include "game/demonware/hq_vendor.hpp"
 #include "game/demonware/hq_payroll.hpp"
-#include "game/demonware/hq_proxy_rewards.hpp"
+#include "game/demonware/hq_products.hpp"
 #include "game/demonware/hq_mail.hpp"
 #include "game/demonware/hq_inventory_cache.hpp"
 #include "component/scheduler.hpp"
@@ -280,6 +280,22 @@ namespace hq_native
 			}, scheduler::pipeline::main);
 		}
 
+		// Slots of the native SKU cache (0x81038B0, 400 x 0x2E8) that already hold a
+		// product record (id at +0x240): the task-99 pump stops asking once every slot
+		// with a product id (+0x08) has one.
+		std::pair<unsigned, unsigned> product_coverage()
+		{
+			unsigned expected{}, loaded{};
+			for (unsigned i = 0; i < 400; ++i)
+			{
+				const auto* sku = reinterpret_cast<const unsigned char*>(0x81038B0_g) + i * 0x2E8;
+				if (!*reinterpret_cast<const unsigned*>(sku) || !*reinterpret_cast<const unsigned*>(sku + 8)) continue;
+				++expected;
+				if (*reinterpret_cast<const unsigned*>(sku + 0x240) == *reinterpret_cast<const unsigned*>(sku + 8)) ++loaded;
+			}
+			return {expected, loaded};
+		}
+
 		// `full` prints every native SKU slot and the recovered globals (~500 lines).
 		// The default keeps the output small: with a 400-entry catalog the old dump
 		// alone was ~5 s of synchronous console output on the game thread.
@@ -302,9 +318,10 @@ namespace hq_native
 			}
 			if (!full && sku_count > sku_preview)
 				console::info("[HQ vendor] ... %u more SKU slot(s); `hqvendor full` lists them and the raw globals\n", sku_count - sku_preview);
-			console::info("[HQ vendor] catalogType=%u nonzeroSKUs=%u inventoryAndBalanceReady=%u\n",
-				*reinterpret_cast<const unsigned*>(0x81038AC_g), sku_count,
-				utils::hook::invoke<bool>(0x27A210_g, 0));
+			const auto [products_expected, products_loaded] = product_coverage();
+			console::info("[HQ vendor] catalogType=%u nonzeroSKUs=%u productsLoaded=%u/%u (task 99 queries=%u) inventoryAndBalanceReady=%u\n",
+				*reinterpret_cast<const unsigned*>(0x81038AC_g), sku_count, products_loaded, products_expected,
+				demonware::hq_products::requests.load(), utils::hook::invoke<bool>(0x27A210_g, 0));
 			if (full) for (const auto offset : vendor_globals)
 			{
 				const auto address = 0x0_g + offset;
@@ -404,25 +421,17 @@ namespace hq_native
 			}
 		}
 
-		void task99(const command::params& params)
+		void task99(const command::params&)
 		{
-			const std::string_view mode = params.size() == 2 ? params[1] : "";
-			if (mode == "success" || mode == "fail")
-				demonware::hq_proxy_rewards::answer_with_failure = mode == "fail";
-			else if (!mode.empty())
-			{
-				console::info("Usage: hqtask99 [success|fail] (bdMarketplace reward-commit reply)\n");
-				return;
-			}
 			std::string payload;
 			{
-				std::lock_guard lock{demonware::hq_proxy_rewards::signature_mutex};
-				payload = demonware::hq_proxy_rewards::signature;
+				std::lock_guard lock{demonware::hq_products::signature_mutex};
+				payload = demonware::hq_products::signature;
 			}
-			console::info("[HQ task99] reply=%s requests=%u rejected=%u lastFields=[%s]\n",
-				demonware::hq_proxy_rewards::answer_with_failure ? "fail" : "success",
-				demonware::hq_proxy_rewards::requests.load(), demonware::hq_proxy_rewards::rejected.load(),
-				payload.c_str());
+			const auto [expected, loaded] = product_coverage();
+			console::info("[HQ task99] product queries=%u rejected=%u products served=%u; native SKU slots with product %u/%u; last request [%s]\n",
+				demonware::hq_products::requests.load(), demonware::hq_products::rejected.load(),
+				demonware::hq_products::products.load(), loaded, expected, payload.c_str());
 		}
 
 		void open_drop(const command::params& params)

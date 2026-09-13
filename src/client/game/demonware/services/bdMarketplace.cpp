@@ -4,7 +4,7 @@
 #include "../hq_protocol.hpp"
 #include "../hq_vendor.hpp"
 #include "../hq_item_data.hpp"
-#include "../hq_proxy_rewards.hpp"
+#include "../hq_products.hpp"
 #include "steam/steam.hpp"
 #include "game/game.hpp"
 
@@ -59,7 +59,7 @@ namespace demonware
 		this->register_task(58, &bdMarketplace::validateInventoryItemsToken);
 		this->register_task(60, &bdMarketplace::steamProcessDurable);
 		this->register_task(85, &bdMarketplace::steamProcessDurableV2);
-		this->register_task(hq_proxy_rewards::task, &bdMarketplace::convertProxyRewards);
+		this->register_task(hq_products::task, &bdMarketplace::getProducts);
 		this->register_task(106, &bdMarketplace::purchaseSkus);
 		this->register_task(111, &bdMarketplace::getSkusPaginated);
 		this->register_task(130, &bdMarketplace::getBalance);
@@ -319,18 +319,20 @@ namespace demonware
 		});
 	}
 
-	// Task 99: the reward-commit call the supply-drop / proxy-reward reveal makes
-	// (issuer 2AF560, driven by 2AF7A0). See hq_proxy_rewards.hpp: the result schema
-	// is not recovered, so this answers with a status only, and it logs the payload
-	// once instead of once per frame.
-	void bdMarketplace::convertProxyRewards(service_server* server, byte_buffer* buffer) const
+	// Task 99: the product query the per-frame marketplace pump (0x27D160) issues for
+	// every cached SKU that has no product record yet. See hq_products.hpp for the
+	// recovered request/result layout; the success callback 0x27B4D0 copies each record
+	// into its SKU slot and the pump stops once all 400 slots are filled. (Slice 5 had
+	// attributed this task to the reward commit 0x2AF560, which is a client message
+	// writer, not a Demonware issuer.)
+	void bdMarketplace::getProducts(service_server* server, byte_buffer* buffer) const
 	{
 		guarded(server, this->task_id(), [&]
 		{
-			hq_proxy_rewards::request request{};
-			if (!hq_proxy_rewards::parse(buffer, request))
+			hq_products::request request{};
+			if (!hq_products::parse(buffer, request))
 			{
-				if (!hq_proxy_rewards::rejected++)
+				if (!hq_products::rejected++)
 				{
 					hq_protocol::trace("marketplace_99_invalid", buffer->get_buffer());
 					console::warn("[HQ marketplace] task 99: unrecognised request shape\n");
@@ -338,15 +340,25 @@ namespace demonware
 				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send();
 				return;
 			}
-			++hq_proxy_rewards::requests;
-			if (hq_proxy_rewards::observe(request))
+			const auto verbose = hq_products::observe(request);
+			++hq_products::requests;
+			if (verbose)
 			{
 				hq_protocol::trace("marketplace_99", buffer->get_buffer());
-				console::info("[HQ marketplace] task 99 (provisional reward commit): fields [%s]\n",
-					hq_proxy_rewards::describe(request).c_str());
+				console::info("[HQ marketplace] task 99 product query page %u count %u limit %u [%s]\n",
+					request.page, request.count, request.limit, hq_products::describe(request).c_str());
 			}
-			server->create_reply(this->task_id(),
-				hq_proxy_rewards::answer_with_failure ? BD_HANDLE_TASK_FAILED : BD_NO_ERROR).send();
+			auto reply = server->create_reply(this->task_id());
+			auto page = hq_products::answer(request);
+			for (auto& product : page)
+			{
+				auto result = std::make_unique<hq_products::product_result>(std::move(product));
+				byte_buffer encoded; result->serialize(&encoded);
+				hq_protocol::trace_row("marketplace_99_product", encoded.get_buffer());
+				reply.add(result);
+			}
+			hq_products::products += static_cast<std::uint32_t>(page.size());
+			reply.send();
 		});
 	}
 
