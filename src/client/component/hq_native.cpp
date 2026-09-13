@@ -8,6 +8,7 @@
 #include "game/demonware/hq_vendor.hpp"
 #include "game/demonware/hq_payroll.hpp"
 #include "game/demonware/hq_mail.hpp"
+#include "game/demonware/hq_inventory_cache.hpp"
 #include "component/scheduler.hpp"
 #include "hq_vendor_globals.hpp"
 
@@ -141,11 +142,44 @@ namespace hq_native
 
 		void refresh_item(const demonware::hq_economy::item& entry)
 		{
-			// 20C8B0 projection consumed by27DD30; absolute quantity, no delta.
-			struct native_item { unsigned id, quantity, expires, pad; std::int64_t duration; unsigned short collision; unsigned char tail[6]; };
-			static_assert(sizeof(native_item) == 32);
-			const native_item item{entry.guid, entry.quantity, entry.expires, 0, INT64_MAX, entry.collision, {}};
+			const auto item = demonware::hq_inventory_cache::project(entry, static_cast<std::uint64_t>(time(nullptr)));
 			utils::hook::invoke<unsigned>(0x27DD30_g, 0, &item, 0, 0, entry.metadata.data(), static_cast<unsigned char>(entry.metadata.size()));
+		}
+
+		void sync_inventory()
+		{
+			// Wait for165's native callback; never seed or reset its ready flag.
+			if (!*reinterpret_cast<const unsigned char*>(0x80385A8_g)) return;
+			try
+			{
+				const auto data = demonware::hq_economy::snapshot();
+				const auto now = static_cast<std::uint64_t>(time(nullptr));
+				bool changed{};
+				for (const auto& [key, entry] : data.inventory)
+				{
+					// HQ grants/drops/purchases use collision0. Do not collapse a
+					// foreign collision record into this native GUID-only cache.
+					if (entry.collision || !entry.guid || entry.metadata.size() > 64) continue;
+					const auto expected = demonware::hq_inventory_cache::project(entry, now).quantity;
+					const unsigned* native{};
+					utils::hook::invoke<void>(0x279300_g, 0, entry.guid, &native);
+					const auto quantity = native ? native[1] : 0;
+					if (quantity == expected) continue;
+					refresh_item(entry);
+					changed = true;
+					demonware::hq_protocol::trace("inventory_native_refresh", std::to_string(entry.guid) + ":" + std::to_string(quantity) + "->" + std::to_string(expected));
+				}
+				if (changed)
+				{
+					utils::hook::invoke<void>(0xD5F30_g, 0);
+					utils::hook::invoke<void>(0x2752E0_g, 0, 2);
+				}
+			}
+			catch (const std::exception& error)
+			{
+				static bool warned{};
+				if (!std::exchange(warned, true)) console::warn("[HQ inventory] sync failed: %s\n", error.what());
+			}
 		}
 
 		void purchase_entry(const unsigned controller, const unsigned id, const unsigned quantity, void* transaction, const int type)
@@ -226,6 +260,9 @@ namespace hq_native
 			console::info("[HQ vendor] inventoryReady=%u inventoryCount=%u dirtyMetadata=%u\n",
 				*reinterpret_cast<const unsigned char*>(0x80385A8_g),
 				*reinterpret_cast<const unsigned*>(0x80385A4_g), *reinterpret_cast<const unsigned*>(0x819B568_g));
+			console::info("[HQ vendor] fullCollectionSKUs=%u; booster type0/common=%u type1/rare=%u (native quantity reader)\n",
+				unsigned(demonware::hq_marketplace::catalog().size()),
+				utils::hook::invoke<unsigned>(0x2AEEA0_g, 0, 0), utils::hook::invoke<unsigned>(0x2AEEA0_g, 0, 1));
 			console::info("[HQ vendor] conversion successes=%u failures=%u responseTx=%.*s scalar=%llu currencyCount=%u inventoryCount=%u extraCount=%u\n",
 				conversion_successes.load(), conversion_failures.load(), 24, reinterpret_cast<const char*>(0x81960C0_g),
 				*reinterpret_cast<const std::uint64_t*>(0x81960E0_g),
@@ -324,6 +361,7 @@ namespace hq_native
 			command::add("hqnative", status);
 			command::add("hqwallet", wallet_status);
 			scheduler::loop(sync_wallet, scheduler::pipeline::main, 100ms);
+			scheduler::loop(sync_inventory, scheduler::pipeline::main, 100ms);
 			command::add("hqvendor", vendor_status);
 			command::add("hqmail", mail_status);
 			command::add("hqopendrop", open_drop);
