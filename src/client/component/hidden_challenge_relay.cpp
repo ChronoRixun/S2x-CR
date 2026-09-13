@@ -59,20 +59,27 @@ namespace hidden_challenge_relay
 			const command::params params{};
 			if (params.size() && std::string_view{params[0]} == demonware::hq_event_relay::command)
 			{
-				if (game::environment::is_zombies() || local_client_num != 0 || params.size() > 38) return;
+				if (game::environment::is_zombies() || local_client_num != 0 || params.size() != 7) return;
 				try
 				{
 					std::string wire;
 					for (auto i = 0; i < params.size(); ++i)
 					{
-						const auto length = strnlen(params[i], demonware::hq_event_relay::maximum_wire + 1);
-						if (wire.size() + length + (i ? 1 : 0) > demonware::hq_event_relay::maximum_wire) return;
+						const auto length = strnlen(params[i], demonware::hq_event_relay::maximum_command + 1);
+						if (wire.size() + length + (i ? 1 : 0) > demonware::hq_event_relay::maximum_command) return;
 						if (i) wire += ' ';
 						wire.append(params[i], length);
 					}
-					const auto ok = demonware::hq_event_relay::apply(wire, steam::SteamUser()->GetSteamID().bits,
-						demonware::submit_hq_event);
-					demonware::hq_protocol::trace(ok ? "relay_applied" : "relay_rejected", wire);
+					static demonware::hq_event_relay::receiver receiver;
+					const auto user = steam::SteamUser()->GetSteamID().bits;
+					const auto ok = receiver.accept(wire, user, GetTickCount64(), [user](const auto& event)
+					{
+						const auto applied = demonware::submit_hq_event(event);
+						demonware::hq_protocol::trace(applied ? "relay_applied" : "relay_rejected",
+							demonware::hq_event_relay::encode(user, event));
+						return applied;
+					});
+					if (!ok) demonware::hq_protocol::trace("relay_rejected_chunk", wire);
 				}
 				catch (...) { console::warn("[HQ relay] could not apply server event\n"); }
 				return;
@@ -190,14 +197,15 @@ namespace hidden_challenge_relay
 		{
 			auto wire = demonware::hq_event_relay::encode(user_id, event);
 			if (wire.empty()) { console::debug("[HQ relay] ignored invalid server event\n"); return; }
+			auto parts = demonware::hq_event_relay::chunks(user_id, wire);
 			std::lock_guard lock{pending_forward_mutex};
 			if (!accepting_forwards.load()) return;
-			if (pending_forwards.size() >= 4800)
+			if (pending_forwards.size() + parts.size() > 4800)
 			{
 				console::debug("[HQ relay] pending forward queue is full\n");
 				return;
 			}
-			pending_forwards.push_back({user_id, 0, 0, std::move(wire)});
+			for (auto& part : parts) pending_forwards.push_back({user_id, 0, 0, std::move(part)});
 		}
 		catch (...) { console::warn("[HQ relay] could not queue server event\n"); }
 	}

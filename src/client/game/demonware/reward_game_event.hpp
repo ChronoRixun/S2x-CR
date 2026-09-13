@@ -30,9 +30,9 @@ namespace demonware
 			std::vector<event> events{};
 		};
 
-		bool parse_report_request(byte_buffer* buffer, std::vector<event>& events);
+		bool parse_report_request(byte_buffer* buffer, std::vector<event>& events, bool extended_parameters = false);
 		bool parse_report_for_users_request(byte_buffer* buffer,
-			std::vector<user_event_batch>& users);
+			std::vector<user_event_batch>& users, bool extended_parameters = false);
 	}
 
 	bool submit_hq_event(const reward_game_events::event& event);

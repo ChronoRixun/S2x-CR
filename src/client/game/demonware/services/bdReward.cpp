@@ -8,6 +8,8 @@
 #include "game/game.hpp"
 #include "../achievement_engine.hpp"
 #include "../hq_protocol.hpp"
+#include "../hq_event_relay.hpp"
+#include <set>
 #include "game/demonware/reward_game_event.hpp"
 
 #include "steam/steam.hpp"
@@ -155,7 +157,7 @@ namespace demonware
 	{
 		hq_protocol::trace("reward_11", buffer->get_remaining());
 		std::vector<reward_game_events::user_event_batch> users{};
-		if (reward_game_events::parse_report_for_users_request(buffer, users))
+		if (reward_game_events::parse_report_for_users_request(buffer, users, !game::environment::is_zombies()))
 		{
 			const auto dedicated = game::environment::is_dedicated();
 			const auto local_user_id = dedicated ? 0 : steam::SteamUser()->GetSteamID().bits;
@@ -170,6 +172,22 @@ namespace demonware
 				{
 					if (!game::environment::is_zombies())
 					{
+						static std::mutex observed_mutex;
+						static std::set<std::string> observed;
+						{
+							std::lock_guard lock{observed_mutex};
+							if (observed.size() < 128 && observed.insert(event.name).second)
+							{
+								unsigned maximum{};
+								for (const auto& parameter : event.parameters)
+								{
+									unsigned selector{};
+									if (hq_event_relay::number(parameter.selector, selector)) maximum = std::max(maximum, selector);
+								}
+								console::info("[HQ task11 server] %s: parameters=%zu max_selector=%u\n",
+									event.name.c_str(), event.parameters.size(), maximum);
+							}
+						}
 						if (!dedicated && user.user_id == local_user_id) submit_hq_event(event);
 						else hidden_challenge_relay::submit_reward(user.user_id, event);
 					}
@@ -219,7 +237,7 @@ namespace demonware
 		hq_protocol::trace("reward_12", buffer->get_remaining());
 		bool ok = true;
 		std::vector<reward_game_events::event> events{};
-		if (reward_game_events::parse_report_request(buffer, events))
+		if (reward_game_events::parse_report_request(buffer, events, !game::environment::is_zombies()))
 		{
 			ok = submit_hidden_challenge_events(events);
 		}

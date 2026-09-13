@@ -1,7 +1,8 @@
 #include <std_include.hpp>
 
 #include "reward_game_event.hpp"
-#include "dw_include.hpp"
+#include "byte_buffer.hpp"
+#include <charconv>
 
 namespace demonware::reward_game_events
 {
@@ -176,7 +177,7 @@ namespace demonware::reward_game_events
 			return has_selector && has_value;
 		}
 
-		bool parse_event(const std::string_view data, event& result)
+		bool parse_event(const std::string_view data, event& result, const bool extended_parameters)
 		{
 			// RewardGameEvent: 1 = name, 3 = ZigZag timestamp, 4 = repeated values.
 			struct_buffer_reader reader{data};
@@ -218,7 +219,7 @@ namespace demonware::reward_game_events
 				else if (field == 4)
 				{
 					std::string_view parameter_data{};
-					if (wire_type != 2 || result.parameters.size() >= maximum_event_parameters ||
+					if (wire_type != 2 || result.parameters.size() >= (extended_parameters ? 256u : maximum_event_parameters) ||
 						!reader.read_length_delimited(parameter_data))
 					{
 						return false;
@@ -230,6 +231,14 @@ namespace demonware::reward_game_events
 						return false;
 					}
 
+					if (extended_parameters)
+					{
+						unsigned selector{};
+						const auto parsed = std::from_chars(value.selector.data(), value.selector.data() + value.selector.size(), selector);
+						if (parsed.ec != std::errc{} || parsed.ptr != value.selector.data() + value.selector.size() || selector > 255) return false;
+						value.selector = std::to_string(selector);
+						for (const auto& prior : result.parameters) if (prior.selector == value.selector) return false;
+					}
 					result.parameters.push_back(std::move(value));
 				}
 				else if (!reader.skip_field(wire_type))
@@ -287,7 +296,7 @@ namespace demonware::reward_game_events
 			return has_user_id && has_account_type;
 		}
 
-		bool parse_user_event_batch(const std::string_view data, user_event_batch& result)
+		bool parse_user_event_batch(const std::string_view data, user_event_batch& result, const bool extended_parameters)
 		{
 			// UserEventBatch: 1 = account, 2 = repeated events, 3 = transaction ID.
 			struct_buffer_reader reader{data};
@@ -324,7 +333,7 @@ namespace demonware::reward_game_events
 					}
 
 					event value{};
-					if (!parse_event(event_data, value))
+					if (!parse_event(event_data, value, extended_parameters))
 					{
 						return false;
 					}
@@ -352,7 +361,7 @@ namespace demonware::reward_game_events
 			return has_account;
 		}
 
-		bool parse_report_payload(const std::string_view data, std::vector<event>& events)
+		bool parse_report_payload(const std::string_view data, std::vector<event>& events, const bool extended_parameters)
 		{
 			// ReportRewardGameEventsRequest: 1 = context, 2 = repeated events,
 			// 3 = transaction ID.
@@ -389,7 +398,7 @@ namespace demonware::reward_game_events
 					}
 
 					event value{};
-					if (!parse_event(event_data, value))
+					if (!parse_event(event_data, value, extended_parameters))
 					{
 						return false;
 					}
@@ -418,7 +427,7 @@ namespace demonware::reward_game_events
 		}
 
 		bool parse_report_for_users_payload(const std::string_view data,
-			std::vector<user_event_batch>& users)
+			std::vector<user_event_batch>& users, const bool extended_parameters)
 		{
 			// ReportRewardGameEventsForUsersRequest: 1 = context, 2 = repeated users.
 			struct_buffer_reader reader{data};
@@ -453,7 +462,7 @@ namespace demonware::reward_game_events
 					}
 
 					user_event_batch user{};
-					if (!parse_user_event_batch(user_data, user))
+					if (!parse_user_event_batch(user_data, user, extended_parameters))
 					{
 						return false;
 					}
@@ -487,12 +496,12 @@ namespace demonware::reward_game_events
 		}
 	}
 
-	bool parse_report_request(byte_buffer* buffer, std::vector<event>& events)
+	bool parse_report_request(byte_buffer* buffer, std::vector<event>& events, const bool extended_parameters)
 	{
 		std::string payload{};
 		std::vector<event> parsed{};
 		if (!read_payload(buffer, payload, maximum_report_request_size) ||
-			!parse_report_payload(payload, parsed))
+			!parse_report_payload(payload, parsed, extended_parameters))
 		{
 			return false;
 		}
@@ -502,12 +511,12 @@ namespace demonware::reward_game_events
 	}
 
 	bool parse_report_for_users_request(byte_buffer* buffer,
-		std::vector<user_event_batch>& users)
+		std::vector<user_event_batch>& users, const bool extended_parameters)
 	{
 		std::string payload{};
 		std::vector<user_event_batch> parsed{};
 		if (!read_payload(buffer, payload, maximum_report_for_users_request_size) ||
-			!parse_report_for_users_payload(payload, parsed))
+			!parse_report_for_users_payload(payload, parsed, extended_parameters))
 		{
 			return false;
 		}
