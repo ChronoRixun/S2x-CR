@@ -7,6 +7,7 @@
 #include <utils/hook.hpp>
 #include "game/demonware/hq_vendor.hpp"
 #include "game/demonware/hq_payroll.hpp"
+#include "game/demonware/hq_proxy_rewards.hpp"
 #include "game/demonware/hq_mail.hpp"
 #include "game/demonware/hq_inventory_cache.hpp"
 #include "component/scheduler.hpp"
@@ -334,6 +335,27 @@ namespace hq_native
 			}
 		}
 
+		void task99(const command::params& params)
+		{
+			const std::string_view mode = params.size() == 2 ? params[1] : "";
+			if (mode == "success" || mode == "fail")
+				demonware::hq_proxy_rewards::answer_with_failure = mode == "fail";
+			else if (!mode.empty())
+			{
+				console::info("Usage: hqtask99 [success|fail] (bdMarketplace reward-commit reply)\n");
+				return;
+			}
+			std::string payload;
+			{
+				std::lock_guard lock{demonware::hq_proxy_rewards::signature_mutex};
+				payload = demonware::hq_proxy_rewards::signature;
+			}
+			console::info("[HQ task99] reply=%s requests=%u rejected=%u lastFields=[%s]\n",
+				demonware::hq_proxy_rewards::answer_with_failure ? "fail" : "success",
+				demonware::hq_proxy_rewards::requests.load(), demonware::hq_proxy_rewards::rejected.load(),
+				payload.c_str());
+		}
+
 		void open_drop(const command::params& params)
 		{
 			const std::string_view drop = params.size() == 2 ? params[1] : "";
@@ -384,6 +406,7 @@ namespace hq_native
 			command::add("hqvendor", vendor_status);
 			command::add("hqmail", mail_status);
 			command::add("hqopendrop", open_drop);
+			command::add("hqtask99", task99);
 		}
 	};
 }
