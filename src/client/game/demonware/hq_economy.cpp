@@ -147,6 +147,18 @@ namespace demonware::hq_economy
 			return true;
 		}
 
+		bool migrate_contract_tokens(state& data)
+		{
+			constexpr auto marker = "migration:retail-contract-tokens-v1";
+			if (data.transactions.contains(marker)) return false;
+			// Slice 10 stores already carry retail-contracts-v1. Retire every collision
+			// of its unknown StatsTable tokens without replaying purchases or claims.
+			for (auto& [key, entry] : data.inventory)
+				if (entry.guid >= 0x50F0001 && entry.guid <= 0x50F0009) entry.quantity = 0;
+			data.transactions.emplace(marker, "retired unknown contract tokens; receipts retained");
+			return true;
+		}
+
 		std::string encode(const state& data)
 		{
 			rapidjson::StringBuffer buffer{};
@@ -295,7 +307,8 @@ namespace demonware::hq_economy
 			const file_lock disk_lock{};
 			auto next = load();
 			const auto payroll_changed = migrate_payroll(next);
-			if (migrate_contracts(next) || payroll_changed)
+			const auto tokens_changed = migrate_contract_tokens(next);
+			if (migrate_contracts(next) || payroll_changed || tokens_changed)
 			{
 				if (next.revision == UINT64_MAX) throw std::runtime_error("economy revision overflow");
 				if (next.transactions.size() > 10000) throw std::runtime_error("no room for payroll migration receipt");
@@ -322,6 +335,7 @@ namespace demonware::hq_economy
 			auto next = load(); // always validate the on-disk copy before mutating it
 			migrate_payroll(next);
 			migrate_contracts(next);
+			migrate_contract_tokens(next);
 			if (!mutation(next) || next.revision == UINT64_MAX || next.inventory.size() > 10000 ||
 				next.achievements.size() > 10000 || next.transactions.size() > 10000) return false;
 			++next.revision;

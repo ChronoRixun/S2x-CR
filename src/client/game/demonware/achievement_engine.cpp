@@ -72,7 +72,8 @@ namespace demonware::achievement_engine
 			// "14400 <= timeSinceLastCompletion" test always chose the collectable branch and
 			// the four-hour countdown never appeared. No shipped consumer reads the key:
 			// 0x13A570 and 0x13EC20 are its only two references in the image.
-			const auto expires = period_end(entry.kind, day);
+			// Zero selects Completion Time / active match time in the retail Contracts UI.
+			const auto expires = entry.kind == 4 ? std::uint64_t{0} : period_end(entry.kind, day);
 			value.AddMember("expirationTimestamp", expires, alloc);
 			value.AddMember("usageTimeTarget", entry.usage_target, alloc);
 			value.AddMember("usageTimeRemaining", entry.usage_target - std::min(entry.usage_target, entry.usage), alloc);

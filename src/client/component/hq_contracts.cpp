@@ -6,22 +6,11 @@
 
 namespace hq_contracts
 {
-	// Explicit local periodic-table policy for our scheduled Contracts and Orders. The retail
-	// periodic table is not in the saved asset dumps; do not pretend its display gates,
-	// cost tokens or timing agree with a locally generated AE catalog. Keep the adapter
-	// scoped to these IDs and this table, including when another mode reuses the VM.
+	// Keep local Orders policy; the nine Contracts use the loaded retail periodic rows.
+	// Captured AE limits remain authoritative even where the retail table differs.
 	constexpr auto policy = R"lua(
 local lookup = Engine.TableLookup
 local rows = {
-	[162] = {"162", "AEC_CONTRACT", "contract_4_headshots_tdm", "TDM Headshots Contract", "Get 4 headshots in Team Deathmatch", "", "1", "", "4", "", "1200", "0x50f0001"},
-	[561] = {"561", "AEC_CONTRACT", "contract_50_kills_smg", "SMG Kill Contract", "Get 50 SMG kills", "", "1", "", "50", "", "2400", "0x50f0002"},
-	[146] = {"146", "AEC_CONTRACT", "contract_55_kills_tdm", "TDM Kill Contract", "Get 55 kills in Team Deathmatch", "", "1", "", "55", "", "3000", "0x50f0003"},
-	[3048] = {"3048", "AEC_CONTRACT", "contract_ch_lad", "LAD Machine Gun Contract", "Get 10 headshots with LMGs", "", "1", "", "10", "", "4800", "0x50f0004"},
-	[149] = {"149", "AEC_CONTRACT", "contract_45_kills", "Kill Contract", "Get 45 kills", "", "1", "", "45", "", "2400", "0x50f0005"},
-	[153] = {"153", "AEC_CONTRACT", "contract_25_kills_dom", "Domination Kill Contract", "Get 25 kills in Domination", "", "1", "", "25", "", "1200", "0x50f0006"},
-	[164] = {"164", "AEC_CONTRACT", "contract_9_headshots", "Headshots Contract", "Get 9 headshots", "", "1", "", "9", "", "2400", "0x50f0007"},
-	[204] = {"204", "AEC_CONTRACT", "contract_25_kills_lmg", "LMG Kill Contract", "Get 25 LMG kills", "", "1", "", "25", "", "1200", "0x50f0008"},
-	[562] = {"562", "AEC_CONTRACT", "contract_50_kills_lmg", "LMG Supply Contract", "Get 50 LMG kills", "", "1", "", "50", "", "3000", "0x50f0009"},
 	[5] = {"5", "AEC_DAILY", "daily_ch_1v1_wins", "Single Minded", "Win 1 match in the 1v1 Pit", "", "1", "", "1", "", "0", "", ""},
 	[45] = {"45", "AEC_DAILY", "daily_ch_assault_kills", "Rifle Adept", "Get 35 rifle kills", "", "1", "", "35", "", "0", "", "", "2x Supply Drops", "s2_supply_drop_icon"},
 	[10] = {"10", "AEC_DAILY", "daily_ch_kills", "Daily Kills", "Get 25 kills", "", "1", "", "25", "", "0", "", ""},
@@ -32,6 +21,8 @@ local rows = {
 	[30] = {"30", "AEC_WEEKLY", "weekly_ch_wins", "Weekly Wins", "Win 10 matches", "", "1", "", "10", "", "0", "", ""},
 	[25] = {"25", "AEC_WEEKLY", "weekly_ch_scorestreak_calls", "Weekly Scorestreaks", "Call in 25 scorestreaks", "", "1", "", "25", "", "0", "", ""},
 }
+local contractLimits = { [162] = 1200, [561] = 2400, [146] = 3000, [3048] = 4800,
+	[149] = 2400, [153] = 1200, [164] = 2400, [204] = 1200, [562] = 3000 }
 local rewards = {
 	[162] = { currencyID = 1, currencyAmount = 3000 },
 	[561] = { currencyID = 1, currencyAmount = 3000 },
@@ -60,7 +51,8 @@ for _, name in ipairs({"AE_GetScheduledChallenges", "AE_GetPlayerActiveChallenge
 			for _, record in pairs(result) do
 				if type(record) == "table" and rewards[tonumber(record.ID)] then
 					record.reward = rewards[tonumber(record.ID)]
-					record.timeLimit = tonumber(rows[tonumber(record.ID)][11])
+					local id = tonumber(record.ID)
+					record.timeLimit = contractLimits[id] or (rows[id] and tonumber(rows[id][11]))
 				end
 			end
 		end

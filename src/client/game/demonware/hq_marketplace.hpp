@@ -68,15 +68,15 @@ namespace demonware::hq_marketplace
 		// sku_details "VIEW CONTRACT" option (key "C") - walks that one cached list. A record
 		// typed 201 in the native SKU cache (+0x04, written by hq_native::sku_lookup) is not a
 		// Quartermaster SKU. The contract id lives in the SKU data string, not in the type.
-		{0x0800F021, 100, 100, "t:CONTRACT;c:162;C:162;i:s2_challenge_contracts", "TDM Headshots Contract;Timed objective", {0x50F0001}, "contract_4_headshots_tdm"},
-		{0x0800F022, 350, 100, "t:CONTRACT;c:561;C:561;i:s2_challenge_contracts", "SMG Kill Contract;Timed objective", {0x50F0002}, "contract_50_kills_smg"},
-		{0x0800F023, 450, 100, "t:CONTRACT;c:146;C:146;i:s2_challenge_contracts", "TDM Kill Contract;Timed objective", {0x50F0003}, "contract_55_kills_tdm"},
-		{0x0800F024, 5000, 100, "t:CONTRACT;c:3048;C:3048;i:s2_challenge_contracts", "LAD Machine Gun Contract;Timed objective", {0x50F0004}, "contract_ch_lad"},
-		{0x0800F025, 350, 100, "t:CONTRACT;c:149;C:149;i:s2_challenge_contracts", "Kill Contract;Timed objective", {0x50F0005}, "contract_45_kills"},
-		{0x0800F026, 100, 100, "t:CONTRACT;c:153;C:153;i:s2_challenge_contracts", "Domination Kill Contract;Timed objective", {0x50F0006}, "contract_25_kills_dom"},
-		{0x0800F027, 350, 100, "t:CONTRACT;c:164;C:164;i:s2_challenge_contracts", "Headshots Contract;Timed objective", {0x50F0007}, "contract_9_headshots"},
-		{0x0800F028, 100, 100, "t:CONTRACT;c:204;C:204;i:s2_challenge_contracts", "LMG Kill Contract;Timed objective", {0x50F0008}, "contract_25_kills_lmg"},
-		{0x0800F029, 450, 100, "t:CONTRACT;c:562;C:562;i:s2_challenge_contracts", "LMG Supply Contract;Timed objective", {0x50F0009}, "contract_50_kills_lmg"},
+		{0x0800F021, 100, 100, "t:CONTRACT;c:162;C:162;i:s2_challenge_contracts", "TDM Headshots Contract;Timed objective", {0x5000019}, "contract_4_headshots_tdm"},
+		{0x0800F022, 350, 100, "t:CONTRACT;c:561;C:561;i:s2_challenge_contracts", "SMG Kill Contract;Timed objective", {0x500006c}, "contract_50_kills_smg"},
+		{0x0800F023, 450, 100, "t:CONTRACT;c:146;C:146;i:s2_challenge_contracts", "TDM Kill Contract;Timed objective", {0x5000009}, "contract_55_kills_tdm"},
+		{0x0800F024, 5000, 100, "t:CONTRACT;c:3048;C:3048;i:s2_challenge_contracts", "LAD Machine Gun Contract;Timed objective", {0x50000B9}, "contract_ch_lad"},
+		{0x0800F025, 350, 100, "t:CONTRACT;c:149;C:149;i:s2_challenge_contracts", "Kill Contract;Timed objective", {0x500000c}, "contract_45_kills"},
+		{0x0800F026, 100, 100, "t:CONTRACT;c:153;C:153;i:s2_challenge_contracts", "Domination Kill Contract;Timed objective", {0x5000010}, "contract_25_kills_dom"},
+		{0x0800F027, 350, 100, "t:CONTRACT;c:164;C:164;i:s2_challenge_contracts", "Headshots Contract;Timed objective", {0x500001b}, "contract_9_headshots"},
+		{0x0800F028, 100, 100, "t:CONTRACT;c:204;C:204;i:s2_challenge_contracts", "LMG Kill Contract;Timed objective", {0x5000043}, "contract_25_kills_lmg"},
+		{0x0800F029, 450, 100, "t:CONTRACT;c:562;C:562;i:s2_challenge_contracts", "LMG Supply Contract;Timed objective", {0x500006d}, "contract_50_kills_lmg"},
 		// Owner decision (build/research/hq-economy-slice1-report.md, "Retail alignment"):
 		// retail sells the 16 CWL team packs for 500 CoD Points, but this store has no CoD
 		// Points economy, so they stay deliberately purchasable at 1000 Armory Credits -

@@ -695,7 +695,7 @@ namespace hq_native
 					*reinterpret_cast<const std::uint64_t*>(record + 0x18),
 					*reinterpret_cast<void* const*>(record + 0x20));
 			}
-			console::info("[HQ contracts] nine retail-pattern periodic rows: AEC_CONTRACT, cost tokens 0x50F0001..9, match-only timers, no display gates\n");
+			console::info("[HQ contracts] nine retail periodic rows: AEC_CONTRACT, StatsTable contract cost tokens, match-only timers, expiration 0\n");
 		}
 		void ownership_status(const command::params& params)
 		{
