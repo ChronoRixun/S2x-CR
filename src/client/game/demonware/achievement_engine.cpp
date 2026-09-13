@@ -58,10 +58,16 @@ namespace demonware::achievement_engine
 			value.AddMember("completionCount", entry.completion ? 1 : 0, alloc);
 			value.AddMember("completionTimestamp", entry.completion, alloc);
 			value.AddMember("activationTimestamp", entry.activation, alloc);
-			// 'eventEndTimestamp' is the key the native Achievement Engine record parser reads
-			// (string table next to get_scheduled_user_achievements/NextPeriodStartTimes);
-			// 'expirationTimestamp' belongs to an unrelated LUI binding and left the end time 0.
-			value.AddMember("eventEndTimestamp", period_end(entry.kind, day), alloc);
+			// Both keys, because the two consumers disagree. The native record parser
+			// (0x13EF20) fills the scheduled cache field at +0x18 from "expirationTimestamp"
+			// - with only "eventEndTimestamp" present aecache reports expires 0 - while
+			// "eventEndTimestamp" is the name that sits in the Achievement Engine string
+			// block beside get_scheduled_user_achievements/NextPeriodStartTimes and is what
+			// the last reply the Orders board rendered (run-61492) carried. Unknown members
+			// are ignored by the parser, so publish the same value under both.
+			const auto expires = period_end(entry.kind, day);
+			value.AddMember("expirationTimestamp", expires, alloc);
+			value.AddMember("eventEndTimestamp", expires, alloc);
 			value.AddMember("usageTimeTarget", entry.usage_target, alloc);
 			value.AddMember("usageTimeRemaining", entry.usage_target - std::min(entry.usage_target, entry.usage), alloc);
 			rapidjson::Value rewards{rapidjson::kArrayType};
