@@ -31,9 +31,11 @@ namespace demonware::hq_marketplace
 
 	std::optional<sku> find_sku(const std::uint32_t id)
 	{
-		const auto entries = catalog();
-		const auto it = std::find_if(entries.begin(), entries.end(), [&](const auto& entry) { return entry.id == id; });
-		return it == entries.end() ? std::nullopt : std::optional<sku>{*it};
+		// Collection rendering queries this once per item, often repeatedly.
+		if (!std::binary_search(std::begin(collection_items), std::end(collection_items), id)) return std::nullopt;
+		std::lock_guard lock{sku_mutex};
+		const auto found = item_rarities.find(id);
+		return sku{id, rarity_prices[found == item_rarities.end() ? 0 : found->second], 100};
 	}
 
 	void set_rarities(const std::map<std::uint32_t, unsigned>& rarities)

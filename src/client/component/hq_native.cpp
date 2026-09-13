@@ -88,7 +88,8 @@ namespace hq_native
 
 		// Dedicated storage: never enlarge a loop writing the original 400-entry
 		// cache or the 400-element Lua binding stack buffer.
-		std::map<unsigned, std::array<unsigned char, 0x2E8>> native_skus;
+		struct alignas(8) native_sku_record { std::array<unsigned char, 0x2E8> bytes{}; };
+		std::map<unsigned, native_sku_record> native_skus;
 		utils::hook::detour sku_lookup_hook, sku_ids_hook, collection_price_hook;
 
 		unsigned long long collection_price(const unsigned id)
@@ -102,7 +103,7 @@ namespace hq_native
 			const auto entry = demonware::hq_marketplace::find_sku(id);
 			if (!entry) return sku_lookup_hook.invoke<unsigned>(id, output);
 			auto [it, inserted] = native_skus.try_emplace(id);
-			auto* bytes = it->second.data();
+			auto* bytes = it->second.bytes.data();
 			if (inserted)
 			{
 				utils::hook::invoke<void>(0x20D440_g, bytes + 0x10);

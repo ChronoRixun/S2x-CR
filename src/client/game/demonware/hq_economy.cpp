@@ -262,6 +262,7 @@ namespace demonware::hq_economy
 			if (migrate_payroll(next))
 			{
 				if (next.revision == UINT64_MAX) throw std::runtime_error("economy revision overflow");
+				if (next.transactions.size() > 10000) throw std::runtime_error("no room for payroll migration receipt");
 				++next.revision;
 				if (!save(next)) throw std::runtime_error("payroll migration save failed");
 			}
