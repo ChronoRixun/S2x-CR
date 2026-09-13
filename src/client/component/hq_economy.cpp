@@ -7,6 +7,7 @@
 #include "component/console/console.hpp"
 #include <charconv>
 #include "game/demonware/hq_marketplace.hpp"
+#include "game/demonware/hq_contract_catalog.hpp"
 #include <utils/hook.hpp>
 
 namespace hq_economy
@@ -107,6 +108,25 @@ namespace hq_economy
 			demonware::achievement_engine::set_loot_catalog(std::move(pool));
 		}
 
+		void tick_contracts()
+		{
+			static bool playing{};
+			const auto* mode = game::Dvar_FindMalleableVar("g_gametype");
+			const bool current = game::CL_IsLocalClientInGame(0) && !*game::virtualLobby_Loaded &&
+				mode && mode->current.string && std::string_view{mode->current.string} != "hub";
+			try
+			{
+				if (playing && current)
+				{
+					auto preview = demonware::hq_economy::snapshot();
+					if (demonware::achievement_engine::advance_contract_time(preview, 1))
+						demonware::hq_economy::transact([](auto& data) { return demonware::achievement_engine::advance_contract_time(data, 1); });
+				}
+			}
+			catch (const std::exception& e) { console::warn("[HQ contracts] timer: %s\n", e.what()); }
+			playing = current;
+		}
+
 		void load_catalog()
 		{
 			const auto* daily = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/dailychallengestable.csv", false).stringTable;
@@ -153,26 +173,11 @@ namespace hq_economy
 					catalog.push_back(entry);
 				}
 			}
-			// Minimal local contract policy; prices/reward bundles are not in dwGameChallenges.
-			for (int row = 0; row < definitions->rowCount; ++row)
+			for (const auto& definition : demonware::hq_contract_catalog::entries)
 			{
-				const std::string name{cell(definitions, row, 1)};
-				if (name != "contract_mp_1" && name != "contract_mp_2" && name != "contract_mp_3") continue;
-				if (std::string_view{cell(definitions, row, 2)} != "4") continue;
-				demonware::hq_economy::achievement entry{};
-				entry.name = name;
-				entry.challenge_name = name;
-				entry.kind = 4;
-				entry.usage_target = 3600;
-				// A contract has to carry a reward. AE_GetScheduledChallenges (0x121A00) and
-				// AE_GetPlayerActiveChallenges (0x121F40) only publish the Lua "reward" table when
-				// the record's reward pointer is non-null, so a contract with an empty
-				// successRewards array reaches the vendor with no reward at all while every daily
-				// and weekly carries one. Local policy: a completed contract pays twice what its
-				// Quartermaster SKU costs (25/50/75 Armory Credits, hq_marketplace::vendor_skus).
-				const auto payout = name == "contract_mp_1" ? 50u : name == "contract_mp_2" ? 100u : 150u;
-				entry.rewards = {{"GRANT_CURRENCY", demonware::hq_economy::armory_credits, payout}};
-				catalog.push_back(entry);
+				const auto weapon = *definition.item_reference ? game::BG_GetItemGUIDFromReference(definition.item_reference) : 0;
+				if (*definition.item_reference && !weapon) continue; // fail closed if the asset is unavailable
+				catalog.push_back(demonware::hq_contract_catalog::achievement(definition, weapon));
 			}
 			// Rules live in the asset catalog, never in editable persisted progress records.
 			std::map<std::string, demonware::hq_event_predicate::rule> rules;
@@ -199,6 +204,7 @@ namespace hq_economy
 			command::add("aeevent", event_command);
 			scheduler::loop(load_loot_catalog, scheduler::pipeline::main, 5s);
 			scheduler::loop(load_catalog, scheduler::pipeline::main, 5s);
+			scheduler::loop(tick_contracts, scheduler::pipeline::main, 1s);
 		}
 	};
 }

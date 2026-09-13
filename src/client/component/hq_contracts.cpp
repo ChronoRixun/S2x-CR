@@ -6,17 +6,50 @@
 
 namespace hq_contracts
 {
-	// Explicit local periodic-table policy for our three scheduled offers. The retail
+	// Explicit local periodic-table policy for our nine scheduled offers. The retail
 	// periodic table is not in the saved asset dumps; do not pretend its display gates,
 	// cost tokens or timing agree with a locally generated AE catalog. Keep the adapter
 	// scoped to these IDs and this table, including when another mode reuses the VM.
 	constexpr auto policy = R"lua(
 local lookup = Engine.TableLookup
 local rows = {
-	[33] = {"33", "AEC_CONTRACT", "contract_mp_1", "Contract 1", "Complete a match", "", "1", "", "1", "", "3600", "0x5000001"},
-	[34] = {"34", "AEC_CONTRACT", "contract_mp_2", "Contract 2", "Get a headshot", "", "1", "", "1", "", "3600", "0x5000002"},
-	[35] = {"35", "AEC_CONTRACT", "contract_mp_3", "Contract 3", "Get a multi-kill", "", "1", "", "1", "", "3600", "0x5000003"}
+	[162] = {"162", "AEC_CONTRACT", "contract_4_headshots_tdm", "TDM Headshots Contract", "Get 4 headshots in Team Deathmatch", "", "1", "", "4", "", "1200", "0x50F0001"},
+	[561] = {"561", "AEC_CONTRACT", "contract_50_kills_smg", "SMG Kill Contract", "Get 50 SMG kills", "", "1", "", "50", "", "2400", "0x50F0002"},
+	[146] = {"146", "AEC_CONTRACT", "contract_55_kills_tdm", "TDM Kill Contract", "Get 55 kills in Team Deathmatch", "", "1", "", "55", "", "3000", "0x50F0003"},
+	[3048] = {"3048", "AEC_CONTRACT", "contract_ch_lad", "LAD Machine Gun Contract", "Get 10 headshots with LMGs", "", "1", "", "10", "", "4800", "0x50F0004"},
+	[149] = {"149", "AEC_CONTRACT", "contract_45_kills", "Kill Contract", "Get 45 kills", "", "1", "", "45", "", "2400", "0x50F0005"},
+	[153] = {"153", "AEC_CONTRACT", "contract_25_kills_dom", "Domination Kill Contract", "Get 25 kills in Domination", "", "1", "", "25", "", "1200", "0x50F0006"},
+	[164] = {"164", "AEC_CONTRACT", "contract_9_headshots", "Headshots Contract", "Get 9 headshots", "", "1", "", "9", "", "2400", "0x50F0007"},
+	[204] = {"204", "AEC_CONTRACT", "contract_25_kills_lmg", "LMG Kill Contract", "Get 25 LMG kills", "", "1", "", "25", "", "1200", "0x50F0008"},
+	[562] = {"562", "AEC_CONTRACT", "contract_50_kills_lmg", "LMG Supply Contract", "Get 50 LMG kills", "", "1", "", "50", "", "3000", "0x50F0009"},
 }
+local rewards = {
+	[162] = { currencyID = 1, currencyAmount = 3000 },
+	[561] = { currencyID = 1, currencyAmount = 3000 },
+	[146] = { productID = "0x1", itemID = "0x1" },
+	[3048] = { productID = Engine.GetItemGUIDFromReference("lad_mp"), itemID = Engine.GetItemGUIDFromReference("lad_mp") },
+	[149] = { currencyID = 1, currencyAmount = 3000 },
+	[153] = { currencyID = 1, currencyAmount = 3000 },
+	[164] = { currencyID = 1, currencyAmount = 3000 },
+	[204] = { currencyID = 1, currencyAmount = 3000 },
+	[562] = { productID = "0x1", itemID = "0x1" },
+}
+for _, name in ipairs({"AE_GetScheduledChallenges", "AE_GetPlayerActiveChallenges"}) do
+	local original = Engine[name]
+	Engine[name] = function(...)
+		local result = original(...)
+		if type(result) == "table" and not CONDITIONS.IsZombiesMode() then
+			for _, record in pairs(result) do
+				if type(record) == "table" and rewards[tonumber(record.ID)] then
+					record.reward = rewards[tonumber(record.ID)]
+					record.timeLimit = tonumber(rows[tonumber(record.ID)][11])
+				end
+			end
+		end
+		return result
+	end
+end
+
 Engine.TableLookup = function(file, key, value, column, ...)
 	if type(file) == "string" and string.lower(file) == "mp/periodicchallengetable.csv"
 		and tonumber(key) == 0 and not (CONDITIONS and CONDITIONS.IsZombiesMode()) then

@@ -61,9 +61,15 @@ namespace demonware::hq_marketplace
 		// sku_details "VIEW CONTRACT" option (key "C") - walks that one cached list. A record
 		// typed 201 in the native SKU cache (+0x04, written by hq_native::sku_lookup) is not a
 		// Quartermaster SKU. The contract id lives in the SKU data string, not in the type.
-		{0x0800F021, 25, 100, "t:CONTRACT;c:33;C:33;i:s2_challenge_contracts", "Contract 1;Complete a match", {0x5000001}, "contract_mp_1"},
-		{0x0800F022, 50, 100, "t:CONTRACT;c:34;C:34;i:s2_challenge_contracts", "Contract 2;Get a headshot", {0x5000002}, "contract_mp_2"},
-		{0x0800F023, 75, 100, "t:CONTRACT;c:35;C:35;i:s2_challenge_contracts", "Contract 3;Get a multi-kill", {0x5000003}, "contract_mp_3"},
+		{0x0800F021, 100, 100, "t:CONTRACT;c:162;C:162;i:s2_challenge_contracts", "TDM Headshots Contract;Timed objective", {0x50F0001}, "contract_4_headshots_tdm"},
+		{0x0800F022, 350, 100, "t:CONTRACT;c:561;C:561;i:s2_challenge_contracts", "SMG Kill Contract;Timed objective", {0x50F0002}, "contract_50_kills_smg"},
+		{0x0800F023, 450, 100, "t:CONTRACT;c:146;C:146;i:s2_challenge_contracts", "TDM Kill Contract;Timed objective", {0x50F0003}, "contract_55_kills_tdm"},
+		{0x0800F024, 5000, 100, "t:CONTRACT;c:3048;C:3048;i:s2_challenge_contracts", "LAD Machine Gun Contract;Timed objective", {0x50F0004}, "contract_ch_lad"},
+		{0x0800F025, 350, 100, "t:CONTRACT;c:149;C:149;i:s2_challenge_contracts", "Kill Contract;Timed objective", {0x50F0005}, "contract_45_kills"},
+		{0x0800F026, 100, 100, "t:CONTRACT;c:153;C:153;i:s2_challenge_contracts", "Domination Kill Contract;Timed objective", {0x50F0006}, "contract_25_kills_dom"},
+		{0x0800F027, 350, 100, "t:CONTRACT;c:164;C:164;i:s2_challenge_contracts", "Headshots Contract;Timed objective", {0x50F0007}, "contract_9_headshots"},
+		{0x0800F028, 100, 100, "t:CONTRACT;c:204;C:204;i:s2_challenge_contracts", "LMG Kill Contract;Timed objective", {0x50F0008}, "contract_25_kills_lmg"},
+		{0x0800F029, 450, 100, "t:CONTRACT;c:562;C:562;i:s2_challenge_contracts", "LMG Supply Contract;Timed objective", {0x50F0009}, "contract_50_kills_lmg"},
 		{0x200010c, 1000, 100, "t:CWL_EF;l:0x200010c|1", "Echo Fox Pack;5 CWL cosmetics", {0x200010c, 0x240042b, 0x6632175, 0x7000098, 0x7040004}},
 		{0x2000117, 1000, 100, "t:CWL_ENVY;l:0x2000117|1", "Team Envy Pack;5 CWL cosmetics", {0x2000117, 0x240042c, 0x6632181, 0x7000099, 0x704000f}},
 		{0x200010d, 1000, 100, "t:CWL_EPSI;l:0x200010d|1", "Epsilon Pack;5 CWL cosmetics", {0x200010d, 0x240042d, 0x6632176, 0x700009a, 0x7040005}},

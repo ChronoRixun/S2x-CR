@@ -143,7 +143,7 @@ namespace demonware::achievement_engine
 				std::vector<hq_economy::achievement> pool{};
 				for (const auto& entry : definitions) if (entry.kind == kind) pool.push_back(entry);
 				const auto period = kind == 2 ? day / 7 : day;
-				for (std::size_t i = 0; i < std::min<std::size_t>(3, pool.size()); ++i)
+				for (std::size_t i = 0; i < std::min<std::size_t>(kind == 4 ? 9 : 3, pool.size()); ++i)
 				{
 					auto entry = pool[(period + i) % pool.size()];
 					entry.offer_day = kind == 2 ? period * 7 : day;
@@ -159,10 +159,30 @@ namespace demonware::achievement_engine
 		return (kind == 2 ? (day / 7 + 1) * 7 : day + 1) * 86400;
 	}
 
+	bool advance_contract_time(hq_economy::state& data, const std::uint32_t seconds)
+	{
+		bool changed{};
+		for (auto& [name, entry] : data.achievements)
+		{
+			if (entry.kind != 4 || entry.status != "inProgress" || !entry.usage_target || !seconds) continue;
+			entry.usage += std::min(seconds, entry.usage_target - std::min(entry.usage, entry.usage_target));
+			if (entry.usage >= entry.usage_target) entry.status = "expired";
+			changed = true;
+		}
+		return changed;
+	}
+
 	bool reconcile_offers(hq_economy::state& data, const std::uint64_t day)
 	{
 		std::lock_guard lock{catalog_mutex};
 		bool changed{};
+		const auto have_contracts = std::any_of(definitions.begin(), definitions.end(), [](const auto& a) { return a.kind == 4; });
+		if (have_contracts)
+			changed |= std::erase_if(data.achievements, [&](const auto& pair)
+			{
+				return pair.second.kind == 4 && std::none_of(definitions.begin(), definitions.end(),
+					[&](const auto& d) { return d.kind == 4 && d.name == pair.first && d.target == pair.second.target && d.usage_target == pair.second.usage_target; });
+			}) != 0;
 		for (const auto kind : {1, 2})
 		{
 			std::vector<hq_economy::achievement> pool;
@@ -422,7 +442,7 @@ namespace demonware::achievement_engine
 			}
 			const auto fetch = action == "get_user_achievements" || action == "get_scheduled_user_achievements" ||
 				action == "get_expired_user_achievements" || action == "get_user_achievements_for_users";
-			if (economy_available && (fetch || action.starts_with("activate_") || action == "deactivate_user_achievement"))
+			if (economy_available && (fetch || action.starts_with("activate_") || action == "deactivate_user_achievement" || action == "claim_achievement_reward"))
 			{
 				auto preview = data;
 				if (reconcile_offers(preview, day))
