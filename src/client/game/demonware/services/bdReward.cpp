@@ -190,8 +190,14 @@ namespace demonware
 			console::debug("[hidden_challenges] ignored a malformed bdReward task 11 request\n");
 		}
 
+		// Struct task (typed 0x17 request payload): the SDK only completes it on a
+		// structured reply. A count-framed acknowledgement fails the task client-side and
+		// the event queue re-sends the same batch with exponential backoff (run-25248:
+		// enter_hub at transactions 184, 341, 658, 1289).
 		auto reply = server->create_reply(this->task_id());
-		reply.send();
+		auto body = std::make_unique<hq_protocol::empty_struct_result>();
+		reply.add(body);
+		reply.send_struct();
 	}
 
 	void bdReward::reportRewardEventsSync(service_server* server, byte_buffer* buffer) const
@@ -213,7 +219,18 @@ namespace demonware
 			console::debug("[hidden_challenges] ignored a malformed bdReward task 12 request\n");
 		}
 
-		auto reply = server->create_reply(this->task_id(), ok ? BD_NO_ERROR : BD_HANDLE_TASK_FAILED);
-		reply.send();
+		// Same struct-task framing as task 11. Replayed events (the kiosk re-sends
+		// picked_up_payroll until the task succeeds) are idempotent in the economy store
+		// (hq_payroll::settle acknowledges an already settled period without a grant), so
+		// the batch only fails when the store itself could not be updated.
+		if (!ok)
+		{
+			server->create_reply(this->task_id(), BD_HANDLE_TASK_FAILED).send_struct();
+			return;
+		}
+		auto reply = server->create_reply(this->task_id());
+		auto body = std::make_unique<hq_protocol::empty_struct_result>();
+		reply.add(body);
+		reply.send_struct();
 	}
 }
