@@ -5,6 +5,9 @@
 #include "game/demonware/hq_mail.hpp"
 
 #include <utils/hook.hpp>
+#include "component/scheduler.hpp"
+#include "game/ui_scripting/execution.hpp"
+#include "component/ui_scripting.hpp"
 
 namespace mail_guard
 {
@@ -50,8 +53,49 @@ namespace mail_guard
 			if (action[0] == 'r' && action[2] == 'a' && logged++ >= 32 &&
 				last_controller == controller && last_category == category && last_index == index) return;
 			last_controller = controller; last_category = category; last_index = index;
-			console::info("[HQ mail] %s controller=%d category=%d index=%d mapped=%d count=%u inRange=%u; local inbox has no claimable messages\n",
+			console::info("[HQ mail] %s controller=%d category=%d index=%d mapped=%d count=%u inRange=%u; local delivery policy\n",
 				action, controller, category, index, slot, count, unsigned(valid));
+		}
+
+		const std::byte* checked_slot(const int controller, const int slot)
+		{
+			if (controller != 0) return nullptr;
+			const auto* state = game::MarketingComms_MailState.get() + controller * mail_state_stride;
+			const auto count = *reinterpret_cast<const unsigned*>(state + 0xBC);
+			const auto capacity = *reinterpret_cast<const unsigned*>(state + 0xB8);
+			const auto* messages = *reinterpret_cast<const std::byte* const*>(state + 0xB0);
+			if (!messages || !*reinterpret_cast<const unsigned*>(state + 0x24) || capacity < count ||
+				!demonware::hq_mail::valid_slot(controller, slot, count)) return nullptr;
+			const auto* result = messages + slot * 0x1CA0;
+			if (*reinterpret_cast<const unsigned*>(result + 0x102C) > 4096 ||
+				*reinterpret_cast<const unsigned*>(result + 0x1830) > 2048 ||
+				*reinterpret_cast<const unsigned*>(result + 0x1C34) > 1024 ||
+				*reinterpret_cast<const unsigned*>(result + 0x1C78) > 64) return nullptr;
+			return result;
+		}
+
+		bool redeem_slot(const int controller, const int slot)
+		{
+			const auto* message = checked_slot(controller, slot);
+			if (!message) return false;
+			const auto id = *reinterpret_cast<const std::uint64_t*>(message + 0x10);
+			const auto length = *reinterpret_cast<const unsigned*>(message + 0x1C34);
+			const std::string code{reinterpret_cast<const char*>(message + 0x1834), length};
+			const auto ok = demonware::hq_economy::transact([&](auto& state) { return demonware::hq_mail::redeem(state, id, code); });
+			if (ok)
+			{
+				// Native clear operation 0x3721A0 also clears just ID. Keep all slots allocated.
+				*const_cast<std::uint64_t*>(reinterpret_cast<const std::uint64_t*>(message + 0x10)) = 0;
+			}
+			console::info("[HQ mail] redeem id=%llu slot=%d success=%d\n", id, slot, ok);
+			// Voucher kiosk opens its popup after this call returns. Deliver the recovered
+			// ApplyConversionRule completion after that, using its existing refresh handler.
+			scheduler::once([controller, ok]
+			{
+				if (!game::environment::is_zombies()) ui_scripting::notify("inventory", {
+					{"controller", controller}, {"inventoryEventType", 4}, {"inventoryTaskType", 126}, {"success", ok}});
+			}, scheduler::pipeline::main, 250ms);
+			return true;
 		}
 
 		bool message_stub(int controller, int category, int index, char* output, int capacity)
@@ -59,16 +103,78 @@ namespace mail_guard
 			++demonware::hq_mail::native_reads;
 			trace_access("read", controller, category, index);
 			if (output && capacity > 0) *output = 0;
-			// Explicit MP empty-inbox policy. 125020 returns zero Lua values on false.
-			// Do not let 3722F0 dereference an unchecked category-to-slot result.
-			return false;
+			if (controller != 0 || category < 1 || category > 5 || index < 0 || index >= 14 || !output || capacity <= 0) return false;
+			const auto slot = utils::hook::invoke<int>(0x3723B0_g, category, index);
+			if (!checked_slot(controller, slot)) return false;
+			return message_hook.invoke<bool>(controller, category, index, output, capacity);
 		}
 
 		void redeem_stub(int controller, int category, int index)
 		{
 			++demonware::hq_mail::native_redeems;
-			trace_access("redeem suppressed", controller, category, index);
-			// No fabricated code/reward and no native task from a cleared/stale UI slot.
+			trace_access("redeem", controller, category, index);
+			if (controller != 0 || category < 1 || category > 5 || index < 0 || index >= 14) return;
+			(void)redeem_slot(controller, utils::hook::invoke<int>(0x3723B0_g, category, index));
+		}
+
+		void install_mail_ui()
+		{
+			if (game::environment::is_zombies()) return;
+			const auto lua = ui_scripting::get_globals();
+			ui_scripting::table api;
+			api["List"] = [](int controller)
+			{
+				ui_scripting::table result;
+				if (controller != 0 || game::environment::is_zombies()) return result;
+				try
+				{
+					const auto state = demonware::hq_economy::snapshot();
+					int index{};
+					for (std::size_t i = 0; i < demonware::hq_mail::deliveries.size() && i < 6; ++i)
+					{
+						const auto& message = demonware::hq_mail::deliveries[i];
+						const auto* slot = checked_slot(controller, static_cast<int>(8 + i));
+						if (!slot || *reinterpret_cast<const std::uint64_t*>(slot + 0x10) != message.id || !demonware::hq_mail::pending(state, message)) continue;
+						ui_scripting::table item;
+						item["guid"] = utils::string::va("0x%x", 0x50E0001u + static_cast<unsigned>(i));
+						item["slot"] = static_cast<int>(8 + i); item["name"] = message.title; item["desc"] = message.description;
+						item["image"] = "s2_armory_credits_icon"; item["itemQuantity"] = 1;
+						result[++index] = item;
+					}
+				}
+				catch (const std::exception& e) { console::warn("[HQ mail] list: %s\n", e.what()); }
+				return result;
+			};
+			api["Redeem"] = [](int controller, int slot) { return !game::environment::is_zombies() && redeem_slot(controller, slot); };
+			lua["S2xHQMail"] = api;
+			(void)lua["loadstring"](R"lua(
+local voucherList = Engine.Inventory_GetVoucherItems
+local lootData = InventoryUtils.GetLootData
+local redeem = Engine.Inventory_RedeemVoucherItem
+local pending = {}
+Engine.Inventory_GetVoucherItems = function(controller, ...)
+	if CONDITIONS.IsZombiesMode() then return voucherList(controller, ...) end
+	local result = voucherList(controller, ...) or {}
+	if not CONDITIONS.IsZombiesMode() then
+		pending = {}
+		for _, message in ipairs(S2xHQMail.List(controller)) do
+			pending[message.guid] = message
+			result[#result + 1] = {itemID = message.guid}
+		end
+	end
+	return result
+end
+InventoryUtils.GetLootData = function(guid, ...)
+	if not CONDITIONS.IsZombiesMode() and pending[guid] then return pending[guid] end
+	return lootData(guid, ...)
+end
+Engine.Inventory_RedeemVoucherItem = function(controller, guid, ...)
+	if not CONDITIONS.IsZombiesMode() and pending[guid] then
+		return S2xHQMail.Redeem(controller, pending[guid].slot)
+	end
+	return redeem(controller, guid, ...)
+end
+)lua")[0]();
 		}
 
 		void success_stub(void* task)
@@ -77,7 +183,7 @@ namespace mail_guard
 			const auto controller = *reinterpret_cast<const int*>(static_cast<const std::byte*>(task) + 4);
 			if (controller < 0 || controller >= 2) return;
 			const auto* state = game::MarketingComms_MailState.get() + controller * mail_state_stride;
-			console::info("[HQ mail] native fetch success controller=%d ready=%d count=%u capacity=%u slots=%p; empty-inbox policy active\n",
+			console::info("[HQ mail] native fetch success controller=%d ready=%d count=%u capacity=%u slots=%p; delivery policy active\n",
 				controller, *reinterpret_cast<const int*>(state + 0x24),
 				*reinterpret_cast<const unsigned*>(state + 0xBC), *reinterpret_cast<const unsigned*>(state + 0xB8),
 				*reinterpret_cast<void* const*>(state + 0xB0));
@@ -108,8 +214,13 @@ namespace mail_guard
 				}
 				return false;
 			}
-			// The local inbox advertises no unread messages; keep the allocation intact.
-			return false;
+			try
+			{
+				const auto state = demonware::hq_economy::snapshot();
+				return std::any_of(demonware::hq_mail::deliveries.begin(), demonware::hq_mail::deliveries.end(),
+					[&](const auto& d) { return demonware::hq_mail::pending(state, d); });
+			}
+			catch (...) { return false; }
 		}
 	}
 
@@ -123,6 +234,7 @@ namespace mail_guard
 			message_hook.create(0x3722F0_g, message_stub);
 			redeem_hook.create(0x3726F0_g, redeem_stub);
 			success_hook.create(0x3726A0_g, success_stub);
+			ui_scripting::on_start(install_mail_ui);
 		}
 	};
 }

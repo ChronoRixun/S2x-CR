@@ -470,7 +470,7 @@ namespace hq_native
 
 		void mail_status()
 		{
-			console::info("[HQ mail native] policy=empty inbox; reads=%u redeemsSuppressed=%u invalidIndices=%u count=%u capacity=%u\n",
+			console::info("[HQ mail native] policy=local deliveries; reads=%u redeems=%u invalidIndices=%u count=%u capacity=%u\n",
 				demonware::hq_mail::native_reads.load(), demonware::hq_mail::native_redeems.load(),
 				demonware::hq_mail::rejected_indices.load(), *reinterpret_cast<const unsigned*>(0x8A1501C_g),
 				*reinterpret_cast<const unsigned*>(0x8A15018_g));

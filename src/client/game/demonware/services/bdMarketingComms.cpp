@@ -160,11 +160,16 @@ namespace demonware
 			slots = std::max(slots, default_message_slots);
 
 			auto result = std::make_unique<bdCommsMessagesResult>();
-			result->payload = hq_mail::empty_slots(slots);
+			try { result->payload = hq_mail::messages(hq_economy::snapshot(), slots); }
+			catch (const std::exception& error)
+			{
+				console::warn("[HQ mail] store unavailable: %s\n", error.what());
+				result->payload = hq_mail::empty_slots(slots);
+			}
 			byte_buffer encoded;
 			result->serialize(&encoded);
 			hq_protocol::trace("marketing_6_response", encoded.get_buffer());
-			console::info("[HQ mail] getMessages: %zu non-claimable slot(s) for %zu advertised slot(s)\n",
+			console::info("[HQ mail] getMessages: %zu allocated delivery slot(s) for %zu advertised slot(s)\n",
 				slots, slots);
 
 			auto reply = server->create_reply(this->task_id());
