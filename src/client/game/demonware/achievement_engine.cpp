@@ -3,6 +3,7 @@
 #include "achievement_response.hpp"
 #include "hq_protocol.hpp"
 #include "hq_payroll.hpp"
+#include "hq_marketplace.hpp"
 #include "component/console/console.hpp"
 #include "steam/steam.hpp"
 #include <charconv>
@@ -665,6 +666,19 @@ namespace demonware::achievement_engine
 							return pair.second.kind == kind && (pair.second.status == "inProgress" || pair.second.status == "claimable");
 						});
 						if (active >= 3) return false;
+						if (kind == 4)
+						{
+							// The menu buys the cost item, then AE_ActivatePlayerChallenge consumes it.
+							// Consume with activation in one transaction; retries above are free.
+							const auto sku = std::find_if(std::begin(hq_marketplace::vendor_skus),
+								std::end(hq_marketplace::vendor_skus), [&](const auto& value) { return name == value.contract; });
+							if (sku == std::end(hq_marketplace::vendor_skus)) return false;
+							const auto token = next.inventory.find({sku->items[0], 0});
+							if (token == next.inventory.end() || !token->second.quantity ||
+								(token->second.expires && token->second.expires <= now)) return false;
+							--token->second.quantity;
+							token->second.modified = static_cast<std::uint32_t>(now);
+						}
 						updated = *offer;
 						updated.claim_transaction.clear(); updated.completion = 0;
 						updated.activation = now;

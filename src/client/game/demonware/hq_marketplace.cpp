@@ -125,8 +125,16 @@ namespace demonware::hq_marketplace
 			}
 			// Collection items are owned once; the vendor supply drops are consumables and
 			// stay purchasable while one is still in the inventory.
+			if (*entry->contract)
+			{
+				const auto active = next.achievements.find(entry->contract);
+				if (active != next.achievements.end() && (active->second.status == "inProgress" ||
+					active->second.status == "claimable" || (active->second.status == "finished" &&
+					active->second.offer_day == static_cast<std::uint64_t>(time(nullptr)) / 86400)))
+				{ error = BD_MARKETPLACE_ITEM_MULTIPLE_PURCHASE_ERROR; return false; }
+			}
 			const auto consumable = entry->consumable;
-			const auto owned = next.inventory.find({id, 0});
+			const auto owned = next.inventory.find({granted_items(*entry).front(), 0});
 			if (!consumable && owned != next.inventory.end() && owned->second.quantity)
 			{ error = BD_MARKETPLACE_ITEM_MULTIPLE_PURCHASE_ERROR; return false; }
 			auto& balance = next.currencies[hq_economy::armory_credits];
