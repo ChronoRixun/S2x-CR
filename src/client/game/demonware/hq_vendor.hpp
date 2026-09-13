@@ -39,6 +39,37 @@ namespace demonware::hq_vendor
 		return true;
 	}
 
+	// Read-side chain A4A5A0 -> A4A510 -> A4A2C0, native stride 0x370.
+	// One local display offer: table supplydroptypes.csv sd_mp, item GUID 1.
+	// SKU/product ID and price are local policy; purchasing is unsupported.
+	class catalog_result final : public bdTaskResult
+	{
+	public:
+		void serialize(byte_buffer* buffer) override
+		{
+			buffer->write_uint32(1); // +20 SKU ID
+			buffer->write_uint32(1); // +24 product ID
+			buffer->write_ubyte(1); // +28
+			buffer->write_blob("sd_mp"); // +29 bounded SKU data (64 bytes)
+			buffer->write_ubyte(1); // +6A
+			buffer->write_uint32(0); // +6C
+			buffer->write_uint32(0); // +70 sale end
+			buffer->write_uint32(0); // +74
+			buffer->write_ubyte(0); // +78
+			buffer->write_blob(""); // +80 promotional text (135 bytes)
+			buffer->write_uint32(0); // +10C
+			buffer->write_uint16(0); // +110
+			buffer->write_uint32(0); // +114
+			buffer->write_ubyte(0); // +6B
+			buffer->write_uint32(1); // +118 price count, fixed native capacity 10
+			buffer->write_ubyte(2); // price +20 currency ID
+			buffer->write_uint32(200); // price +24 absolute price
+			buffer->write_ubyte(100); // +350 SKU type, excludes collection type150
+			buffer->write_uint32(1); // +358 max quantity
+			buffer->write_bool(false); // +35C sold out
+		}
+	};
+
 	class result final : public bdTaskResult
 	{
 	public:

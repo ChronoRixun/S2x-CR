@@ -11,7 +11,7 @@ namespace demonware::hq_marketplace
 		std::uint32_t limit{};
 	};
 	bool context(byte_buffer* buffer);
-	bool parse_skus(byte_buffer* buffer, inventory_request& request);
+	bool parse_skus(byte_buffer* buffer, inventory_request& request, bool* includes_local_sku = nullptr);
 	bool parse_inventory(byte_buffer* buffer, inventory_request& request);
 	std::vector<hq_economy::item> inventory_page(const hq_economy::state& data,
 		const inventory_request& request, std::uint64_t now, bool expired = false);

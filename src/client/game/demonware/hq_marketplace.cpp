@@ -11,8 +11,9 @@ namespace demonware::hq_marketplace
 		return buffer->size() <= 65536 && buffer->read_string(&value) && value == "s2_steam";
 	}
 
-	bool parse_skus(byte_buffer* buffer, inventory_request& request)
+	bool parse_skus(byte_buffer* buffer, inventory_request& request, bool* includes_local_sku)
 	{
+		if (includes_local_sku) *includes_local_sku = false;
 		bool show_all{};
 		std::uint32_t ids{}, types{}, id{};
 		unsigned char type{};
@@ -20,10 +21,22 @@ namespace demonware::hq_marketplace
 		if (!context(buffer) || !buffer->read_uint32(&request.page) || !request.page ||
 			!buffer->read_uint32(&request.limit) || !request.limit || request.limit > 100 ||
 			!buffer->read_bool(&show_all) || !buffer->read_uint32(&ids) || ids > 100) return false;
-		for (std::uint32_t i = 0; i < ids; ++i) if (!buffer->read_uint32(&id)) return false;
+		bool selected_id = ids == 0;
+		for (std::uint32_t i = 0; i < ids; ++i)
+		{
+			if (!buffer->read_uint32(&id)) return false;
+			selected_id |= id == 1;
+		}
 		if (!buffer->read_uint32(&types) || types > 256) return false;
-		for (std::uint32_t i = 0; i < types; ++i) if (!buffer->read_ubyte(&type)) return false;
-		return buffer->read_string(&token) && token.size() <= 64 && hq_protocol::padding(buffer);
+		bool selected_type = types == 0;
+		for (std::uint32_t i = 0; i < types; ++i)
+		{
+			if (!buffer->read_ubyte(&type)) return false;
+			selected_type |= type == 100;
+		}
+		if (!buffer->read_string(&token) || token.size() > 64 || !hq_protocol::padding(buffer)) return false;
+		if (includes_local_sku) *includes_local_sku = request.page == 1 && selected_id && selected_type && token.empty();
+		return true;
 	}
 
 	bool parse_inventory(byte_buffer* buffer, inventory_request& request)

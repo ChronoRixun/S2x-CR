@@ -7,12 +7,14 @@
 #include "game/demonware/hq_vendor.hpp"
 #include "game/demonware/hq_payroll.hpp"
 #include "component/scheduler.hpp"
+#include "hq_vendor_globals.hpp"
 
 namespace hq_native
 {
 	namespace
 	{
 		utils::hook::detour sku_success_hook;
+		utils::hook::detour purchase_hook;
 		utils::hook::detour sku_failure_hook;
 		utils::hook::detour conversion_success_hook;
 		utils::hook::detour conversion_failure_hook;
@@ -75,9 +77,43 @@ namespace hq_native
 				*reinterpret_cast<const unsigned char*>(0x81038A8_g));
 		}
 
+		void reject_purchase(unsigned, unsigned sku, unsigned, void* transaction, int)
+		{
+			// 276580 initializes this caller-owned bdString before validating a purchase.
+			// A null string returns Lua nil in 11FDF0, without creating a native task.
+			std::memset(transaction, 0, 25);
+			console::warn("[HQ vendor] SKU %u purchase unavailable (local display catalog)\n", sku);
+		}
+
 		void vendor_status()
 		{
 			status();
+			wallet_status();
+			unsigned sku_count{};
+			for (unsigned i = 0; i < 400; ++i)
+			{
+				const auto* sku = reinterpret_cast<const unsigned char*>(0x81038B0_g) + i * 0x2E8;
+				if (!*reinterpret_cast<const unsigned*>(sku)) continue;
+				++sku_count;
+				console::info("[HQ vendor] SKU slot=%u id=%u type=%u max=%u prices=%u product=%u items=%u\n", i,
+					*reinterpret_cast<const unsigned*>(sku), *reinterpret_cast<const unsigned*>(sku + 4),
+					*reinterpret_cast<const unsigned*>(sku + 12), sku[0x2E1],
+					*reinterpret_cast<const unsigned*>(sku + 0x240), sku[0x244]);
+			}
+			console::info("[HQ vendor] catalogType=%u nonzeroSKUs=%u inventoryAndBalanceReady=%u\n",
+				*reinterpret_cast<const unsigned*>(0x81038AC_g), sku_count,
+				utils::hook::invoke<bool>(0x27A210_g, 0));
+			for (const auto address : vendor_globals)
+			{
+				MEMORY_BASIC_INFORMATION region{};
+				if (!VirtualQuery(reinterpret_cast<const void*>(address), &region, sizeof(region)) ||
+					region.State != MEM_COMMIT || (region.Protect & (PAGE_GUARD | PAGE_NOACCESS)) ||
+					address - reinterpret_cast<std::uintptr_t>(region.BaseAddress) + 8 > region.RegionSize) continue;
+				std::uint64_t raw{};
+				std::memcpy(&raw, reinterpret_cast<const void*>(address), sizeof(raw));
+				console::info("[HQ vendor global] offset=%llX raw8=%016llX (table base or scalar; see lui-vendor-bindings.txt)\n",
+					address - 0x0_g, raw);
+			}
 			console::info("[HQ vendor] Engine.Inventory_AreSKUsFetched=%u; 242 requests=%u replies=%u rejected=%u (conversion rule)\n",
 				utils::hook::invoke<bool>(0x278400_g), demonware::hq_vendor::requests.load(),
 				demonware::hq_vendor::replies.load(), demonware::hq_vendor::rejected.load());
@@ -174,6 +210,7 @@ namespace hq_native
 		{
 			if (game::environment::is_dedicated() || game::environment::is_zombies()) return;
 			sku_success_hook.create(0x27B700_g, sku_success);
+			purchase_hook.create(0x276580_g, reject_purchase);
 			sku_failure_hook.create(0x27B6C0_g, sku_failure);
 			conversion_success_hook.create(0x27A4C0_g, conversion_success);
 			conversion_failure_hook.create(0x27A460_g, conversion_failure);

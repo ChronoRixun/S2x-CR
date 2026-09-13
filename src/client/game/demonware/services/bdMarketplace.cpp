@@ -125,11 +125,15 @@ namespace demonware
 		reply.send();
 	}
 
-	void bdMarketplace::purchaseSkus(service_server* server, byte_buffer* /*buffer*/) const
+	void bdMarketplace::purchaseSkus(service_server* server, byte_buffer* buffer) const
 	{
-		// TODO:
-		auto reply = server->create_reply(this->task_id());
-		reply.send();
+		if (!game::environment::is_zombies())
+		{
+			hq_protocol::trace("marketplace_106_rejected", buffer->get_remaining());
+			server->create_reply(this->task_id(), BD_HANDLE_TASK_FAILED).send();
+			return;
+		}
+		server->create_reply(this->task_id()).send();
 	}
 
 	void bdMarketplace::getBalance(service_server* server, byte_buffer* buffer) const
@@ -251,17 +255,24 @@ namespace demonware
 			}
 			hq_protocol::trace("marketplace_111", buffer->get_remaining());
 			hq_marketplace::inventory_request request{};
-			if (!game::environment::is_zombies() && !hq_marketplace::parse_skus(buffer, request))
+			bool includes_local_sku{};
+			if (!game::environment::is_zombies() && !hq_marketplace::parse_skus(buffer, request, &includes_local_sku))
 			{
 				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send();
 				return;
 			}
-			// 0x27B700 marks SKUs fetched when result count < requested page size.
-			// Zero is a terminal page; the SDK result count is the paging signal.
-			// There is no extra page object or token in this reply.
-			console::info("[HQ marketplace] getSkusPaginated: terminal empty page %u, limit %u\n",
-				request.page, request.limit);
-			server->create_reply(this->task_id()).send();
+			auto reply = server->create_reply(this->task_id());
+			if (includes_local_sku)
+			{
+				auto result = std::make_unique<hq_vendor::catalog_result>();
+				byte_buffer encoded; result->serialize(&encoded);
+				hq_protocol::trace("marketplace_111_sku", encoded.get_buffer());
+				reply.add(result);
+			}
+			// SDK count is the paging signal; page2 is empty even for limit1.
+			console::info("[HQ marketplace] SKU page %u limit %u count %u (local display offer; purchases rejected)\n",
+				request.page, request.limit, unsigned(includes_local_sku));
+			reply.send();
 		});
 	}
 
