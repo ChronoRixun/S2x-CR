@@ -36,4 +36,8 @@ namespace demonware
 	}
 
 	bool submit_hq_event(const reward_game_events::event& event);
+
+	// bdReward.cpp: the single task-11 routing path (local store or relay, then
+	// hidden challenges). Shared with the `hqrelaytest` synthetic batch command.
+	void route_reward_user_event(std::uint64_t user_id, reward_game_events::event& event);
 }

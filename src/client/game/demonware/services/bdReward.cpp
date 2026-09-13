@@ -153,14 +153,65 @@ namespace demonware
 		dispatch_ae(server, buffer, this->task_id());
 	}
 
+	// One parsed task-11 user event, routed exactly as the live request handler routes
+	// it: the hosting player's own events feed the local store, every other player's are
+	// relayed to the client that owns them, then hidden challenges see the event. The
+	// `hqrelaytest` console command reuses this so a synthetic batch cannot take a
+	// different path from a real one.
+	void route_reward_user_event(const std::uint64_t user_id, reward_game_events::event& event)
+	{
+		const auto dedicated = game::environment::is_dedicated();
+		const auto local_user_id = dedicated ? 0 : steam::SteamUser()->GetSteamID().bits;
+		if (!game::environment::is_zombies())
+		{
+			static std::mutex observed_mutex;
+			static std::set<std::string> observed;
+			{
+				std::lock_guard lock{observed_mutex};
+				if (observed.size() < 128 && observed.insert(event.name).second)
+				{
+					unsigned maximum{};
+					for (const auto& parameter : event.parameters)
+					{
+						unsigned selector{};
+						if (hq_event_relay::number(parameter.selector, selector)) maximum = std::max(maximum, selector);
+					}
+					console::info("[HQ task11 server] %s: parameters=%zu max_selector=%u\n",
+						event.name.c_str(), event.parameters.size(), maximum);
+				}
+			}
+			if (!dedicated && user_id == local_user_id) submit_hq_event(event);
+			else hidden_challenge_relay::submit_reward(user_id, event);
+		}
+
+		// The local player's own events (hidden challenges and main quest progression)
+		// are processed here, after the HQ economy has seen them; remote players only
+		// receive their hidden challenge completions through the relay.
+		if (!dedicated && user_id == local_user_id)
+		{
+			hidden_challenges::submit_reward_game_event(std::move(event));
+			return;
+		}
+
+		std::uint32_t group{};
+		std::uint32_t challenge{};
+		if (!hidden_challenges::get_completion(event, group, challenge))
+		{
+			return;
+		}
+
+		console::debug(
+			"[hidden_challenges] task11 XUID %llu: zombies [3=%u, 4=%u]\n",
+			static_cast<unsigned long long>(user_id), group, challenge);
+		hidden_challenge_relay::submit(user_id, group, challenge);
+	}
+
 	void bdReward::reportRewardGameEventsForUsers(service_server* server, byte_buffer* buffer) const
 	{
 		hq_protocol::trace("reward_11", buffer->get_remaining());
 		std::vector<reward_game_events::user_event_batch> users{};
 		if (reward_game_events::parse_report_for_users_request(buffer, users, !game::environment::is_zombies()))
 		{
-			const auto dedicated = game::environment::is_dedicated();
-			const auto local_user_id = dedicated ? 0 : steam::SteamUser()->GetSteamID().bits;
 			for (auto& user : users)
 			{
 				if (user.account_type != "steam")
@@ -170,45 +221,7 @@ namespace demonware
 
 				for (auto& event : user.events)
 				{
-					if (!game::environment::is_zombies())
-					{
-						static std::mutex observed_mutex;
-						static std::set<std::string> observed;
-						{
-							std::lock_guard lock{observed_mutex};
-							if (observed.size() < 128 && observed.insert(event.name).second)
-							{
-								unsigned maximum{};
-								for (const auto& parameter : event.parameters)
-								{
-									unsigned selector{};
-									if (hq_event_relay::number(parameter.selector, selector)) maximum = std::max(maximum, selector);
-								}
-								console::info("[HQ task11 server] %s: parameters=%zu max_selector=%u\n",
-									event.name.c_str(), event.parameters.size(), maximum);
-							}
-						}
-						if (!dedicated && user.user_id == local_user_id) submit_hq_event(event);
-						else hidden_challenge_relay::submit_reward(user.user_id, event);
-					}
-					std::uint32_t group{};
-					std::uint32_t challenge{};
-					if (!hidden_challenges::get_completion(event, group, challenge))
-					{
-						continue;
-					}
-
-					console::debug(
-						"[hidden_challenges] task11 XUID %llu: zombies [3=%u, 4=%u]\n",
-						static_cast<unsigned long long>(user.user_id), group, challenge);
-					if (!dedicated && user.user_id == local_user_id)
-					{
-						hidden_challenges::submit_reward_game_event(std::move(event));
-					}
-					else
-					{
-						hidden_challenge_relay::submit(user.user_id, group, challenge);
-					}
+					route_reward_user_event(user.user_id, event);
 				}
 			}
 		}
