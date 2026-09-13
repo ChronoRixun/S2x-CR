@@ -393,6 +393,165 @@ namespace command
 			}
 		}
 
+		// Lua assets are Havok Script bytecode blobs; the menu scripts that gate the HQ
+		// vendor live in this pool, so the dump is the only way to read what the UI expects.
+		struct lua_file_entry
+		{
+			std::string name{};
+			const char* buffer{};
+			int len{};
+			int stripping_type{};
+		};
+
+		struct lua_file_context
+		{
+			std::string filter{};
+			std::size_t limit{};
+			std::size_t matched{};
+			std::vector<lua_file_entry> entries{};
+		};
+
+		std::string sanitise_asset_name(const std::string& name)
+		{
+			std::string result{};
+			result.reserve(name.size());
+
+			for (const auto character : name)
+			{
+				const auto value = static_cast<unsigned char>(character);
+				if (std::isalnum(value) || character == '.' || character == '-' || character == '_')
+				{
+					result.push_back(character);
+				}
+				else
+				{
+					result.push_back('_');
+				}
+			}
+
+			if (result.empty())
+			{
+				result = "unnamed";
+			}
+
+			return result;
+		}
+
+		bool write_lua_file(const std::string& name, const char* buffer, const int len,
+			const int stripping_type, const std::string& path)
+		{
+			if (!buffer || len <= 0)
+			{
+				console::error("dumpluafile: '%s' has no buffer (len %d)\n", name.data(), len);
+				return false;
+			}
+
+			const std::string bytes{buffer, static_cast<std::size_t>(len)};
+			if (!utils::io::write_file(path, bytes))
+			{
+				console::error("dumpluafile: cannot write %s\n", path.data());
+				return false;
+			}
+
+			console::info("dumpluafile: %s -> %s (%d bytes, stripping %d)\n",
+				name.data(), path.data(), len, stripping_type);
+			return true;
+		}
+
+		void dump_lua_file(const params& arguments)
+		{
+			if (arguments.size() < 2)
+			{
+				console::info("dumpluafile <asset name> [outfile]: dump a LUAFILE asset to s2x/dump/lua\n");
+				return;
+			}
+
+			const std::string name = arguments[1];
+			const auto* lua_file = game::DB_FindXAssetHeader(
+				game::ASSET_TYPE_LUAFILE, name.data(), false).luaFile;
+
+			if (!lua_file)
+			{
+				console::error("dumpluafile: no LUAFILE asset named '%s'\n", name.data());
+				return;
+			}
+
+			std::string path{};
+			if (arguments.size() > 2)
+			{
+				path = "s2x/dump/lua/";
+				path.append(sanitise_asset_name(arguments[2]));
+			}
+			else
+			{
+				path = "s2x/dump/lua/" + sanitise_asset_name(name) + ".luac";
+			}
+
+			write_lua_file(name, lua_file->buffer, lua_file->len, lua_file->strippingType, path);
+		}
+
+		void collect_lua_file(const game::XAssetHeader header, void* data)
+		{
+			auto& context = *static_cast<lua_file_context*>(data);
+			const game::XAsset asset{game::ASSET_TYPE_LUAFILE, header};
+			const auto* asset_name = game::DB_GetXAssetName(&asset);
+
+			if (!asset_name || !header.luaFile)
+			{
+				return;
+			}
+
+			if (!context.filter.empty()
+				&& utils::string::to_lower(asset_name).find(context.filter) == std::string::npos)
+			{
+				return;
+			}
+
+			++context.matched;
+			if (context.entries.size() >= context.limit)
+			{
+				return;
+			}
+
+			// Writing inside the enumeration would hold the database lock for the whole dump.
+			context.entries.emplace_back(lua_file_entry{
+				asset_name, header.luaFile->buffer, header.luaFile->len, header.luaFile->strippingType});
+		}
+
+		void dump_lua_files(const params& arguments)
+		{
+			constexpr std::size_t limit = 200;
+
+			lua_file_context context{};
+			context.limit = limit;
+			if (arguments.size() > 1)
+			{
+				context.filter = utils::string::to_lower(arguments[1]);
+			}
+
+			game::DB_EnumXAssets_FastFile(game::ASSET_TYPE_LUAFILE, collect_lua_file, &context, true);
+
+			console::info("dumpluafiles: '%s' matched %zu asset(s), dumping %zu\n",
+				context.filter.empty() ? "*" : context.filter.data(), context.matched, context.entries.size());
+
+			std::size_t written = 0;
+			for (const auto& entry : context.entries)
+			{
+				const auto path = "s2x/dump/lua/" + sanitise_asset_name(entry.name) + ".luac";
+				if (write_lua_file(entry.name, entry.buffer, entry.len, entry.stripping_type, path))
+				{
+					++written;
+				}
+			}
+
+			if (context.matched > context.entries.size())
+			{
+				console::info("dumpluafiles: capped at %zu of %zu matches\n", limit, context.matched);
+			}
+
+			console::info("dumpluafiles: wrote %zu file(s)\n", written);
+		}
+
 		void dump_commands(const params& arguments)
 		{
 			console::info("================================ COMMAND DUMP =====================================\n");
@@ -436,6 +595,8 @@ namespace command
 		void add_utility_commands()
 		{
 			command::add("listassetpool", list_asset_pool);
+			command::add("dumpluafile", dump_lua_file);
+			command::add("dumpluafiles", dump_lua_files);
 			command::add("commandDump", dump_commands);
 		}
 
