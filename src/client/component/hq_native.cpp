@@ -147,6 +147,11 @@ namespace hq_native
 		// Dedicated storage: never enlarge a loop writing the original 400-entry
 		// cache or the 400-element Lua binding stack buffer.
 		struct alignas(8) native_sku_record { std::array<unsigned char, 0x2E8> bytes{}; };
+		// The record carries a fixed array of ten 0x38-byte item structs at +0x00: the
+		// Inventory_GetSKUInfo binding 0x11FF90 reads item i's id at record + i * 0x38 +
+		// 0x30 and its quantity at +0x34, looping over numItems (the byte at +0x244), so
+		// the last usable slot ends at +0x230 where the container's own fields begin.
+		constexpr std::size_t native_sku_items = 10;
 		std::map<unsigned, native_sku_record> native_skus;
 		utils::hook::detour sku_lookup_hook, sku_ids_hook, collection_price_hook;
 
@@ -164,13 +169,24 @@ namespace hq_native
 			auto* bytes = it->second.bytes.data();
 			if (inserted)
 			{
-				utils::hook::invoke<void>(0x20D440_g, bytes + 0x10);
+				// 0x20D440 is not a per-item constructor: decompiled
+				// (build/research/decomp-qm/20D440.c) it is the record's item-array
+				// initialiser, zeroing +0x230/+0x234 and running the element initialiser
+				// 0xA48770 - itself only "*(std::uint64_t*)(p + 0x20) = 0" - over all ten
+				// elements at p + i * 0x38. It therefore writes nothing but zeros across
+				// p + 0x00 .. p + 0x237, which a value-initialised native_sku_record already
+				// is. Slice 7 called it once per granted item at bytes + 0x10 + i * 0x38;
+				// for the five-item CWL packs i = 3 and i = 4 reached bytes + 0x2EF and
+				// bytes + 0x327, past the 0x2E8 record and out of its std::map node, which
+				// cleared a neighbouring node's _Left/_Parent/_Right and made the next
+				// try_emplace fault on a null _Parent->_Color (+0x18). Do not call it.
 				const auto put = [&](const std::size_t offset, const unsigned value) { std::memcpy(bytes + offset, &value, 4); };
 				put(0, id); put(4, entry->type); put(8, id); put(12, 1);
-				const auto items = demonware::hq_marketplace::granted_items(*entry);
+				auto items = demonware::hq_marketplace::granted_items(*entry);
+				// Multi-item grants stay native, but never past the tenth slot.
+				if (items.size() > native_sku_items) items.resize(native_sku_items);
 				for (std::size_t i = 0; i < items.size(); ++i)
 				{
-					if (i) utils::hook::invoke<void>(0x20D440_g, bytes + 0x10 + i * 0x38);
 					put(0x30 + i * 0x38, items[i]); put(0x34 + i * 0x38, 1);
 				}
 				put(0x240, id); bytes[0x244] = static_cast<unsigned char>(items.size()); put(0x248, 1);
@@ -480,6 +496,41 @@ namespace hq_native
 			status();
 		}
 
+		// Drives the native SKU record population that the Quartermaster reaches through
+		// Inventory_GetSKUInfo, without needing the vendor menu (which cannot be opened
+		// from the console). The catalog leads with the two tagged supply drops, the
+		// three contract SKUs and the five-item CWL packs, i.e. every shape the slice-7
+		// out-of-bounds item writes crashed on.
+		void sku_test()
+		{
+			constexpr std::size_t sku_test_entries = 12;
+			const auto entries = demonware::hq_marketplace::catalog();
+			const auto count = entries.size() < sku_test_entries ? entries.size() : sku_test_entries;
+			for (std::size_t i = 0; i < count; ++i)
+			{
+				void* record{};
+				const auto result = sku_lookup(entries[i].id, &record);
+				const auto* bytes = static_cast<const unsigned char*>(record);
+				if (result != 0 || !bytes)
+				{
+					console::warn("[HQ skutest] id=%u lookup failed (result=%u)\n", entries[i].id, result);
+					continue;
+				}
+				std::string items;
+				for (unsigned item = 0; item < bytes[0x244]; ++item)
+				{
+					if (!items.empty()) items += ",";
+					items += std::to_string(*reinterpret_cast<const unsigned*>(bytes + 0x30 + item * 0x38));
+				}
+				console::info("[HQ skutest] id=%u type=%u numItems=%u items=[%s] product=%u data=\"%s\" promo=\"%s\"\n",
+					entries[i].id, *reinterpret_cast<const unsigned*>(bytes + 4), bytes[0x244], items.data(),
+					*reinterpret_cast<const unsigned*>(bytes + 0x240),
+					reinterpret_cast<const char*>(bytes + 0x29C), reinterpret_cast<const char*>(bytes + 0x25C));
+			}
+			console::info("[HQ skutest] populated %u of %u catalog SKU record(s), no fault\n",
+				static_cast<unsigned>(count), static_cast<unsigned>(entries.size()));
+		}
+
 		void sku_failure(void* task)
 		{
 			sku_failure_hook.invoke<void>(task);
@@ -511,6 +562,7 @@ namespace hq_native
 			command::add("hqmail", mail_status);
 			command::add("hqopendrop", open_drop);
 			command::add("hqtask99", task99);
+			command::add("hqskutest", sku_test);
 		}
 	};
 }
