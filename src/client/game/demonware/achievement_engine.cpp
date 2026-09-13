@@ -36,7 +36,10 @@ namespace demonware::achievement_engine
 			return {buffer.GetString(), buffer.GetSize()};
 		}
 
-		rapidjson::Value serialize(const hq_economy::achievement& entry, allocator& alloc, const bool scheduled = false)
+		// day = the UTC day index containing 'now'; the period boundary is derived from it
+		// (not from the stored offer day) so the emitted end time is always in the future.
+		rapidjson::Value serialize(const hq_economy::achievement& entry, allocator& alloc,
+			const std::uint64_t day, const bool scheduled = false)
 		{
 			rapidjson::Value value{rapidjson::kObjectType};
 			value.AddMember("name", text(entry.name, alloc), alloc);
@@ -55,7 +58,10 @@ namespace demonware::achievement_engine
 			value.AddMember("completionCount", entry.completion ? 1 : 0, alloc);
 			value.AddMember("completionTimestamp", entry.completion, alloc);
 			value.AddMember("activationTimestamp", entry.activation, alloc);
-			value.AddMember("expirationTimestamp", (entry.kind == 2 ? (entry.offer_day / 7 + 1) * 7 : entry.offer_day + 1) * 86400, alloc);
+			// 'eventEndTimestamp' is the key the native Achievement Engine record parser reads
+			// (string table next to get_scheduled_user_achievements/NextPeriodStartTimes);
+			// 'expirationTimestamp' belongs to an unrelated LUI binding and left the end time 0.
+			value.AddMember("eventEndTimestamp", period_end(entry.kind, day), alloc);
 			value.AddMember("usageTimeTarget", entry.usage_target, alloc);
 			value.AddMember("usageTimeRemaining", entry.usage_target - std::min(entry.usage_target, entry.usage), alloc);
 			rapidjson::Value rewards{rapidjson::kArrayType};
@@ -134,6 +140,11 @@ namespace demonware::achievement_engine
 			}
 			return result;
 		}
+	}
+
+	std::uint64_t period_end(const int kind, const std::uint64_t day)
+	{
+		return (kind == 2 ? (day / 7 + 1) * 7 : day + 1) * 86400;
 	}
 
 	bool reconcile_offers(hq_economy::state& data, const std::uint64_t day)
@@ -227,7 +238,7 @@ namespace demonware::achievement_engine
 				{
 					rapidjson::Document push{rapidjson::kObjectType};
 					auto& alloc = push.GetAllocator();
-					auto record = serialize(data.achievements.at("payroll_officer"), alloc);
+					auto record = serialize(data.achievements.at("payroll_officer"), alloc, now / 86400);
 					push.CopyFrom(record, alloc);
 					push.AddMember("type", "CHALLENGE", alloc);
 					push.AddMember("reason", "completed", alloc);
@@ -368,7 +379,7 @@ namespace demonware::achievement_engine
 					if (request.HasMember("Limit") && request["Limit"].IsUint() && request["Limit"].GetUint())
 						limit = std::min<std::size_t>(1000, request["Limit"].GetUint());
 					if (id == local_id) for (const auto& [name, entry] : data.achievements)
-						if (entries.Size() < limit && matches(request, entry)) entries.PushBack(serialize(entry, alloc), alloc);
+						if (entries.Size() < limit && matches(request, entry)) entries.PushBack(serialize(entry, alloc, day), alloc);
 					users.AddMember(text(id, alloc), entries, alloc);
 				};
 				if (request.HasMember("UserIDs") && request["UserIDs"].IsArray())
@@ -425,9 +436,9 @@ namespace demonware::achievement_engine
 						entries.push_back(entry);
 					}
 					rapidjson::Value periods{rapidjson::kObjectType}, limits{rapidjson::kObjectType};
-					periods.AddMember("1", (day + 1) * 86400, alloc);
-					periods.AddMember("2", (day / 7 + 1) * 7 * 86400, alloc);
-					periods.AddMember("4", (day + 1) * 86400, alloc);
+					periods.AddMember("1", period_end(1, day), alloc);
+					periods.AddMember("2", period_end(2, day), alloc);
+					periods.AddMember("4", period_end(4, day), alloc);
 					limits.AddMember("1", 3, alloc);
 					limits.AddMember("2", 3, alloc);
 					limits.AddMember("4", 3, alloc);
@@ -444,7 +455,7 @@ namespace demonware::achievement_engine
 					}
 					entries.push_back(entry);
 				}
-				for (const auto& entry : entries) if (matches(request, entry)) results.PushBack(serialize(entry, alloc, action == "get_scheduled_user_achievements"), alloc);
+				for (const auto& entry : entries) if (matches(request, entry)) results.PushBack(serialize(entry, alloc, day, action == "get_scheduled_user_achievements"), alloc);
 				std::size_t offset{};
 				const auto token = string(request, "PageToken");
 				if (!token.empty())
@@ -627,7 +638,7 @@ namespace demonware::achievement_engine
 				});
 				if (!ok) return fail("achievement_transition_rejected_or_save_failed");
 				rapidjson::Value entries{rapidjson::kArrayType};
-				entries.PushBack(serialize(updated, alloc), alloc);
+				entries.PushBack(serialize(updated, alloc, day), alloc);
 				response.AddMember("Achievements", entries, alloc);
 				if (action == "claim_achievement_reward")
 				{
