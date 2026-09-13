@@ -38,6 +38,17 @@ namespace demonware::achievement_engine
 			return {buffer.GetString(), buffer.GetSize()};
 		}
 
+		bool above_beyond(const hq_economy::achievement& entry)
+		{
+			return entry.kind == 5 && (entry.name == "above_beyond_daily" || entry.name == "above_beyond_weekly");
+		}
+
+		bool redeemed_order(const hq_economy::achievement& entry)
+		{
+			return (entry.kind == 1 || entry.kind == 2 || entry.kind == 4) &&
+				entry.status == "finished" && !entry.claim_transaction.empty();
+		}
+
 		// day = the UTC day index containing 'now'; the period boundary is derived from it
 		// (not from the stored offer day) so the emitted end time is always in the future.
 		rapidjson::Value serialize(const hq_economy::achievement& entry, allocator& alloc,
@@ -47,11 +58,11 @@ namespace demonware::achievement_engine
 			value.AddMember("name", text(entry.name, alloc), alloc);
 			value.AddMember("challengeName", text(entry.challenge_name, alloc), alloc);
 			value.AddMember("kind", entry.kind, alloc);
-			const auto status = scheduled ? (entry.status == "inProgress" ? "in_progress" :
+			const auto status = above_beyond(entry) ? "in_progress" : scheduled ? (entry.status == "inProgress" ? "in_progress" :
 				entry.status == "finished" ? "completed" : entry.status.c_str()) :
 				(entry.status == "available" ? "inactive" : entry.status.c_str());
 			value.AddMember("status", text(status, alloc), alloc);
-			value.AddMember("requiresClaim", !entry.name.starts_with("above_beyond_"), alloc);
+			value.AddMember("requiresClaim", !above_beyond(entry), alloc);
 			value.AddMember("progress", entry.progress, alloc);
 			value.AddMember("progressTarget", entry.target, alloc);
 			value.AddMember("globalProgressTarget", 0, alloc);
@@ -73,7 +84,7 @@ namespace demonware::achievement_engine
 			// the four-hour countdown never appeared. No shipped consumer reads the key:
 			// 0x13A570 and 0x13EC20 are its only two references in the image.
 			// Zero selects Completion Time / active match time in the retail Contracts UI.
-			const auto expires = entry.kind == 4 ? std::uint64_t{0} : period_end(entry.kind, day);
+			const auto expires = entry.kind == 4 ? std::uint64_t{0} : period_end(entry.name == "above_beyond_weekly" ? 2 : entry.kind, day);
 			value.AddMember("expirationTimestamp", expires, alloc);
 			value.AddMember("usageTimeTarget", entry.usage_target, alloc);
 			value.AddMember("usageTimeRemaining", entry.usage_target - std::min(entry.usage_target, entry.usage), alloc);
@@ -123,10 +134,10 @@ namespace demonware::achievement_engine
 						else
 						{
 							const auto scheduled = string(request, "Action") == "get_scheduled_user_achievements";
-							const auto status = scheduled ? (entry.status == "inProgress" ? "in_progress" :
+							const auto status = above_beyond(entry) ? "in_progress" : scheduled ? (entry.status == "inProgress" ? "in_progress" :
 								entry.status == "finished" ? "completed" : entry.status.c_str()) :
 								(entry.status == "available" ? "inactive" : entry.status.c_str());
-							found |= requested == status;
+							found |= requested == status || (above_beyond(entry) && requested == entry.status);
 						}
 					}
 				}
@@ -177,6 +188,20 @@ namespace demonware::achievement_engine
 	{
 		std::lock_guard lock{catalog_mutex};
 		bool changed{};
+		const auto have_counters = std::any_of(definitions.begin(), definitions.end(),
+			[](const auto& d) { return d.name == "daily_ch_assault_kills"; });
+		constexpr auto recount_marker = "migration:above-beyond-recount-v1";
+		const auto recount = have_counters && !data.transactions.contains(recount_marker);
+		std::uint32_t daily_claims{}, weekly_claims{};
+		// Count before offer reconciliation can replace an older definition. Completion,
+		// not acceptance/offer day, identifies the period in which a carried order paid.
+		if (recount) for (const auto& [name, entry] : data.achievements)
+		{
+			if (!redeemed_order(entry) || !entry.completion) continue;
+			const auto completed_day = entry.completion / 86400;
+			if (entry.kind == 1 && completed_day == day) daily_claims += daily_claims < 6;
+			if (entry.kind == 2 && completed_day <= day && completed_day / 7 == day / 7) weekly_claims += weekly_claims < 3;
+		}
 		const auto have_contracts = std::any_of(definitions.begin(), definitions.end(), [](const auto& a) { return a.kind == 4; });
 		if (have_contracts)
 			changed |= std::erase_if(data.achievements, [&](const auto& pair)
@@ -240,7 +265,7 @@ namespace demonware::achievement_engine
 					++live; changed = true;
 				}
 		}
-		if (std::any_of(definitions.begin(), definitions.end(), [](const auto& d) { return d.name == "daily_ch_assault_kills"; }))
+		if (have_counters)
 			for (const auto kind : {1, 2})
 			{
 				const auto name = kind == 1 ? "above_beyond_daily" : "above_beyond_weekly";
@@ -252,7 +277,15 @@ namespace demonware::achievement_engine
 					counter.offer_day = period; counter.target = kind == 1 ? 6 : 3; counter.status = "inProgress";
 					counter.rewards = {{"GRANT_PRODUCT", kind == 1 ? 1u : 2u, 1}}; changed = true;
 				}
+				if (recount)
+				{
+					counter.progress = kind == 1 ? daily_claims : weekly_claims;
+					// Recount is bookkeeping only: never replay an already-paid bonus.
+					if (counter.progress >= counter.target) counter.status = "finished";
+					changed = true;
+				}
 			}
+		if (recount) data.transactions[recount_marker] = std::to_string(day);
 		return changed;
 	}
 
@@ -488,7 +521,7 @@ namespace demonware::achievement_engine
 					if (request.HasMember("Limit") && request["Limit"].IsUint() && request["Limit"].GetUint())
 						limit = std::min<std::size_t>(1000, request["Limit"].GetUint());
 					if (id == local_id) for (const auto& [name, entry] : data.achievements)
-						if (entries.Size() < limit && matches(request, entry)) entries.PushBack(serialize(entry, alloc, day), alloc);
+						if (entries.Size() < limit && !redeemed_order(entry) && matches(request, entry)) entries.PushBack(serialize(entry, alloc, day), alloc);
 					users.AddMember(text(id, alloc), entries, alloc);
 				};
 				if (request.HasMember("UserIDs") && request["UserIDs"].IsArray())
@@ -557,6 +590,7 @@ namespace demonware::achievement_engine
 				else for (const auto& [name, entry] : data.achievements)
 				{
 					if ((entry.status == "expired") != (action == "get_expired_user_achievements")) continue;
+					if (action == "get_user_achievements" && redeemed_order(entry)) continue;
 					if (action == "get_expired_user_achievements" && request.HasMember("Timestamp"))
 					{
 						if (!request["Timestamp"].IsUint64()) return fail("invalid_timestamp");
