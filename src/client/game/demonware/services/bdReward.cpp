@@ -210,7 +210,8 @@ namespace demonware
 	{
 		hq_protocol::trace("reward_11", buffer->get_remaining());
 		std::vector<reward_game_events::user_event_batch> users{};
-		if (reward_game_events::parse_report_for_users_request(buffer, users, !game::environment::is_zombies()))
+		std::string reason{};
+		if (reward_game_events::parse_report_for_users_request(buffer, users, !game::environment::is_zombies(), reason))
 		{
 			for (auto& user : users)
 			{
@@ -227,7 +228,9 @@ namespace demonware
 		}
 		else
 		{
-			console::debug("[hidden_challenges] ignored a malformed bdReward task 11 request\n");
+			// A whole batch is lost here, so this stays a warning; the reason names the
+			// structural check that failed, never the payload bytes.
+			console::warn("[hidden_challenges] ignored a malformed bdReward task 11 request (%s)\n", reason.c_str());
 		}
 
 		// Struct task (typed 0x17 request payload): the SDK only completes it on a
@@ -250,13 +253,14 @@ namespace demonware
 		hq_protocol::trace("reward_12", buffer->get_remaining());
 		bool ok = true;
 		std::vector<reward_game_events::event> events{};
-		if (reward_game_events::parse_report_request(buffer, events, !game::environment::is_zombies()))
+		std::string reason{};
+		if (reward_game_events::parse_report_request(buffer, events, !game::environment::is_zombies(), reason))
 		{
 			ok = submit_hidden_challenge_events(events);
 		}
 		else
 		{
-			console::debug("[hidden_challenges] ignored a malformed bdReward task 12 request\n");
+			console::warn("[hidden_challenges] ignored a malformed bdReward task 12 request (%s)\n", reason.c_str());
 		}
 
 		// Same struct-task framing as task 11. Replayed events (the kiosk re-sends

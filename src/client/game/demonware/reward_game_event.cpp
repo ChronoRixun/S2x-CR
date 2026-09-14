@@ -32,6 +32,11 @@ namespace demonware::reward_game_events
 				return data_.empty();
 			}
 
+			std::size_t remaining() const
+			{
+				return data_.size();
+			}
+
 			bool read_tag(std::uint32_t& field, std::uint8_t& wire_type)
 			{
 				std::uint64_t tag{};
@@ -480,8 +485,17 @@ namespace demonware::reward_game_events
 			return has_account;
 		}
 
+		// A request-level rejection drops every event of every user, so the warning
+		// names the structural check that failed: field numbers, wire types, offsets
+		// and lengths only - never the payload bytes.
+		std::string describe_offset(const std::string_view data, const struct_buffer_reader& reader)
+		{
+			return "offset " + std::to_string(data.size() - reader.remaining()) + " of " +
+				std::to_string(data.size());
+		}
+
 		bool parse_report_payload(const std::string_view data, std::vector<event>& events,
-			const bool extended_parameters, const batch_context& batch)
+			const bool extended_parameters, const batch_context& batch, std::string& reason)
 		{
 			// ReportRewardGameEventsRequest: 1 = context, 2 = repeated events,
 			// 3 = transaction ID.
@@ -495,15 +509,30 @@ namespace demonware::reward_game_events
 				std::uint8_t wire_type{};
 				if (!reader.read_tag(field, wire_type))
 				{
+					reason = "unreadable field tag at " + describe_offset(data, reader);
 					return false;
 				}
 
 				if (field == 1)
 				{
-					std::string_view context{};
-					if (wire_type != 2 || has_context || !reader.read_length_delimited(context) ||
-						!is_valid_string(context, 15))
+					if (wire_type != 2 || has_context)
 					{
+						reason = has_context ? std::string{"second context field"} :
+							"context field with wire type " + std::to_string(wire_type);
+						return false;
+					}
+
+					std::string_view context{};
+					if (!reader.read_length_delimited(context))
+					{
+						reason = "truncated context field at " + describe_offset(data, reader);
+						return false;
+					}
+
+					if (!is_valid_string(context, 15))
+					{
+						reason = "context string of " + std::to_string(context.size()) +
+							" bytes is invalid (limit 15, no NUL)";
 						return false;
 					}
 
@@ -514,6 +543,8 @@ namespace demonware::reward_game_events
 					std::string_view event_data{};
 					if (wire_type != 2 || !reader.read_length_delimited(event_data))
 					{
+						reason = "event " + std::to_string(event_index) + " with wire type " +
+							std::to_string(wire_type) + " at " + describe_offset(data, reader);
 						return false;
 					}
 
@@ -526,10 +557,10 @@ namespace demonware::reward_game_events
 					}
 
 					event value{};
-					skip_reason reason{};
-					if (!parse_event(event_data, value, extended_parameters, reason))
+					skip_reason skip{};
+					if (!parse_event(event_data, value, extended_parameters, skip))
 					{
-						report_skipped_event(batch, index, reason);
+						report_skipped_event(batch, index, skip);
 						continue;
 					}
 
@@ -537,11 +568,24 @@ namespace demonware::reward_game_events
 				}
 				else if (field == 3)
 				{
-					std::string_view transaction_id{};
-					if (wire_type != 2 || has_transaction_id ||
-						!reader.read_length_delimited(transaction_id) ||
-						!is_valid_string(transaction_id, 24))
+					if (wire_type != 2 || has_transaction_id)
 					{
+						reason = has_transaction_id ? std::string{"second transaction id field"} :
+							"transaction id field with wire type " + std::to_string(wire_type);
+						return false;
+					}
+
+					std::string_view transaction_id{};
+					if (!reader.read_length_delimited(transaction_id))
+					{
+						reason = "truncated transaction id field at " + describe_offset(data, reader);
+						return false;
+					}
+
+					if (!is_valid_string(transaction_id, 24))
+					{
+						reason = "transaction id of " + std::to_string(transaction_id.size()) +
+							" bytes is invalid (limit 24, no NUL)";
 						return false;
 					}
 
@@ -549,16 +593,25 @@ namespace demonware::reward_game_events
 				}
 				else if (!reader.skip_field(wire_type))
 				{
+					reason = "field " + std::to_string(field) + " with wire type " +
+						std::to_string(wire_type) + " could not be skipped at " + describe_offset(data, reader);
 					return false;
 				}
 			}
 
-			return has_context;
+			if (!has_context)
+			{
+				reason = "no context field (" + std::to_string(events.size()) + " events parsed, " +
+					std::to_string(data.size()) + " payload bytes)";
+				return false;
+			}
+
+			return true;
 		}
 
 		bool parse_report_for_users_payload(const std::string_view data,
 			std::vector<user_event_batch>& users, const bool extended_parameters,
-			const char* const request)
+			const char* const request, std::string& reason)
 		{
 			// ReportRewardGameEventsForUsersRequest: 1 = context, 2 = repeated users.
 			struct_buffer_reader reader{data};
@@ -570,15 +623,30 @@ namespace demonware::reward_game_events
 				std::uint8_t wire_type{};
 				if (!reader.read_tag(field, wire_type))
 				{
+					reason = "unreadable field tag at " + describe_offset(data, reader);
 					return false;
 				}
 
 				if (field == 1)
 				{
-					std::string_view context{};
-					if (wire_type != 2 || has_context || !reader.read_length_delimited(context) ||
-						!is_valid_string(context, 15))
+					if (wire_type != 2 || has_context)
 					{
+						reason = has_context ? std::string{"second context field"} :
+							"context field with wire type " + std::to_string(wire_type);
+						return false;
+					}
+
+					std::string_view context{};
+					if (!reader.read_length_delimited(context))
+					{
+						reason = "truncated context field at " + describe_offset(data, reader);
+						return false;
+					}
+
+					if (!is_valid_string(context, 15))
+					{
+						reason = "context string of " + std::to_string(context.size()) +
+							" bytes is invalid (limit 15, no NUL)";
 						return false;
 					}
 
@@ -589,6 +657,8 @@ namespace demonware::reward_game_events
 					std::string_view user_data{};
 					if (wire_type != 2 || !reader.read_length_delimited(user_data))
 					{
+						reason = "user batch " + std::to_string(user_index) + " with wire type " +
+							std::to_string(wire_type) + " at " + describe_offset(data, reader);
 						return false;
 					}
 
@@ -611,37 +681,65 @@ namespace demonware::reward_game_events
 				}
 				else if (!reader.skip_field(wire_type))
 				{
+					reason = "field " + std::to_string(field) + " with wire type " +
+						std::to_string(wire_type) + " could not be skipped at " + describe_offset(data, reader);
 					return false;
 				}
 			}
 
-			return has_context;
+			if (!has_context)
+			{
+				reason = "no context field (" + std::to_string(users.size()) + " user batches parsed, " +
+					std::to_string(data.size()) + " payload bytes)";
+				return false;
+			}
+
+			return true;
 		}
 
-		bool read_payload(byte_buffer* buffer, std::string& payload, const std::size_t maximum_size)
+		bool read_payload(byte_buffer* buffer, std::string& payload, const std::size_t maximum_size,
+			std::string& reason)
 		{
 			// Lobby tasks wrap StructBuffer in a typed bdByteBuffer structured-data value.
 			// Decryption can leave up to one AES block of zero padding after that value.
-			if (!buffer || !buffer->read_struct(&payload, maximum_size))
+			if (!buffer)
 			{
+				reason = "no request buffer";
+				return false;
+			}
+
+			const auto available = buffer->get_remaining().size();
+			if (!buffer->read_struct(&payload, maximum_size))
+			{
+				reason = "typed payload could not be read from " + std::to_string(available) +
+					" bytes (limit " + std::to_string(maximum_size) + ")";
 				return false;
 			}
 
 			const auto padding = buffer->get_remaining();
-			return padding.size() <= maximum_encryption_padding &&
-				std::ranges::all_of(padding, [](const char value)
-				{
-					return value == '\0';
-				});
+			const auto non_zero = static_cast<std::size_t>(std::ranges::count_if(padding, [](const char value)
+			{
+				return value != '\0';
+			}));
+			if (padding.size() > maximum_encryption_padding || non_zero != 0)
+			{
+				reason = std::to_string(padding.size()) + " trailing bytes after the " +
+					std::to_string(payload.size()) + "-byte payload (" + std::to_string(non_zero) +
+					" non-zero; at most " + std::to_string(maximum_encryption_padding) + " zero bytes allowed)";
+				return false;
+			}
+
+			return true;
 		}
 	}
 
-	bool parse_report_request(byte_buffer* buffer, std::vector<event>& events, const bool extended_parameters)
+	bool parse_report_request(byte_buffer* buffer, std::vector<event>& events, const bool extended_parameters,
+		std::string& reason)
 	{
 		std::string payload{};
 		std::vector<event> parsed{};
-		if (!read_payload(buffer, payload, maximum_report_request_size) ||
-			!parse_report_payload(payload, parsed, extended_parameters, {"task 12", -1}))
+		if (!read_payload(buffer, payload, maximum_report_request_size, reason) ||
+			!parse_report_payload(payload, parsed, extended_parameters, {"task 12", -1}, reason))
 		{
 			return false;
 		}
@@ -650,18 +748,31 @@ namespace demonware::reward_game_events
 		return true;
 	}
 
+	bool parse_report_request(byte_buffer* buffer, std::vector<event>& events, const bool extended_parameters)
+	{
+		std::string reason{};
+		return parse_report_request(buffer, events, extended_parameters, reason);
+	}
+
 	bool parse_report_for_users_request(byte_buffer* buffer,
-		std::vector<user_event_batch>& users, const bool extended_parameters)
+		std::vector<user_event_batch>& users, const bool extended_parameters, std::string& reason)
 	{
 		std::string payload{};
 		std::vector<user_event_batch> parsed{};
-		if (!read_payload(buffer, payload, maximum_report_for_users_request_size) ||
-			!parse_report_for_users_payload(payload, parsed, extended_parameters, "task 11"))
+		if (!read_payload(buffer, payload, maximum_report_for_users_request_size, reason) ||
+			!parse_report_for_users_payload(payload, parsed, extended_parameters, "task 11", reason))
 		{
 			return false;
 		}
 
 		users = std::move(parsed);
 		return true;
+	}
+
+	bool parse_report_for_users_request(byte_buffer* buffer,
+		std::vector<user_event_batch>& users, const bool extended_parameters)
+	{
+		std::string reason{};
+		return parse_report_for_users_request(buffer, users, extended_parameters, reason);
 	}
 }

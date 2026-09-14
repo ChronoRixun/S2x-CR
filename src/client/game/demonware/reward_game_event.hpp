@@ -33,6 +33,13 @@ namespace demonware
 		bool parse_report_request(byte_buffer* buffer, std::vector<event>& events, bool extended_parameters = false);
 		bool parse_report_for_users_request(byte_buffer* buffer,
 			std::vector<user_event_batch>& users, bool extended_parameters = false);
+
+		// Same parsers; on a request-level rejection `reason` names the structural
+		// check that failed (offsets, lengths, wire types - never payload bytes).
+		bool parse_report_request(byte_buffer* buffer, std::vector<event>& events, bool extended_parameters,
+			std::string& reason);
+		bool parse_report_for_users_request(byte_buffer* buffer,
+			std::vector<user_event_batch>& users, bool extended_parameters, std::string& reason);
 	}
 
 	bool submit_hq_event(const reward_game_events::event& event);
