@@ -17,7 +17,10 @@ namespace demonware::reward_game_events
 		constexpr auto maximum_report_request_size = 64u * 1024u;
 		// Task 11 can contain 48 user batches with up to 100 events each.
 		constexpr auto maximum_report_for_users_request_size = 3u * 1024u * 1024u;
-		constexpr auto maximum_encryption_padding = 15u;
+		// One full AES block: the cipher pads 1..16 bytes, so a payload whose length is
+		// already a multiple of 16 arrives with sixteen zero bytes after it (the live
+		// end-of-match task 11 batch does exactly that).
+		constexpr auto maximum_encryption_padding = 16u;
 
 		class struct_buffer_reader
 		{
