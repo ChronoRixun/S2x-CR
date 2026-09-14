@@ -13,6 +13,8 @@ namespace demonware::achievement_engine
 {
 	namespace
 	{
+		std::mutex cache_sink_mutex{};
+		std::function<void(cache_update)> cache_sink{};
 		std::mutex catalog_mutex{};
 		std::vector<hq_economy::achievement> definitions{};
 		std::vector<std::uint32_t> loot_items{};
@@ -41,6 +43,25 @@ namespace demonware::achievement_engine
 		bool above_beyond(const hq_economy::achievement& entry)
 		{
 			return entry.kind == 5 && (entry.name == "above_beyond_daily" || entry.name == "above_beyond_weekly");
+		}
+
+		void publish_cache_update(cache_update update)
+		{
+			std::function<void(cache_update)> sink;
+			{
+				std::lock_guard lock{cache_sink_mutex};
+				sink = cache_sink;
+			}
+			try
+			{
+				if (sink) sink(std::move(update));
+			}
+			catch (const std::exception& error)
+			{
+				// Persistence has succeeded; a UI scheduling failure must not turn the
+				// accepted claim into an error reply or encourage another reward attempt.
+				console::error("[HQ AE] cache notification failed: %s\n", error.what());
+			}
 		}
 
 		bool redeemed_order(const hq_economy::achievement& entry)
@@ -289,6 +310,27 @@ namespace demonware::achievement_engine
 		return changed;
 	}
 
+	void set_cache_update_sink(std::function<void(cache_update)> sink)
+	{
+		std::lock_guard lock{cache_sink_mutex};
+		cache_sink = std::move(sink);
+	}
+
+	std::string counter_push(const hq_economy::achievement& counter)
+	{
+		if (!above_beyond(counter)) return {};
+		rapidjson::Document push{rapidjson::kObjectType};
+		auto& alloc = push.GetAllocator();
+		auto record = serialize(counter, alloc, counter.offer_day);
+		push.CopyFrom(record, alloc);
+		push.AddMember("type", "CHALLENGE", alloc);
+		push.AddMember("reason", text(counter.progress >= counter.target ? "completed" : "inProgress", alloc), alloc);
+		// Keep in_progress/requiresClaim=false even at target so the bonus remains
+		// queryable. The store already granted its drop; no grant trigger is replayed.
+		push.AddMember("triggers", rapidjson::Value{rapidjson::kArrayType}, alloc);
+		return encode(push);
+	}
+
 	void set_event_rules(std::map<std::string, hq_event_predicate::rule> rules)
 	{
 		// A bad asset row fails closed; neither it nor saved progress supplies code.
@@ -500,7 +542,20 @@ namespace demonware::achievement_engine
 				auto preview = data;
 				if (reconcile_offers(preview, day))
 				{
-					if (!hq_economy::transact([&](auto& next) { reconcile_offers(next, day); return true; })) return fail("offer_save_failed");
+					cache_update reset{true};
+					if (!hq_economy::transact([&](auto& next)
+					{
+						const auto before = next.achievements;
+						reconcile_offers(next, day);
+						for (const auto& [name, counter] : next.achievements)
+						{
+							const auto old = before.find(name);
+							if (above_beyond(counter) && old != before.end() && old->second.offer_day != counter.offer_day)
+								reset.counters.push_back(counter);
+						}
+						return true;
+					})) return fail("offer_save_failed");
+					if (!reset.counters.empty()) publish_cache_update(std::move(reset));
 					data = hq_economy::snapshot();
 				}
 			}
@@ -720,6 +775,7 @@ namespace demonware::achievement_engine
 				if (action == "claim_achievement_reward" && client_tx.empty()) return fail("missing_transaction");
 				hq_economy::achievement updated{};
 				bool replay{};
+				cache_update claim_update{};
 				const auto ok = hq_economy::transact([&](hq_economy::state& next)
 				{
 					auto it = next.achievements.find(name);
@@ -806,9 +862,22 @@ namespace demonware::achievement_engine
 						}
 					}
 					updated = entry;
+					if (action == "claim_achievement_reward" && !replay)
+					{
+						claim_update.fetch_user = entry.kind == 4;
+						if (entry.kind == 1 || entry.kind == 2)
+						{
+							const auto bonus = next.achievements.find(entry.kind == 1 ? "above_beyond_daily" : "above_beyond_weekly");
+							if (bonus != next.achievements.end()) claim_update.counters.push_back(bonus->second);
+							else claim_update.fetch_user = true;
+						}
+					}
 					return true;
 				});
 				if (!ok) return fail("achievement_transition_rejected_or_save_failed");
+				if (action == "claim_achievement_reward" && !replay &&
+					(updated.kind == 1 || updated.kind == 2 || updated.kind == 4))
+					publish_cache_update(std::move(claim_update));
 				rapidjson::Value entries{rapidjson::kArrayType};
 				entries.PushBack(serialize(updated, alloc, day), alloc);
 				if (action == "claim_achievement_reward" && (updated.kind == 1 || updated.kind == 2))

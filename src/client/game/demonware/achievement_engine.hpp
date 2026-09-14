@@ -7,6 +7,15 @@
 
 namespace demonware::achievement_engine
 {
+	struct cache_update
+	{
+		bool fetch_user{}; // Rollover can decrease progress; the native push only increases it.
+		std::vector<hq_economy::achievement> counters{};
+	};
+	// Only the MP client installs a sink. Called after persistence, never from a preview.
+	void set_cache_update_sink(std::function<void(cache_update)> sink);
+	std::string counter_push(const hq_economy::achievement& counter);
+
 	// Catalog values are copied on the main thread; transports never access game assets.
 	// Reconcile persisted daily/weekly offers; deterministic day injection for tests.
 	bool advance_contract_time(hq_economy::state& data, std::uint32_t seconds);
