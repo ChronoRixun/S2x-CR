@@ -195,6 +195,59 @@ namespace achievement_injection
 			}
 		}
 
+		void refresh_user_cache()
+		{
+			char transaction[32]{};
+			game::AE_GenerateTransactionId(transaction);
+			const auto ok = game::AE_FetchUserAchievements(0, transaction);
+			console::info("[HQ AE] counter cache fetch %s, Tx=%s\n", ok ? "issued" : "rejected", transaction);
+		}
+
+		void queue_cache_update(demonware::achievement_engine::cache_update update)
+		{
+			// dispatch() may run on the transport thread. Wait until the native claim
+			// reply has unwound before borrowing its response bridge or issuing a task.
+			scheduler::once([update = std::move(update)]
+			{
+				if (game::environment::is_dedicated() || game::environment::is_zombies()) return;
+				try
+				{
+					if (update.fetch_user)
+					{
+						// 13C480 compares unsigned progress at record+0x28 and only writes
+						// larger values. One real user fetch replaces both rollover counters.
+						refresh_user_cache();
+						return;
+					}
+					auto* context = game::AE_GetUserContext(0);
+					if (!context || utils::hook::invoke<int>(0x7897A0_g, context) != 0)
+					{
+						refresh_user_cache();
+						return;
+					}
+					auto* bridge = game::AE_UserAchievementTaskData.get() + 0xF8;
+					for (const auto& counter : update.counters)
+					{
+						const auto json = demonware::achievement_engine::counter_push(counter);
+						if (json.empty() || !game::AE_SetResponseString(bridge, json.c_str()))
+						{
+							refresh_user_cache();
+							return;
+						}
+						demonware::hq_protocol::trace("counter_native_push", json);
+						utils::hook::invoke<void>(0x13C480_g, context, bridge);
+						console::info("[HQ AE] delivered counter push: %s %u/%u (%s)\n",
+							counter.name.c_str(), counter.progress, counter.target,
+							counter.progress >= counter.target ? "completed" : "inProgress");
+					}
+				}
+				catch (const std::exception& error)
+				{
+					console::error("[HQ AE] counter cache update failed: %s\n", error.what());
+				}
+			}, scheduler::main, 100ms);
+		}
+
 		// Issues the same engine fetch the Lua wrappers (0x121760 / 0x121D00) issue,
 		// so the whole path can be exercised from the console without walking Headquarters.
 		void fetch_command(const command::params& params)
@@ -221,6 +274,7 @@ namespace achievement_injection
 		void post_unpack() override
 		{
 			if (game::environment::is_dedicated() || game::environment::is_zombies()) return;
+			demonware::achievement_engine::set_cache_update_sink(queue_cache_update);
 			submit_hook.create(0x8397E0_g, submit_stub);
 			scheduled_success_hook.create(game::AE_ScheduledTaskSucceeded, scheduled_success_stub);
 			scheduled_failure_hook.create(game::AE_ScheduledTaskFailed, scheduled_failure_stub);
