@@ -763,6 +763,25 @@ namespace demonware::achievement_engine
 			}
 			else if (action == "pump_global_achievement_counters")
 				response.AddMember("CounterValues", rapidjson::Value{rapidjson::kObjectType}, alloc);
+			else if (action == "start_mission")
+			{
+				// The only member the client's handler reads. It stores the id in its session
+				// record and echoes it back in end_mission; the match-end path only sends
+				// end_mission when the id is non-zero, so a zero here costs us that message.
+				// Nothing else interprets the value, so a process-lifetime counter is enough.
+				static std::atomic<std::uint32_t> missions{};
+				auto id = ++missions;
+				if (!id) id = ++missions;
+				response.AddMember("MissionInstanceId", id, alloc);
+				console::debug("[HQ AE] start_mission -> MissionInstanceId %u\n", id);
+			}
+			else if (action == "end_mission" || action == "reset_missions")
+			{
+				// Acknowledge only. GrantedItems, DetailedInventory and GrantedCurrencies are
+				// the match-end grant channel and are deliberately omitted, which leaves the
+				// client handler completely inert. reset_missions has no handler at all.
+				console::debug("[HQ AE] %s acknowledged\n", action.c_str());
+			}
 			else if (action == "activate_scheduled_user_achievement" || action == "activate_user_contract" ||
 				action == "deactivate_user_achievement" || action == "claim_achievement_reward")
 			{
