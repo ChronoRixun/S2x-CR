@@ -10,6 +10,7 @@ namespace demonware::achievement_engine
 	struct cache_update
 	{
 		bool fetch_user{}; // Rollover can decrease progress; the native push only increases it.
+		bool push_counters{}; // Claims also push; the mapper may ignore it, so the fetch still runs.
 		std::vector<hq_economy::achievement> counters{};
 	};
 	// Only the MP client installs a sink. Called after persistence, never from a preview.

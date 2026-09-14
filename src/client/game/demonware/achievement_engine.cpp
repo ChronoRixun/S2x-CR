@@ -864,12 +864,17 @@ namespace demonware::achievement_engine
 					updated = entry;
 					if (action == "claim_achievement_reward" && !replay)
 					{
-						claim_update.fetch_user = entry.kind == 4;
+						// Every claim re-reads the native user cache: the counter push goes
+						// through the undocumented 139C10 status mapper and may be dropped.
+						claim_update.fetch_user = true;
 						if (entry.kind == 1 || entry.kind == 2)
 						{
 							const auto bonus = next.achievements.find(entry.kind == 1 ? "above_beyond_daily" : "above_beyond_weekly");
-							if (bonus != next.achievements.end()) claim_update.counters.push_back(bonus->second);
-							else claim_update.fetch_user = true;
+							if (bonus != next.achievements.end())
+							{
+								claim_update.counters.push_back(bonus->second);
+								claim_update.push_counters = true;
+							}
 						}
 					}
 					return true;

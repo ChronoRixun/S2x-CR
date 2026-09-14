@@ -203,6 +203,20 @@ namespace achievement_injection
 			console::info("[HQ AE] counter cache fetch %s, Tx=%s\n", ok ? "issued" : "rejected", transaction);
 		}
 
+		std::atomic_bool user_fetch_queued{};
+
+		// One-shot coalesced version of the `aefetch user` console command: a second claim
+		// while a fetch is still pending folds into it instead of queueing a duplicate.
+		void schedule_user_cache_fetch()
+		{
+			if (user_fetch_queued.exchange(true)) return;
+			scheduler::once([]
+			{
+				user_fetch_queued = false;
+				refresh_user_cache();
+			}, scheduler::main, 100ms);
+		}
+
 		void queue_cache_update(demonware::achievement_engine::cache_update update)
 		{
 			// dispatch() may run on the transport thread. Wait until the native claim
@@ -212,28 +226,23 @@ namespace achievement_injection
 				if (game::environment::is_dedicated() || game::environment::is_zombies()) return;
 				try
 				{
-					if (update.fetch_user)
+					if (!update.push_counters)
 					{
-						// 13C480 compares unsigned progress at record+0x28 and only writes
-						// larger values. One real user fetch replaces both rollover counters.
-						refresh_user_cache();
+						// Rollover: 13C480 compares unsigned progress at record+0x28 and only
+						// writes larger values. One real user fetch replaces both counters.
+						if (update.fetch_user) refresh_user_cache();
 						return;
 					}
+					// The push below is a best-effort head start whose "in_progress" status
+					// the 139C10 mapper may drop silently, so the fetch runs either way.
+					if (update.fetch_user) schedule_user_cache_fetch();
 					auto* context = game::AE_GetUserContext(0);
-					if (!context || utils::hook::invoke<int>(0x7897A0_g, context) != 0)
-					{
-						refresh_user_cache();
-						return;
-					}
+					if (!context || utils::hook::invoke<int>(0x7897A0_g, context) != 0) return;
 					auto* bridge = game::AE_UserAchievementTaskData.get() + 0xF8;
 					for (const auto& counter : update.counters)
 					{
 						const auto json = demonware::achievement_engine::counter_push(counter);
-						if (json.empty() || !game::AE_SetResponseString(bridge, json.c_str()))
-						{
-							refresh_user_cache();
-							return;
-						}
+						if (json.empty() || !game::AE_SetResponseString(bridge, json.c_str())) return;
 						demonware::hq_protocol::trace("counter_native_push", json);
 						utils::hook::invoke<void>(0x13C480_g, context, bridge);
 						console::info("[HQ AE] delivered counter push: %s %u/%u (%s)\n",
