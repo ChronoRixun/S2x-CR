@@ -5,6 +5,7 @@
 #include "component/console/console.hpp"
 #include <utils/flags.hpp>
 #include <utils/io.hpp>
+#include <chrono>
 
 namespace demonware::hq_protocol
 {
@@ -79,5 +80,35 @@ namespace demonware::hq_protocol
 		if (index == keep) console::info("[HQ protocol] %s: dumping only the first %zu rows\n", label, keep);
 		else if ((index + 1) % 512 == 0)
 			console::info("[HQ protocol] %s: %llu rows served\n", label, index + 1);
+	}
+
+	// A permanent fault repeats for as long as the client keeps polling: a truncated
+	// players2/user/hq_economy.json fails the marketplace balance and inventory tasks
+	// on every poll (about seven per task per 100 s) and the Achievement Engine
+	// snapshot with it, so the same line otherwise fills the console for the whole
+	// session. Report the first occurrence of each distinct message immediately -
+	// the first one is the diagnosis - then at most one per `interval`, the same
+	// shape the lobby party walk report and the payroll requeue warn use. Only the
+	// printing is throttled; the caller still fails the task and preserves the file.
+	inline bool report_due(const std::string& key,
+		const std::chrono::steady_clock::duration interval = std::chrono::minutes{1})
+	{
+		static std::mutex mutex{};
+		static std::map<std::string, std::chrono::steady_clock::time_point> last{};
+		const auto now = std::chrono::steady_clock::now();
+		std::lock_guard lock{mutex};
+		const auto entry = last.find(key);
+		if (entry != last.end())
+		{
+			if (now - entry->second < interval) return false;
+			entry->second = now;
+			return true;
+		}
+		// Keys are built from a task id and an exception message, so the set is small
+		// and bounded in practice; drop the table rather than grow it without limit if
+		// some future caller ever keys on something variable.
+		if (last.size() >= 64) last.clear();
+		last.emplace(key, now);
+		return true;
 	}
 }

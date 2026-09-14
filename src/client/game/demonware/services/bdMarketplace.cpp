@@ -24,17 +24,23 @@ namespace demonware
 		template <typename F>
 		void guarded(service_server* server, const std::uint8_t task, F callback, const bool structured = false)
 		{
+			// The reply is always sent; only the console line is rate limited, per task and
+			// per message, so a damaged store restates "invalid economy schema; original
+			// preserved" once a minute instead of on every poll while a different failure
+			// on the same task still reports the moment it first happens.
 			try { callback(); }
 			catch (const std::exception& error)
 			{
-				console::error("[HQ marketplace] task %u failed: %s\n", task, error.what());
+				if (hq_protocol::report_due("marketplace/" + std::to_string(task) + "/" + error.what()))
+					console::error("[HQ marketplace] task %u failed: %s\n", task, error.what());
 				auto reply = server->create_reply(task, BD_HANDLE_TASK_FAILED);
 				if (structured) reply.send_struct();
 				else reply.send();
 			}
 			catch (...)
 			{
-				console::error("[HQ marketplace] task %u failed with an unknown exception\n", task);
+				if (hq_protocol::report_due("marketplace/" + std::to_string(task) + "/unknown"))
+					console::error("[HQ marketplace] task %u failed with an unknown exception\n", task);
 				auto reply = server->create_reply(task, BD_HANDLE_TASK_FAILED);
 				if (structured) reply.send_struct();
 				else reply.send();
@@ -219,7 +225,9 @@ namespace demonware
 		hq_protocol::trace("marketplace_199", buffer->get_remaining());		guarded(server, this->task_id(), [&]
 		{
 			hq_protocol::trace("pawn_assumed_request", buffer->get_remaining());
-			console::warn("[HQ marketplace] pawnItems uses provisional quantity reconciliation; currency conversion is unavailable\n");
+			// The client pawns three times on every launch, so this standing caveat about
+			// the handler - not a fault in this call - is a debug note, not a warning.
+			console::debug("[HQ marketplace] pawnItems uses provisional quantity reconciliation; currency conversion is unavailable\n");
 			std::string transaction{};
 			std::vector<hq_economy::item> items{};
 			const auto parsed = hq_marketplace::parse_pawn(buffer, transaction, items);
@@ -273,7 +281,10 @@ namespace demonware
 			}
 			// 27B700 continues on count==limit; short/empty page terminates.
 			// Task111 has no NextPageToken result field; do not append JSON/string bytes.
-			console::info("[HQ marketplace] SKU page %u limit %u count %u (collection catalog)\n",
+			// One line per catalog page (nine per multiplayer launch) traces the walk while
+			// the pagination is being worked on; `hqvendor` reports the resulting counts on
+			// demand, so keep the per-page trail out of Release.
+			console::debug("[HQ marketplace] SKU page %u limit %u count %u (collection catalog)\n",
 				request.page, request.limit, unsigned(page.size()));
 			reply.send();
 		});

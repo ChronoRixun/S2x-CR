@@ -532,7 +532,12 @@ namespace demonware::achievement_engine
 					economy_available = false;
 					if (action != "get_user_achievements") throw;
 					// A damaged HQ file must not hide independently persisted Zombies records.
-					console::error("[HQ AE] HQ records unavailable: %s\n", error.what());
+					// The fault persists until the file is repaired and the client keeps
+					// asking, so report the first occurrence of each distinct message and
+					// then at most one a minute; the request itself still degrades exactly
+					// as before.
+					if (hq_protocol::report_due(std::string{"ae/records_unavailable/"} + error.what()))
+						console::error("[HQ AE] HQ records unavailable: %s\n", error.what());
 				}
 			}
 			const auto fetch = action == "get_user_achievements" || action == "get_scheduled_user_achievements" ||

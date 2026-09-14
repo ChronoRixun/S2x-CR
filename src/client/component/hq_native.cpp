@@ -170,10 +170,14 @@ namespace hq_native
 			}
 		}
 
-		void status()
+		// `quiet` is for the callers that fire on every SKU page of every launch rather
+		// than on a real event: `hqvendor` and the failure callback still report the flag
+		// to the console, the success callback only does so in a debug build.
+		void status(const bool quiet = false)
 		{
-			console::info("[HQ native] SKUs fetched=%u (raw flag); use aecache for Orders\n",
-				*reinterpret_cast<const unsigned char*>(0x81038A8_g));
+			const auto fetched = *reinterpret_cast<const unsigned char*>(0x81038A8_g);
+			if (quiet) console::debug("[HQ native] SKUs fetched=%u (raw flag); use aecache for Orders\n", fetched);
+			else console::info("[HQ native] SKUs fetched=%u (raw flag); use aecache for Orders\n", fetched);
 		}
 
 
@@ -526,8 +530,10 @@ namespace hq_native
 		void sku_success(void* task)
 		{
 			sku_success_hook.invoke<void>(task);
-			console::info("[HQ native] SKU page success callback\n");
-			status();
+			// Once per SKU page on every launch, and it says only that nothing went wrong;
+			// the failure callback below still warns, and `hqvendor` reports the counts.
+			console::debug("[HQ native] SKU page success callback\n");
+			status(true);
 		}
 
 		// Drives the native SKU record population that the Quartermaster reaches through
@@ -763,7 +769,7 @@ namespace hq_native
 			sku_failure_hook.create(0x27B6C0_g, sku_failure);
 			conversion_success_hook.create(0x27A4C0_g, conversion_success);
 			conversion_failure_hook.create(0x27A460_g, conversion_failure);
-			command::add("hqnative", status);
+			command::add("hqnative", [] { status(); });
 			command::add("hqwallet", wallet_status);
 			scheduler::loop(sync_wallet, scheduler::pipeline::main, 100ms);
 			scheduler::loop(sync_inventory, scheduler::pipeline::main, 100ms);
