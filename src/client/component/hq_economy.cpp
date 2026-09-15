@@ -120,14 +120,9 @@ namespace hq_economy
 			const auto* mode = game::Dvar_FindMalleableVar("g_gametype");
 			const bool current = game::CL_IsLocalClientInGame(0) && !*game::virtualLobby_Loaded &&
 				mode && mode->current.string && std::string_view{mode->current.string} != "hub";
-			const auto seconds = timer.sample(current, demonware::hq_contract_clock::clock::now());
 			try
 			{
-				if (seconds && demonware::hq_economy::transact([&](auto& data)
-				{
-					demonware::achievement_engine::advance_contract_time(data, seconds);
-					return true; // No active timers still acknowledges this interval.
-				})) timer.committed(seconds);
+				timer.tick(current, demonware::hq_contract_clock::clock::now());
 			}
 			catch (const std::exception& e) { console::warn("[HQ contracts] timer: %s\n", e.what()); }
 		}

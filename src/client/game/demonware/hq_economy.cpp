@@ -98,6 +98,7 @@ namespace demonware::hq_economy
 				entry.progress = static_cast<std::uint32_t>(number(value, "progress", UINT32_MAX));
 				entry.target = static_cast<std::uint32_t>(number(value, "progressTarget", UINT32_MAX));
 				entry.activation = number(value, "activationTimestamp");
+				entry.activation_generation = value.HasMember("activationGeneration") ? number(value, "activationGeneration") : 0;
 				entry.completion = number(value, "completionTimestamp");
 				// Legacy expirations have no recoverable time: treat them as already reported.
 				entry.expired_at = value.HasMember("expiredTimestamp") ? number(value, "expiredTimestamp") : 0;
@@ -219,6 +220,7 @@ namespace demonware::hq_economy
 				writer.Key("progress"); writer.Uint(entry.progress);
 				writer.Key("progressTarget"); writer.Uint(entry.target);
 				writer.Key("activationTimestamp"); writer.Uint64(entry.activation);
+				writer.Key("activationGeneration"); writer.Uint64(entry.activation_generation);
 				writer.Key("completionTimestamp"); writer.Uint64(entry.completion);
 				writer.Key("expiredTimestamp"); writer.Uint64(entry.expired_at);
 				writer.Key("offerDay"); writer.Uint64(entry.offer_day);
@@ -403,9 +405,10 @@ namespace demonware::hq_economy
 				return pair.second.kind == target->second.kind &&
 					(pair.second.status == "inProgress" || pair.second.status == "claimable");
 			});
-			if (active >= 3) return false;
+			if (active >= 3 || data.revision == UINT64_MAX) return false;
 			target->second.status = "inProgress";
 			target->second.activation = static_cast<std::uint64_t>(time(nullptr));
+			target->second.activation_generation = data.revision + 1;
 			return true;
 		}
 		if (value.type == "GRANT_CURRENCY" || value.type == "SET_CURRENCY_BALANCE")

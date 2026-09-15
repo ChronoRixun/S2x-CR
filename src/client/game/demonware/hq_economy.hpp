@@ -56,6 +56,7 @@ namespace demonware::hq_economy
 		std::uint32_t progress{};
 		std::uint32_t target{1};
 		std::uint64_t activation{};
+		std::uint64_t activation_generation{}; // Store revision that enrolled this activation.
 		std::uint64_t completion{};
 		std::uint64_t expired_at{};
 		std::uint64_t offer_day{};

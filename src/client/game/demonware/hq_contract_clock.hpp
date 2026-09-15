@@ -1,5 +1,6 @@
 #pragma once
 
+#include "achievement_engine.hpp"
 #include <chrono>
 #include <cstdint>
 #include <optional>
@@ -11,19 +12,61 @@ namespace demonware
 	public:
 		using clock = std::chrono::steady_clock;
 
-		std::uint32_t sample(const bool playing, const clock::time_point now)
+		void tick(const bool playing, const clock::time_point now)
 		{
-			if (playing && last_) pending_ += now - *last_;
-			last_ = playing ? std::optional{now} : std::nullopt;
-			const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(pending_).count();
-			return seconds > UINT32_MAX ? UINT32_MAX : static_cast<std::uint32_t>(seconds);
+			const auto data = hq_economy::snapshot(); // Cached read; idle timers never open a transaction.
+			std::erase_if(timers_, [&](const auto& pair)
+			{
+				const auto it = data.achievements.find(pair.first);
+				return it == data.achievements.end() || !pair.second.matches(it->second);
+			});
+			bool due{};
+			for (const auto& [name, entry] : data.achievements)
+			{
+				if (entry.kind != 4 || entry.status != "inProgress" || !entry.usage_target) continue;
+				auto [it, inserted] = timers_.try_emplace(name);
+				auto& timer = it->second;
+				if (inserted) { timer.activation = entry.activation; timer.generation = entry.activation_generation; }
+				// New activations start here, never at another activation's previous sample.
+				if (playing && timer.last) timer.pending += now - *timer.last;
+				timer.last = playing ? std::optional{now} : std::nullopt;
+				due |= timer.seconds() != 0;
+			}
+			if (!due) return;
+			if (hq_economy::transact([&](auto& next)
+			{
+				for (const auto& [name, timer] : timers_)
+				{
+					const auto it = next.achievements.find(name);
+					// The activation may have changed between the snapshot and the disk lock.
+					if (it != next.achievements.end() && timer.matches(it->second))
+						achievement_engine::advance_contract_time(it->second, timer.seconds());
+				}
+				return true;
+			}))
+				for (auto& [name, timer] : timers_) timer.pending -= std::chrono::seconds{timer.seconds()};
+			// Failed debits and fractional seconds stay with their original activation.
 		}
 
-		// A failed transaction never acknowledges its interval; keep fractions too.
-		void committed(const std::uint32_t seconds) { pending_ -= std::chrono::seconds{seconds}; }
-
 	private:
-		std::optional<clock::time_point> last_;
-		clock::duration pending_{};
+		struct timer
+		{
+			std::uint64_t activation{}, generation{};
+			std::optional<clock::time_point> last;
+			clock::duration pending{};
+
+			bool matches(const hq_economy::achievement& entry) const
+			{
+				return entry.kind == 4 && entry.status == "inProgress" && entry.usage_target &&
+					entry.activation == activation && entry.activation_generation == generation;
+			}
+
+			std::uint32_t seconds() const
+			{
+				const auto value = std::chrono::duration_cast<std::chrono::seconds>(pending).count();
+				return value > UINT32_MAX ? UINT32_MAX : static_cast<std::uint32_t>(value);
+			}
+		};
+		std::map<std::string, timer> timers_;
 	};
 }

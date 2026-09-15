@@ -215,17 +215,19 @@ namespace demonware::achievement_engine
 		return occupied < 3;
 	}
 
+	bool advance_contract_time(hq_economy::achievement& entry, const std::uint32_t seconds)
+	{
+		if (entry.kind != 4 || entry.status != "inProgress" || !entry.usage_target || !seconds) return false;
+		entry.usage += std::min(seconds, entry.usage_target - std::min(entry.usage, entry.usage_target));
+		if (entry.usage >= entry.usage_target)
+		{ entry.status = "expired"; entry.expired_at = static_cast<std::uint64_t>(time(nullptr)); }
+		return true;
+	}
+
 	bool advance_contract_time(hq_economy::state& data, const std::uint32_t seconds)
 	{
 		bool changed{};
-		for (auto& [name, entry] : data.achievements)
-		{
-			if (entry.kind != 4 || entry.status != "inProgress" || !entry.usage_target || !seconds) continue;
-			entry.usage += std::min(seconds, entry.usage_target - std::min(entry.usage, entry.usage_target));
-			if (entry.usage >= entry.usage_target)
-			{ entry.status = "expired"; entry.expired_at = static_cast<std::uint64_t>(time(nullptr)); }
-			changed = true;
-		}
+		for (auto& [name, entry] : data.achievements) changed |= advance_contract_time(entry, seconds);
 		return changed;
 	}
 
@@ -884,7 +886,9 @@ namespace demonware::achievement_engine
 						}
 						updated = *offer;
 						updated.claim_transaction.clear(); updated.completion = 0;
+						if (next.revision == UINT64_MAX) return false;
 						updated.activation = now;
+						updated.activation_generation = next.revision + 1;
 						updated.status = "inProgress";
 						next.achievements[name] = updated;
 						return true;
