@@ -12,7 +12,8 @@ namespace demonware::hq_economy
 		std::mutex state_mutex{};
 		// Parsed copy of the store. snapshot() runs on the game's main thread from
 		// the AE injection loop, so it must not touch the disk once loaded; the
-		// cache is only refreshed by a successful transact() or by invalidate().
+		// another instance's commits are observed only after a successful transact()
+		// or explicit hqeconomy reload (invalidate()). The file lock prevents lost writes.
 		std::optional<state> cached{};
 
 		class file_lock
@@ -244,6 +245,15 @@ namespace demonware::hq_economy
 
 		bool save(const state& data)
 		{
+			// Permanent receipts are never pruned: the lifetime ledger ceiling blocks
+			// new economic receipts once full. Warn once per session, under state_mutex.
+			if (data.transactions.size() > 10000)
+			{
+				static bool warned{};
+				if (!std::exchange(warned, true))
+					console::warn("[HQ economy] Receipt limit (10000) reached in players2/user/hq_economy.json; new receipts cannot be saved. Deleting players2/user/hq_economy.json resets only the Headquarters economy.\n");
+				return false;
+			}
 			const auto bytes = encode(data);
 			// Use the loader itself so every saved field and limit stays loadable.
 			decode(bytes);
@@ -334,7 +344,6 @@ namespace demonware::hq_economy
 			if (migrate_contracts(next) || payroll_changed || tokens_changed)
 			{
 				if (next.revision == UINT64_MAX) throw std::runtime_error("economy revision overflow");
-				if (next.transactions.size() > 10000) throw std::runtime_error("no room for payroll migration receipt");
 				++next.revision;
 				if (!save(next)) throw std::runtime_error("payroll migration save failed");
 			}
