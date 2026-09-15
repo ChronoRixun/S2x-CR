@@ -15,6 +15,7 @@
 #include "game/ui_scripting/execution.hpp"
 #include "ui_scripting.hpp"
 #include <charconv>
+#include <set>
 
 namespace hq_native
 {
@@ -70,6 +71,8 @@ namespace hq_native
 		}
 		// 7F6FBB8 holds 13 fixed currency slots of 0x38 bytes each (wallet_status walks them).
 		constexpr unsigned native_wallet_slots = 13;
+		// Main-pipeline ownership, scoped to the native caches' ready lifetime.
+		std::set<unsigned> managed_currencies, managed_items;
 
 		void wallet_status()
 		{
@@ -88,7 +91,7 @@ namespace hq_native
 		void sync_wallet()
 		{
 			// Never race the initial native balance fetch or run native UI on the DW thread.
-			if (!*reinterpret_cast<const unsigned char*>(0x7F6FE94_g)) return;
+			if (!*reinterpret_cast<const unsigned char*>(0x7F6FE94_g)) { managed_currencies.clear(); return; }
 			try
 			{
 				std::optional<demonware::hq_payroll::push> notification;
@@ -144,11 +147,19 @@ namespace hq_native
 				const auto data = demonware::hq_economy::snapshot();
 				// The native wallet is a fixed 13-slot table; never hand it more distinct
 				// currency ids than it can hold, whatever the store file contains.
+				// Only a successful snapshot can prove a previously managed key was removed.
+				for (auto it = managed_currencies.begin(); it != managed_currencies.end();)
+				{
+					if (data.currencies.contains(static_cast<std::uint8_t>(*it))) { ++it; continue; }
+					utils::hook::invoke<void>(0x27D510_g, 0, *it, 0u); // setter emits wallet event
+					it = managed_currencies.erase(it);
+				}
 				unsigned pushed{};
 				for (const auto& [id, amount] : data.currencies)
 				{
 					if (!id || pushed >= native_wallet_slots) continue;
 					++pushed;
+					managed_currencies.insert(id);
 					if (utils::hook::invoke<unsigned>(0x279780_g, 0, unsigned(id)) == amount) continue;
 					// Native absolute setter + inventory eventType 5; no second grant.
 					utils::hook::invoke<void>(0x27D510_g, 0, unsigned(id), amount);
@@ -268,6 +279,7 @@ namespace hq_native
 		void refresh_item(const demonware::hq_economy::item& entry)
 		{
 			if (!entry.guid || entry.collision || entry.metadata.size() > 64) return;
+			managed_items.insert(entry.guid);
 			const auto item = demonware::hq_inventory_cache::project(entry, static_cast<std::uint64_t>(time(nullptr)));
 			utils::hook::invoke<unsigned>(0x27DD30_g, 0, &item, 0, 0, entry.metadata.data(), static_cast<unsigned char>(entry.metadata.size()));
 		}
@@ -275,17 +287,25 @@ namespace hq_native
 		void sync_inventory()
 		{
 			// Wait for165's native callback; never seed or reset its ready flag.
-			if (!*reinterpret_cast<const unsigned char*>(0x80385A8_g)) return;
+			if (!*reinterpret_cast<const unsigned char*>(0x80385A8_g)) { managed_items.clear(); return; }
 			try
 			{
 				const auto data = demonware::hq_economy::snapshot();
 				const auto now = static_cast<std::uint64_t>(time(nullptr));
 				bool changed{};
+				for (auto it = managed_items.begin(); it != managed_items.end();)
+				{
+					if (data.inventory.contains({*it, 0})) { ++it; continue; }
+					refresh_item({*it, 0});
+					it = managed_items.erase(it);
+					changed = true;
+				}
 				for (const auto& [key, entry] : data.inventory)
 				{
 					// HQ grants/drops/purchases use collision0. Do not collapse a
 					// foreign collision record into this native GUID-only cache.
 					if (entry.collision || !entry.guid || entry.metadata.size() > 64) continue;
+					managed_items.insert(entry.guid);
 					const auto projected = demonware::hq_inventory_cache::project(entry, now);
 					const auto expected = projected.quantity;
 					const unsigned* native{};
