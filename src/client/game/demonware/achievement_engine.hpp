@@ -19,6 +19,8 @@ namespace demonware::achievement_engine
 
 	// Catalog values are copied on the main thread; transports never access game assets.
 	// Reconcile persisted daily/weekly offers; deterministic day injection for tests.
+	// Purchased live tokens reserve a slot until activation consumes them.
+	bool contract_eligible(const hq_economy::state& data, std::string_view name, std::uint64_t now);
 	bool advance_contract_time(hq_economy::state& data, std::uint32_t seconds);
 	bool reconcile_offers(hq_economy::state& data, std::uint64_t day);
 	// Start of the period after the one containing 'day' (next UTC midnight for kinds 1/4,

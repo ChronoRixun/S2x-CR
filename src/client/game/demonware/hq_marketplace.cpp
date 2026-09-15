@@ -1,5 +1,6 @@
 #include <std_include.hpp>
 #include "hq_marketplace.hpp"
+#include "achievement_engine.hpp"
 #include "hq_protocol.hpp"
 #include <set>
 #include "hq_collection_items.hpp"
@@ -134,10 +135,7 @@ namespace demonware::hq_marketplace
 			// stay purchasable while one is still in the inventory.
 			if (*entry->contract)
 			{
-				const auto active = next.achievements.find(entry->contract);
-				if (active != next.achievements.end() && (active->second.status == "inProgress" ||
-					active->second.status == "claimable" || (active->second.status == "finished" &&
-					active->second.offer_day == static_cast<std::uint64_t>(time(nullptr)) / 86400)))
+				if (!achievement_engine::contract_eligible(next, entry->contract, static_cast<std::uint64_t>(time(nullptr))))
 				{ error = BD_MARKETPLACE_ITEM_MULTIPLE_PURCHASE_ERROR; return false; }
 			}
 			const auto consumable = entry->consumable;
