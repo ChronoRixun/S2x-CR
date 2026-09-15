@@ -391,7 +391,7 @@ namespace demonware::achievement_engine
 		const auto event_type = hq_event_predicate::event_id(event.name);
 		const auto payroll = event_type == 18;
 		if (!event_type) return true;
-		if (event.timestamp < 0 || !hq_event_predicate::evaluate({}, event).valid) return false;
+		if (!valid_event(event, native_payroll)) return false;
 		std::map<std::string, hq_event_predicate::rule> rules;
 		{
 			std::lock_guard lock{catalog_mutex};
@@ -545,6 +545,40 @@ namespace demonware::achievement_engine
 		}();
 	}
 
+	bool valid_event(const reward_game_events::event& event, const bool native_payroll)
+	{
+		const auto type = hq_event_predicate::event_id(event.name);
+		return !type || (event.timestamp >= 0 && hq_event_predicate::evaluate({}, event).valid &&
+			!(native_payroll && type == 18 && event.timestamp == 0));
+	}
+
+	bool submit_relay_events(std::vector<reward_game_events::event>& events)
+	{
+		std::erase_if(events, [](const auto& event) { return !valid_event(event, true); });
+		if (events.empty()) return true;
+		hq_payroll::push notification{};
+		const auto ok = hq_economy::transact([&](hq_economy::state& data)
+		{
+			std::erase_if(events, [&](const auto& event)
+			{
+				// Rejection must discard this event's mutations, not its valid neighbors.
+				auto candidate = data;
+				auto next_notification = notification;
+				if (!apply_event(candidate, event, true, next_notification)) return true;
+				data = std::move(candidate);
+				notification = std::move(next_notification);
+				return false;
+			});
+			return true;
+		});
+		if (ok && !notification.json.empty())
+		{
+			std::lock_guard lock{hq_payroll::notification_mutex};
+			hq_payroll::notification = std::move(notification);
+		}
+		return ok;
+	}
+
 	bool submit_events(const std::vector<reward_game_events::event>& events, const bool native_payroll)
 	{
 		bool recognized{};
@@ -552,7 +586,7 @@ namespace demonware::achievement_engine
 		{
 			if (!hq_event_predicate::event_id(event.name)) continue;
 			recognized = true;
-			if (event.timestamp < 0 || !hq_event_predicate::evaluate({}, event).valid) return false;
+			if (!valid_event(event, native_payroll)) return false;
 		}
 		if (!recognized) return true;
 		hq_payroll::push notification{};

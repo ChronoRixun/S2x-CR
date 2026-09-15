@@ -48,6 +48,17 @@ namespace hidden_challenge_relay
 
 		bool queue_client_event(const demonware::reward_game_events::event& event)
 		{
+			if (!demonware::achievement_engine::valid_event(event, true))
+			{
+				static std::uint64_t next_rejection_warning{};
+				const auto now = GetTickCount64();
+				if (now >= next_rejection_warning)
+				{
+					next_rejection_warning = now + 5000;
+					console::warn("[HQ relay] rejected invalid server event\n");
+				}
+				return false;
+			}
 			if (client_events.push(event)) return true;
 			static std::uint64_t next_warning{};
 			const auto now = GetTickCount64();
@@ -69,7 +80,7 @@ namespace hidden_challenge_relay
 			{
 				if (batch.empty()) batch = client_events.take();
 				if (batch.empty()) return;
-				if (!demonware::achievement_engine::submit_events(batch, true)) return;
+				if (!demonware::achievement_engine::submit_relay_events(batch)) return;
 				const auto count = batch.size();
 				batch.clear(); // A diagnostic failure must not replay a committed batch.
 				if (utils::flags::has_flag("-demonware_debug"))
