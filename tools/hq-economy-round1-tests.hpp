@@ -67,3 +67,33 @@ inline void round1_receipt_tests()
 	hq_economy::invalidate();
 	std::cout << "PASS: round1 receipt identifiers, explicit lengths, loader/save limits, byte preservation\n";
 }
+
+inline void round1_replay_tests()
+{
+	// Seed the old format at the window boundary, with keys after every decimal hash.
+	// The old hash-order eviction immediately discarded each new receipt in this fixture.
+	require(hq_economy::transact([](auto& state)
+	{
+		state.transactions.clear();
+		for (unsigned i = 0; i < 2048; ++i) state.transactions["event:z" + std::to_string(i)] = "123";
+		hq_economy::achievement entry;
+		entry.name = "round1_kills"; entry.status = "inProgress"; entry.target = 10000;
+		state.achievements[entry.name] = entry;
+		return true;
+	}), "seed full legacy replay window");
+	achievement_engine::set_event_rules({{"round1_kills", {1, ""}}});
+	for (unsigned i = 0; i < 2052; ++i)
+	{
+		const reward_game_events::event event{"killed_a_player", 9000000 + i, {}};
+		require(achievement_engine::submit_event(event, true), "insert event at/beyond replay window");
+		hq_economy::invalidate();
+		const auto before = hq_economy::snapshot();
+		require(before.achievements.at("round1_kills").progress == i + 1, "one increment per new event");
+		require(achievement_engine::submit_event(event, true), "retransmit newest event after reload");
+		const auto after = hq_economy::snapshot();
+		require(after.achievements.at("round1_kills").progress == i + 1, "retransmission never increments twice");
+		require(std::count_if(after.transactions.begin(), after.transactions.end(),
+			[](const auto& pair) { return pair.first.starts_with("event:"); }) == 2048, "replay window stays bounded");
+	}
+	std::cout << "PASS: round1 replay insertion order across reload, 2052 events and retransmissions\n";
+}

@@ -486,15 +486,31 @@ namespace demonware::achievement_engine
 				if (entry.progress < entry.target) ++entry.progress;
 				if (entry.progress >= entry.target) entry.status = "claimable";
 			}
-			if (event.timestamp > 0) data.transactions[key] = std::to_string(now);
-			// Event replay window is bounded independently of permanent claim receipts.
-			std::size_t events{};
-			for (const auto& [id, value] : data.transactions) if (id.starts_with("event:")) ++events;
-			for (auto it = data.transactions.begin(); events > 2048 && it != data.transactions.end();)
+			if (event.timestamp > 0)
 			{
-				if (it->first.starts_with("event:")) { it = data.transactions.erase(it); --events; }
-				else ++it;
+				if (data.revision == UINT64_MAX) return false;
+				// Each inserted event commits at a distinct revision. Persist that order
+				// in the existing receipt value; wall-clock seconds can tie or go backwards.
+				data.transactions[key] = "sequence:" + std::to_string(data.revision + 1);
 			}
+			std::vector<std::pair<std::uint64_t, std::string>> events;
+			for (const auto& [id, value] : data.transactions)
+			{
+				if (!id.starts_with("event:")) continue;
+				// Legacy receipts have no insertion sequence: retire them before new ones.
+				std::uint64_t sequence{};
+				if (value.starts_with("sequence:"))
+				{
+					const auto text = std::string_view{value}.substr(9);
+					const auto parsed = std::from_chars(text.data(), text.data() + text.size(), sequence);
+					if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size()) sequence = 0;
+				}
+				events.emplace_back(sequence, id);
+			}
+			// Keep the newest 2,048 events independently of permanent economic receipts.
+			std::sort(events.begin(), events.end());
+			for (std::size_t i = 2048; i < events.size(); ++i)
+				data.transactions.erase(events[i - 2048].second);
 			return true;
 		});
 	}
