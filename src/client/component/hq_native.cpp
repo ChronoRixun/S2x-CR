@@ -357,18 +357,12 @@ namespace hq_native
 				try
 				{
 					error = demonware::hq_marketplace::purchase(key, id, quantity);
-					if (!error)
-					{
-						const auto data = demonware::hq_economy::snapshot();
-						utils::hook::invoke<void>(0x27D510_g, 0, unsigned(demonware::hq_economy::armory_credits), data.currencies.at(demonware::hq_economy::armory_credits));
-						if (const auto entry = demonware::hq_marketplace::find_sku(id))
-							for (const auto item : demonware::hq_marketplace::granted_items(*entry)) refresh_item(data.inventory.at({item, 0}));
-						utils::hook::invoke<void>(0xD5F30_g, 0);
-						utils::hook::invoke<void>(0x2752E0_g, 0, 2);
-					}
 				}
 				catch (const std::exception& e) { console::warn("[HQ purchase] %s\n", e.what()); }
 				catch (...) { console::warn("[HQ purchase] unknown exception\n"); }
+				// Persistence defines purchase success. Ready-checked sync catches refresh
+				// failures and the existing polling loops retry without another debit.
+				if (!error) { sync_wallet(); sync_inventory(); }
 				demonware::hq_protocol::trace("native_purchase", key + ":" + std::to_string(id) + ":" + std::to_string(quantity) + ":error=" + std::to_string(error));
 				console::info("[HQ purchase] sku=%u quantity=%u error=%u\n", id, quantity, error);
 				utils::hook::invoke<void>(0x275360_g, 0, 24, error == 0, tx.data());
