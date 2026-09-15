@@ -70,7 +70,7 @@ namespace hq_native
 			last_lines = lines;
 		}
 		// 7F6FBB8 holds 13 fixed currency slots of 0x38 bytes each (wallet_status walks them).
-		constexpr unsigned native_wallet_slots = 13;
+		constexpr unsigned native_wallet_slots = demonware::hq_economy::native_wallet_slots;
 		// Main-pipeline ownership, scoped to the native caches' ready lifetime.
 		std::set<unsigned> managed_currencies, managed_items;
 
@@ -151,7 +151,8 @@ namespace hq_native
 				for (auto it = managed_currencies.begin(); it != managed_currencies.end();)
 				{
 					if (data.currencies.contains(static_cast<std::uint8_t>(*it))) { ++it; continue; }
-					utils::hook::invoke<void>(0x27D510_g, 0, *it, 0u); // setter emits wallet event
+					if (utils::hook::invoke<unsigned>(0x279780_g, 0, *it))
+						utils::hook::invoke<void>(0x27D510_g, 0, *it, 0u); // setter emits wallet event
 					it = managed_currencies.erase(it);
 				}
 				unsigned pushed{};
@@ -159,6 +160,16 @@ namespace hq_native
 				{
 					if (!id || pushed >= native_wallet_slots) continue;
 					++pushed;
+					// Zeroing a balance does not free its slot. Account for all occupied
+					// native IDs, including entries outside the current store projection.
+					bool present{}, empty{};
+					for (unsigned slot = 0; slot < native_wallet_slots; ++slot)
+					{
+						const auto currency = *(reinterpret_cast<const unsigned char*>(0x7F6FBB8_g) + slot * 0x38 + 0x20);
+						present |= currency == id;
+						empty |= currency == 0;
+					}
+					if (!present && !empty) continue;
 					managed_currencies.insert(id);
 					if (utils::hook::invoke<unsigned>(0x279780_g, 0, unsigned(id)) == amount) continue;
 					// Native absolute setter + inventory eventType 5; no second grant.

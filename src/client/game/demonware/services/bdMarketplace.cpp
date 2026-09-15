@@ -172,7 +172,10 @@ namespace demonware
 			std::uint32_t count{};
 			for (const auto& [id, amount] : data.currencies)
 			{
-				if (count++ == limit) break;
+				// Currency zero is the native empty-slot sentinel; MP has 13 slots.
+				if (!game::environment::is_zombies() && !id) continue;
+				if (count == limit || (!game::environment::is_zombies() && count == hq_economy::native_wallet_slots)) break;
+				++count;
 				auto result = std::make_unique<bdMarketplaceCurrency>();
 				result->m_currencyId = id;
 				result->m_value = amount;
