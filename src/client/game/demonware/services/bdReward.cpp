@@ -181,10 +181,11 @@ namespace demonware
 						event.name.c_str(), event.parameters.size(), maximum);
 				}
 			}
+			if (!achievement_engine::valid_event(event, true)) return reward_delivery::permanent_failure;
 			if (!dedicated && user_id == local_user_id)
 				outcome = submit_hq_event(event) ? reward_delivery::applied : reward_delivery::retryable_failure;
 			else outcome = hidden_challenge_relay::submit_reward(user_id, event);
-			if (outcome == reward_delivery::retryable_failure) return outcome;
+			if (outcome == reward_delivery::retryable_failure || outcome == reward_delivery::permanent_failure) return outcome;
 		}
 
 		// The local player's own events (hidden challenges and main quest progression)
@@ -219,39 +220,43 @@ namespace demonware
 		std::string reason{};
 		if (reward_game_events::parse_report_for_users_request(buffer, users, !game::environment::is_zombies(), reason))
 		{
-			// Keep a failed request's accepted prefix until its exact retry arrives.
-			// This also protects zero-timestamp events, which have no store receipt.
-			// Never evict unfinished work: eight maximum-size requests bound memory
-			// at roughly 24 MiB; additional requests fail before routing any events.
-			static std::mutex retry_mutex;
-			static std::map<std::string, std::size_t> retries;
-			std::lock_guard lock{retry_mutex};
-			auto retry = retries.find(request);
-			if (retry == retries.end() && retries.size() < 8)
-				retry = retries.emplace(request, 0).first;
-			if (retry == retries.end()) ok = false;
-			std::size_t index{};
-			for (auto& user : users)
+			if (!game::environment::is_zombies())
 			{
-				if (!ok) break;
-				if (user.account_type != "steam")
+				const auto outcome = hidden_challenge_relay::submit_rewards(users);
+				if (outcome == reward_delivery::permanent_failure)
 				{
-					continue;
+					server->create_reply(this->task_id(), BD_REWARD_EVENTS_DATA_ERROR).send_struct();
+					return;
 				}
-
-				for (auto& event : user.events)
+				ok = outcome != reward_delivery::retryable_failure;
+				// Preserve the hidden-event handoff only after whole-request acceptance.
+				if (ok)
 				{
-					if (index++ < retry->second) continue;
-					try
+					const auto dedicated = game::environment::is_dedicated();
+					const auto local_user = dedicated ? 0 : steam::SteamUser()->GetSteamID().bits;
+					for (auto& user : users)
 					{
-						ok = route_reward_user_event(user.user_id, event) != reward_delivery::retryable_failure;
+						if (user.account_type != "steam") continue;
+						for (auto& event : user.events)
+						{
+							if (!dedicated && user.user_id == local_user)
+								hidden_challenges::submit_reward_game_event(std::move(event));
+							else
+							{
+								std::uint32_t group{}, challenge{};
+								if (hidden_challenges::get_completion(event, group, challenge))
+									hidden_challenge_relay::submit(user.user_id, group, challenge);
+							}
+						}
 					}
-					catch (...) { ok = false; }
-					if (!ok) break;
-					++retry->second;
 				}
 			}
-			if (retry != retries.end() && (ok || !retry->second)) retries.erase(retry);
+			else
+			{
+				for (auto& user : users)
+					if (user.account_type == "steam")
+						for (auto& event : user.events) route_reward_user_event(user.user_id, event);
+			}
 		}
 		else
 		{

@@ -3,6 +3,8 @@
 #include "hq_event_relay.hpp"
 #include <deque>
 #include <mutex>
+#include <list>
+#include <functional>
 
 namespace demonware::hq_event_relay
 {
@@ -47,12 +49,45 @@ namespace demonware::hq_event_relay
 
 		reward_delivery push(const std::uint64_t user, const reward_game_events::event& event)
 		{
-			auto wire = encode(user, event);
-			if (wire.empty()) return reward_delivery::retryable_failure;
-			std::lock_guard lock{mutex_};
-			if (pending_.size() == capacity) return reward_delivery::retryable_failure;
-			pending_.push_back({user, std::move(wire), 0});
-			return reward_delivery::queued;
+			return push_batch({{user, event}}, [] { return true; });
+		}
+
+		reward_delivery push_batch(const std::vector<std::pair<std::uint64_t, reward_game_events::event>>& events,
+			const std::function<bool()>& apply_local)
+		{
+			// Allocate and encode before accepting anything; publication is a no-throw splice.
+			std::list<pending_event> prepared;
+			for (const auto& [user, event] : events)
+			{
+				auto wire = encode(user, event);
+				if (wire.empty()) return reward_delivery::permanent_failure;
+				prepared.push_back({user, std::move(wire), 0});
+			}
+			const auto count = prepared.size();
+			{
+				std::lock_guard lock{mutex_};
+				if (count > capacity - pending_.size() - reserved_) return reward_delivery::retryable_failure;
+				reserved_ += count;
+			}
+			// Request-scoped ownership releases capacity on failure or exception.
+			struct reservation
+			{
+				server_queue& queue;
+				std::size_t count;
+				~reservation()
+				{
+					std::lock_guard lock{queue.mutex_};
+					queue.reserved_ -= count;
+				}
+			} reserved{*this, count};
+			if (!apply_local()) return reward_delivery::retryable_failure;
+			{
+				std::lock_guard lock{mutex_};
+				pending_.splice(pending_.end(), prepared);
+				reserved_ -= count;
+				reserved.count = 0;
+			}
+			return count ? reward_delivery::queued : reward_delivery::applied;
 		}
 
 		std::vector<std::pair<std::uint64_t, std::string>> take(const std::size_t limit)
@@ -88,6 +123,7 @@ namespace demonware::hq_event_relay
 			std::size_t next;
 		};
 		std::mutex mutex_;
-		std::deque<pending_event> pending_;
+		std::list<pending_event> pending_;
+		std::size_t reserved_{};
 	};
 }

@@ -374,6 +374,34 @@ namespace hidden_challenge_relay
 		return reward_delivery::retryable_failure;
 	}
 
+	demonware::reward_delivery submit_rewards(const std::vector<demonware::reward_game_events::user_event_batch>& users)
+	{
+		using demonware::reward_delivery;
+		try
+		{
+			const auto dedicated = game::environment::is_dedicated();
+			const auto local_user = dedicated ? 0 : steam::SteamUser()->GetSteamID().bits;
+			std::vector<demonware::reward_game_events::event> local;
+			std::vector<std::pair<std::uint64_t, demonware::reward_game_events::event>> remote;
+			for (const auto& user : users)
+			{
+				if (user.account_type != "steam") continue;
+				for (const auto& event : user.events)
+				{
+					if (!demonware::achievement_engine::valid_event(event, true)) return reward_delivery::permanent_failure;
+					if (!dedicated && user.user_id == local_user) local.push_back(event);
+					else remote.emplace_back(user.user_id, event);
+				}
+			}
+			// Serialize the request against shutdown; queue locks never cover store I/O.
+			std::lock_guard lock{pending_forward_mutex};
+			if (!accepting_forwards.load() || game::environment::is_zombies()) return reward_delivery::retryable_failure;
+			return server_events.push_batch(remote, [&] { return demonware::achievement_engine::submit_events(local, true); });
+		}
+		catch (...) { console::warn("[HQ relay] could not accept reward request\n"); }
+		return reward_delivery::retryable_failure;
+	}
+
 	class component final : public multiplayer_component
 	{
 	public:

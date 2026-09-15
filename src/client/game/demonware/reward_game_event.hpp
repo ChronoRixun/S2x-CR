@@ -42,7 +42,7 @@ namespace demonware
 			std::vector<user_event_batch>& users, bool extended_parameters, std::string& reason);
 	}
 
-	enum class reward_delivery { applied, queued, retryable_failure };
+	enum class reward_delivery { applied, queued, permanent_failure, retryable_failure };
 
 	bool submit_hq_event(const reward_game_events::event& event);
 
