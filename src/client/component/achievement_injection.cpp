@@ -200,7 +200,7 @@ namespace achievement_injection
 			char transaction[32]{};
 			game::AE_GenerateTransactionId(transaction);
 			const auto ok = game::AE_FetchUserAchievements(0, transaction);
-			console::info("[HQ AE] counter cache fetch %s, Tx=%s\n", ok ? "issued" : "rejected", transaction);
+			console::info("[HQ AE] counter cache fetch %s\n", ok ? "issued" : "rejected");
 		}
 
 		std::atomic_bool user_fetch_queued{};
@@ -272,8 +272,8 @@ namespace achievement_injection
 			const auto ok = what == "scheduled"
 				? game::AE_FetchScheduledChallenges(0, transaction)
 				: game::AE_FetchUserAchievements(0, transaction);
-			console::info("[HQ AE] aefetch %.*s -> %s, Tx=%s\n", static_cast<int>(what.size()), what.data(),
-				ok ? "issued" : "rejected", transaction);
+			console::info("[HQ AE] aefetch %.*s -> %s\n", static_cast<int>(what.size()), what.data(),
+				ok ? "issued" : "rejected");
 		}
 	}
 

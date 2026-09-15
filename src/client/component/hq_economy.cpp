@@ -40,8 +40,8 @@ namespace hq_economy
 				for (const auto& [id, balance] : data.currencies) console::info("  currency %u = %u\n", id, balance);
 				for (const auto& [key, item] : data.inventory) console::info("  item 0x%X collision %u = %u (expires %u)\n",
 					item.guid, item.collision, item.quantity, item.expires);
-				for (const auto& [name, entry] : data.achievements) console::info("  %s kind %d: %s %u/%u activated %llu claimed '%s'\n",
-					name.c_str(), entry.kind, entry.status.c_str(), entry.progress, entry.target, entry.activation, entry.claim_transaction.c_str());
+				for (const auto& [name, entry] : data.achievements) console::info("  %s kind %d: %s %u/%u activated %llu\n",
+					name.c_str(), entry.kind, entry.status.c_str(), entry.progress, entry.target, entry.activation);
 			}
 			catch (const std::exception& error) { console::error("[HQ economy] %s\n", error.what()); }
 		}

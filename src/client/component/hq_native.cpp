@@ -111,10 +111,6 @@ namespace hq_native
 					if (context && game::AE_SetResponseString(bridge, notification->json.c_str()))
 					{
 						demonware::hq_protocol::trace("payroll_native_push", notification->json);
-						// The whole record goes to the console, not just the summary: 13C480 bails
-						// silently when name/kind/reason/status/progress/type or triggers is missing
-						// or malformed, so the next run has to show exactly what it was handed.
-						console::info("[HQ payroll] completion push json: %s\n", notification->json.c_str());
 						// 13C480 is the achievement push handler, distinct from task replies. It
 						// resolves the record name to an achievement ID, updates the native user
 						// achievement table and raises the LUI event the mail kiosk waits for:
@@ -354,7 +350,7 @@ namespace hq_native
 				catch (const std::exception& e) { console::warn("[HQ purchase] %s\n", e.what()); }
 				catch (...) { console::warn("[HQ purchase] unknown exception\n"); }
 				demonware::hq_protocol::trace("native_purchase", key + ":" + std::to_string(id) + ":" + std::to_string(quantity) + ":error=" + std::to_string(error));
-				console::info("[HQ purchase] sku=%u quantity=%u error=%u tx=%s\n", id, quantity, error, key.c_str());
+				console::info("[HQ purchase] sku=%u quantity=%u error=%u\n", id, quantity, error);
 				utils::hook::invoke<void>(0x275360_g, 0, 24, error == 0, tx.data());
 			}, scheduler::pipeline::main);
 		}
@@ -428,8 +424,8 @@ namespace hq_native
 			console::info("[HQ vendor] fullCollectionSKUs=%u; booster type0/common=%u type1/rare=%u (native quantity reader)\n",
 				unsigned(demonware::hq_marketplace::catalog().size()),
 				utils::hook::invoke<unsigned>(0x2AEEA0_g, 0, 0), utils::hook::invoke<unsigned>(0x2AEEA0_g, 0, 1));
-			console::info("[HQ vendor] conversion successes=%u failures=%u responseTx=%.*s scalar=%llu currencyCount=%u inventoryCount=%u extraCount=%u\n",
-				conversion_successes.load(), conversion_failures.load(), 24, reinterpret_cast<const char*>(0x81960C0_g),
+			console::info("[HQ vendor] conversion successes=%u failures=%u scalar=%llu currencyCount=%u inventoryCount=%u extraCount=%u\n",
+				conversion_successes.load(), conversion_failures.load(),
 				*reinterpret_cast<const std::uint64_t*>(0x81960E0_g),
 				*reinterpret_cast<const unsigned*>(0x8196254_g), *reinterpret_cast<const unsigned*>(0x8196264_g),
 				*reinterpret_cast<const unsigned*>(0x8196274_g));
@@ -524,7 +520,7 @@ namespace hq_native
 			char transaction[32]{};
 			game::AE_GenerateTransactionId(transaction);
 			const auto issued = utils::hook::invoke<bool>(0x2B0850_g, 0, drop == "common" ? 0u : 1u, transaction);
-			console::info("[HQ native] open drop %s, Tx=%s\n", issued ? "issued" : "rejected", transaction);
+			console::info("[HQ native] open drop %s\n", issued ? "issued" : "rejected");
 		}
 
 		void sku_success(void* task)
