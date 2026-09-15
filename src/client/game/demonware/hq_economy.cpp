@@ -173,6 +173,11 @@ namespace demonware::hq_economy
 
 		std::string encode(const state& data)
 		{
+			// Map keys are not separate JSON fields; validate them before comparisons too.
+			for (const auto& [key, entry] : data.inventory)
+				if (key != std::make_pair(entry.guid, entry.collision)) throw std::runtime_error("invalid inventory key");
+			for (const auto& [name, entry] : data.achievements)
+				if (name != entry.name) throw std::runtime_error("invalid achievement key");
 			rapidjson::StringBuffer buffer{};
 			rapidjson::Writer<rapidjson::StringBuffer> writer{buffer};
 			writer.StartObject();
@@ -257,10 +262,6 @@ namespace demonware::hq_economy
 			const auto bytes = encode(data);
 			// Use the loader itself so every saved field and limit stays loadable.
 			decode(bytes);
-			for (const auto& [key, entry] : data.inventory)
-				if (key != std::make_pair(entry.guid, entry.collision)) throw std::runtime_error("invalid inventory key");
-			for (const auto& [name, entry] : data.achievements)
-				if (name != entry.name) throw std::runtime_error("invalid achievement key");
 			const auto temporary = std::string{state_path} + ".tmp";
 			const auto file = CreateFileA(temporary.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
 				FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, nullptr);
