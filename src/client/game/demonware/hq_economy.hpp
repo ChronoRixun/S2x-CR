@@ -34,6 +34,11 @@ namespace demonware::hq_economy
 		std::string metadata{};
 	};
 
+	inline bool live(const item& entry, const std::uint64_t now)
+	{
+		return entry.quantity && (!entry.expires || entry.expires > now);
+	}
+
 	struct reward
 	{
 		std::string type{};

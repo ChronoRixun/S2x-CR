@@ -140,13 +140,20 @@ namespace demonware::hq_marketplace
 			}
 			const auto consumable = entry->consumable;
 			const auto owned = next.inventory.find({granted_items(*entry).front(), 0});
-			if (!consumable && owned != next.inventory.end() && owned->second.quantity)
+			if (!consumable && owned != next.inventory.end() && hq_economy::live(owned->second, static_cast<std::uint64_t>(time(nullptr))))
 			{ error = BD_MARKETPLACE_ITEM_MULTIPLE_PURCHASE_ERROR; return false; }
 			auto& balance = next.currencies[hq_economy::armory_credits];
 			if (balance < entry->price) { error = BD_MARKETPLACE_INSUFFICIENT_FUNDS_ERROR; return false; }
 			balance -= entry->price;
 			for (const auto item : granted_items(*entry))
+			{
+				auto& owned_item = next.inventory[{item, 0}];
+				// These products are permanent. Discard expired units before the grant;
+				// clearing expiry alone would revive quantities the player no longer owns.
+				if (!hq_economy::live(owned_item, static_cast<std::uint64_t>(time(nullptr)))) owned_item.quantity = 0;
+				owned_item.expires = 0;
 				if (!hq_economy::grant(next, {"GRANT_PRODUCT", item, 1})) return false;
+			}
 			next.transactions.emplace(key, fingerprint);
 			return true;
 		});
