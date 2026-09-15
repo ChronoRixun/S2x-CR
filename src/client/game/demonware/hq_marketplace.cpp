@@ -247,7 +247,13 @@ namespace demonware::hq_marketplace
 	{
 		return hq_economy::transact([&](auto& data)
 		{
-			for (const auto& item : items) data.inventory[{item.guid, item.collision}] = item;
+			for (auto item : items)
+			{
+				// Task 193 carries no metadata update; task 168 owns those bytes.
+				const auto prior = data.inventory.find({item.guid, item.collision});
+				if (prior != data.inventory.end()) item.metadata = prior->second.metadata;
+				data.inventory[{item.guid, item.collision}] = std::move(item);
+			}
 			return true;
 		});
 	}
