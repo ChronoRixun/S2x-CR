@@ -99,6 +99,8 @@ namespace demonware::hq_economy
 				entry.target = static_cast<std::uint32_t>(number(value, "progressTarget", UINT32_MAX));
 				entry.activation = number(value, "activationTimestamp");
 				entry.completion = number(value, "completionTimestamp");
+				// Legacy expirations have no recoverable time: treat them as already reported.
+				entry.expired_at = value.HasMember("expiredTimestamp") ? number(value, "expiredTimestamp") : 0;
 				entry.offer_day = number(value, "offerDay");
 				entry.usage_target = static_cast<std::uint32_t>(number(value, "usageTimeTarget", UINT32_MAX));
 				entry.usage = static_cast<std::uint32_t>(number(value, "usageTime", entry.usage_target));
@@ -218,6 +220,7 @@ namespace demonware::hq_economy
 				writer.Key("progressTarget"); writer.Uint(entry.target);
 				writer.Key("activationTimestamp"); writer.Uint64(entry.activation);
 				writer.Key("completionTimestamp"); writer.Uint64(entry.completion);
+				writer.Key("expiredTimestamp"); writer.Uint64(entry.expired_at);
 				writer.Key("offerDay"); writer.Uint64(entry.offer_day);
 				writer.Key("usageTimeTarget"); writer.Uint(entry.usage_target);
 				writer.Key("usageTime"); writer.Uint(entry.usage);

@@ -199,7 +199,8 @@ namespace demonware::achievement_engine
 		{
 			if (entry.kind != 4 || entry.status != "inProgress" || !entry.usage_target || !seconds) continue;
 			entry.usage += std::min(seconds, entry.usage_target - std::min(entry.usage, entry.usage_target));
-			if (entry.usage >= entry.usage_target) entry.status = "expired";
+			if (entry.usage >= entry.usage_target)
+			{ entry.status = "expired"; entry.expired_at = static_cast<std::uint64_t>(time(nullptr)); }
 			changed = true;
 		}
 		return changed;
@@ -255,13 +256,13 @@ namespace demonware::achievement_engine
 				}
 				else if (entry.status == "finished" && current(entry)) ++live;
 				else if (entry.status == "available" && !current(entry))
-				{ entry.status = "expired"; changed = true; }
+				{ entry.status = "expired"; entry.expired_at = static_cast<std::uint64_t>(time(nullptr)); changed = true; }
 			}
 			// Preserve current available offers, including the just-abandoned one.
 			for (auto& [name, entry] : data.achievements)
 			{
 				if (entry.kind != kind || entry.status != "available") continue;
-				if (live >= limit) { entry.status = "expired"; changed = true; continue; }
+				if (live >= limit) { entry.status = "expired"; entry.expired_at = static_cast<std::uint64_t>(time(nullptr)); changed = true; continue; }
 				++live;
 				if (entry.offer_day != day) { entry.offer_day = day; changed = true; }
 			}
@@ -679,7 +680,7 @@ namespace demonware::achievement_engine
 					if (action == "get_expired_user_achievements" && request.HasMember("Timestamp"))
 					{
 						if (!request["Timestamp"].IsUint64()) return fail("invalid_timestamp");
-						if (entry.completion <= request["Timestamp"].GetUint64()) continue;
+						if (entry.expired_at <= request["Timestamp"].GetUint64()) continue;
 					}
 					entries.push_back(entry);
 				}
