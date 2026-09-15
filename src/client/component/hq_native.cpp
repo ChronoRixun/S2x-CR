@@ -1,4 +1,5 @@
 #include <std_include.hpp>
+#include "game/demonware/hq_logging.hpp"
 #include "loader/component_loader.hpp"
 #include "game/game.hpp"
 #include "game/types/demonware.hpp"
@@ -62,7 +63,7 @@ namespace hq_native
 						longest_stall_ms = gap;
 						longest_stall_lines = lines - last_lines;
 					}
-					console::warn("[HQ watchdog] main loop gap %lld ms (%llu console lines printed meanwhile; level loads are expected, vendor/hub stalls are not)\n",
+					demonware::hq_logging::safe_warn("[HQ watchdog] main loop gap %lld ms (%llu console lines printed meanwhile; level loads are expected, vendor/hub stalls are not)\n",
 						gap, lines - last_lines);
 				}
 			}
@@ -137,7 +138,7 @@ namespace hq_native
 						if (!requeues++ || now - last_requeue_warning >= std::chrono::seconds{5})
 						{
 							last_requeue_warning = now;
-							console::warn("[HQ payroll] completion push requeued: %s (retry %llu); the kiosk"
+							demonware::hq_logging::safe_warn("[HQ payroll] completion push requeued: %s (retry %llu); the kiosk"
 								" will show \"Unable to get payroll at this time\" until it is delivered\n",
 								context ? "AE_SetResponseString failed" : "AE_GetUserContext(0) is null", requeues);
 						}
@@ -179,13 +180,13 @@ namespace hq_native
 			}
 			catch (const std::exception& error)
 			{
-				static bool warned{};
-				if (!std::exchange(warned, true)) console::warn("[HQ wallet] sync failed: %s\n", error.what());
+				static std::atomic_bool warned{};
+				demonware::hq_logging::safe_warn_once(warned, "[HQ wallet] sync failed: %s\n", error.what());
 			}
 			catch (...)
 			{
-				static bool unknown{};
-				if (!std::exchange(unknown, true)) console::warn("[HQ wallet] sync failed with an unknown exception\n");
+				static std::atomic_bool unknown{};
+				demonware::hq_logging::safe_warn_once(unknown, "[HQ wallet] sync failed with an unknown exception\n");
 			}
 		}
 
@@ -342,13 +343,13 @@ namespace hq_native
 			}
 			catch (const std::exception& error)
 			{
-				static bool warned{};
-				if (!std::exchange(warned, true)) console::warn("[HQ inventory] sync failed: %s\n", error.what());
+				static std::atomic_bool warned{};
+				demonware::hq_logging::safe_warn_once(warned, "[HQ inventory] sync failed: %s\n", error.what());
 			}
 			catch (...)
 			{
-				static bool unknown{};
-				if (!std::exchange(unknown, true)) console::warn("[HQ inventory] sync failed with an unknown exception\n");
+				static std::atomic_bool unknown{};
+				demonware::hq_logging::safe_warn_once(unknown, "[HQ inventory] sync failed with an unknown exception\n");
 			}
 		}
 
@@ -373,8 +374,8 @@ namespace hq_native
 				{
 					error = demonware::hq_marketplace::purchase(key, id, quantity);
 				}
-				catch (const std::exception& e) { console::warn("[HQ purchase] %s\n", e.what()); }
-				catch (...) { console::warn("[HQ purchase] unknown exception\n"); }
+				catch (const std::exception& e) { static std::atomic_bool warned{}; demonware::hq_logging::safe_warn_once(warned, "[HQ purchase] %s\n", e.what()); }
+				catch (...) { static std::atomic_bool warned{}; demonware::hq_logging::safe_warn_once(warned, "[HQ purchase] unknown exception\n"); }
 				// Persistence defines purchase success. Ready-checked sync catches refresh
 				// failures and the existing polling loops retry without another debit.
 				if (!error) { sync_wallet(); sync_inventory(); }
@@ -766,8 +767,8 @@ namespace hq_native
 					console::info("[HQ ownership] IsGuidUnlocked=%u CAC=%s\n", unsigned(unlocked.at(0).as<bool>()),
 						cac.at(0).as<std::string>().c_str());
 				}
-				catch (const std::exception& error) { console::warn("[HQ ownership] probe unavailable: %s\n", error.what()); }
-				catch (...) { console::warn("[HQ ownership] probe unavailable\n"); }
+				catch (const std::exception& error) { static std::atomic_bool warned{}; demonware::hq_logging::safe_warn_once(warned, "[HQ ownership] probe unavailable: %s\n", error.what()); }
+				catch (...) { static std::atomic_bool warned{}; demonware::hq_logging::safe_warn_once(warned, "[HQ ownership] probe unavailable\n"); }
 			}, scheduler::pipeline::main);
 		}
 

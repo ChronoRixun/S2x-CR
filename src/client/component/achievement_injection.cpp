@@ -1,4 +1,5 @@
 #include <std_include.hpp>
+#include "game/demonware/hq_logging.hpp"
 #include "loader/component_loader.hpp"
 #include "component/command.hpp"
 #include "component/console/console.hpp"
@@ -252,7 +253,8 @@ namespace achievement_injection
 				}
 				catch (const std::exception& error)
 				{
-					console::error("[HQ AE] counter cache update failed: %s\n", error.what());
+					static std::atomic_bool warned{};
+					demonware::hq_logging::safe_warn_once(warned, "[HQ AE] counter cache update failed: %s\n", error.what());
 				}
 			}, scheduler::main, 100ms);
 		}

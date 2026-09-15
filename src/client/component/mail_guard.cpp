@@ -1,4 +1,5 @@
 #include <std_include.hpp>
+#include "game/demonware/hq_logging.hpp"
 #include "loader/component_loader.hpp"
 #include "component/console/console.hpp"
 #include "game/game.hpp"

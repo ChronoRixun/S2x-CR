@@ -1,4 +1,5 @@
 #include <std_include.hpp>
+#include "game/demonware/hq_logging.hpp"
 #include "loader/component_loader.hpp"
 #include "game/game.hpp"
 #include "game/demonware/achievement_engine.hpp"
@@ -124,7 +125,7 @@ namespace hq_economy
 			{
 				timer.tick(current, demonware::hq_contract_clock::clock::now());
 			}
-			catch (const std::exception& e) { console::warn("[HQ contracts] timer: %s\n", e.what()); }
+			catch (const std::exception& e) { static std::atomic_bool warned{}; demonware::hq_logging::safe_warn_once(warned, "[HQ contracts] timer: %s\n", e.what()); }
 		}
 
 		void load_catalog()

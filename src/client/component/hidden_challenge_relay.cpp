@@ -1,4 +1,5 @@
 #include <std_include.hpp>
+#include "game/demonware/hq_logging.hpp"
 #include "loader/component_loader.hpp"
 
 #include "hidden_challenge_relay.hpp"
@@ -91,7 +92,7 @@ namespace hidden_challenge_relay
 				if (utils::flags::has_flag("-demonware_debug"))
 					console::info("[HQ relay] applied %zu queued events\n", count);
 			}
-			catch (...) { console::warn("[HQ relay] could not apply queued server events\n"); }
+			catch (...) { static std::atomic_bool warned{}; demonware::hq_logging::safe_warn_once(warned, "[HQ relay] could not apply queued server events\n"); }
 		}
 
 		bool parse_unsigned(const char* text, std::uint32_t& value)

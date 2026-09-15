@@ -47,18 +47,23 @@ namespace demonware::hq_protocol
 
 	inline void trace(const char* label, const std::string& bytes)
 	{
-		// Raw dumps only with -demonware_debug; every AE and marketplace request passes here.
-		static const auto enabled = utils::flags::has_flag("-demonware_debug");
-		if (!enabled)
+		try
 		{
-			return;
+			// Raw dumps only with -demonware_debug; every AE and marketplace request passes here.
+			static const auto enabled = utils::flags::has_flag("-demonware_debug");
+			if (!enabled)
+			{
+				return;
+			}
+	
+			static std::atomic_uint64_t sequence{};
+			const auto path = std::string{"s2x/dump/dw/hq_"} + label + "_" +
+				std::to_string(GetCurrentProcessId()) + "_" + std::to_string(sequence++) + ".bin";
+			if (!utils::io::write_file(path, bytes)) console::error("[HQ protocol] cannot write %s\n", path.c_str());
+			console::info("[HQ protocol] %s: %zu raw bytes at %s\n", label, bytes.size(), path.c_str());
 		}
+		catch (...) {} // Optional dumps and their diagnostics are best effort.
 
-		static std::atomic_uint64_t sequence{};
-		const auto path = std::string{"s2x/dump/dw/hq_"} + label + "_" +
-			std::to_string(GetCurrentProcessId()) + "_" + std::to_string(sequence++) + ".bin";
-		if (!utils::io::write_file(path, bytes)) console::error("[HQ protocol] cannot write %s\n", path.c_str());
-		console::info("[HQ protocol] %s: %zu raw bytes at %s\n", label, bytes.size(), path.c_str());
 	}
 
 	// Per-row traces fire once for every catalog entry: one vendor visit wrote 1648 files
