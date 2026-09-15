@@ -48,27 +48,39 @@ namespace hq_native
 		// so neither did the Demonware pump that completes tasks (it lives on this thread).
 		void watchdog_tick()
 		{
-			static std::int64_t last_tick{};
-			static std::uint64_t last_lines{};
-			const auto now = demonware::hq_vendor::now_ms();
-			const auto lines = console::lines_printed();
-			if (last_tick)
+			static std::atomic_bool warned{};
+			try
 			{
-				const auto gap = now - last_tick;
-				if (gap > stall_threshold_ms)
+				static std::int64_t last_tick{};
+				static std::uint64_t last_lines{};
+				const auto now = demonware::hq_vendor::now_ms();
+				const auto lines = console::lines_printed();
+				if (last_tick)
 				{
-					++stall_count;
-					if (gap > longest_stall_ms.load())
+					const auto gap = now - last_tick;
+					if (gap > stall_threshold_ms)
 					{
-						longest_stall_ms = gap;
-						longest_stall_lines = lines - last_lines;
+						++stall_count;
+						if (gap > longest_stall_ms.load())
+						{
+							longest_stall_ms = gap;
+							longest_stall_lines = lines - last_lines;
+						}
+						demonware::hq_logging::safe_warn("[HQ watchdog] main loop gap %lld ms (%llu console lines printed meanwhile; level loads are expected, vendor/hub stalls are not)\n",
+							gap, lines - last_lines);
 					}
-					demonware::hq_logging::safe_warn("[HQ watchdog] main loop gap %lld ms (%llu console lines printed meanwhile; level loads are expected, vendor/hub stalls are not)\n",
-						gap, lines - last_lines);
 				}
+				last_tick = now;
+				last_lines = lines;
 			}
-			last_tick = now;
-			last_lines = lines;
+			catch (const std::exception& error)
+			{
+				demonware::hq_logging::safe_warn_once(warned, "[HQ callback] watchdog_tick: %s\n", error.what());
+			}
+			catch (...)
+			{
+				demonware::hq_logging::safe_warn_once(warned, "[HQ callback] watchdog_tick: unknown exception\n");
+			}
 		}
 		// 7F6FBB8 holds 13 fixed currency slots of 0x38 bytes each (wallet_status walks them).
 		constexpr unsigned native_wallet_slots = demonware::hq_economy::native_wallet_slots;
@@ -92,10 +104,11 @@ namespace hq_native
 
 		void sync_wallet()
 		{
-			// Never race the initial native balance fetch or run native UI on the DW thread.
-			if (!*reinterpret_cast<const unsigned char*>(0x7F6FE94_g)) { managed_currencies.clear(); return; }
+			static std::atomic_bool warned{};
 			try
 			{
+				// Never race the initial native balance fetch or run native UI on the DW thread.
+				if (!*reinterpret_cast<const unsigned char*>(0x7F6FE94_g)) { managed_currencies.clear(); return; }
 				std::optional<demonware::hq_payroll::push> notification;
 				{
 					std::lock_guard lock{demonware::hq_payroll::notification_mutex};
@@ -180,13 +193,11 @@ namespace hq_native
 			}
 			catch (const std::exception& error)
 			{
-				static std::atomic_bool warned{};
-				demonware::hq_logging::safe_warn_once(warned, "[HQ wallet] sync failed: %s\n", error.what());
+				demonware::hq_logging::safe_warn_once(warned, "[HQ callback] sync_wallet: %s\n", error.what());
 			}
 			catch (...)
 			{
-				static std::atomic_bool unknown{};
-				demonware::hq_logging::safe_warn_once(unknown, "[HQ wallet] sync failed with an unknown exception\n");
+				demonware::hq_logging::safe_warn_once(warned, "[HQ callback] sync_wallet: unknown exception\n");
 			}
 		}
 
@@ -300,10 +311,11 @@ namespace hq_native
 
 		void sync_inventory()
 		{
-			// Wait for165's native callback; never seed or reset its ready flag.
-			if (!*reinterpret_cast<const unsigned char*>(0x80385A8_g)) { managed_items.clear(); inventory_notification_dirty = false; return; }
+			static std::atomic_bool warned{};
 			try
 			{
+				// Wait for165's native callback; never seed or reset its ready flag.
+				if (!*reinterpret_cast<const unsigned char*>(0x80385A8_g)) { managed_items.clear(); inventory_notification_dirty = false; return; }
 				const auto data = demonware::hq_economy::snapshot();
 				const auto now = static_cast<std::uint64_t>(time(nullptr));
 				for (auto it = managed_items.begin(); it != managed_items.end();)
@@ -343,13 +355,11 @@ namespace hq_native
 			}
 			catch (const std::exception& error)
 			{
-				static std::atomic_bool warned{};
-				demonware::hq_logging::safe_warn_once(warned, "[HQ inventory] sync failed: %s\n", error.what());
+				demonware::hq_logging::safe_warn_once(warned, "[HQ callback] sync_inventory: %s\n", error.what());
 			}
 			catch (...)
 			{
-				static std::atomic_bool unknown{};
-				demonware::hq_logging::safe_warn_once(unknown, "[HQ inventory] sync failed with an unknown exception\n");
+				demonware::hq_logging::safe_warn_once(warned, "[HQ callback] sync_inventory: unknown exception\n");
 			}
 		}
 
@@ -369,19 +379,35 @@ namespace hq_native
 			// Next main tick lets Lua register its transaction listener before completion.
 			scheduler::once([tx, key, id, quantity]
 			{
-				unsigned error = game::demonware::BD_MARKETPLACE_STORAGE_ERROR;
+				static std::atomic_bool warned{};
 				try
 				{
-					error = demonware::hq_marketplace::purchase(key, id, quantity);
+					unsigned error = game::demonware::BD_MARKETPLACE_STORAGE_ERROR;
+					try
+					{
+						error = demonware::hq_marketplace::purchase(key, id, quantity);
+					}
+					catch (const std::exception& e) { demonware::hq_logging::safe_warn_once(warned, "[HQ purchase] %s\n", e.what()); }
+					catch (...) { demonware::hq_logging::safe_warn_once(warned, "[HQ purchase] unknown exception\n"); }
+					// Persistence defines purchase success. Ready-checked sync catches refresh
+					// failures and the existing polling loops retry without another debit.
+					if (!error) { sync_wallet(); sync_inventory(); }
+					try
+					{
+						demonware::hq_protocol::trace("native_purchase", key + ":" + std::to_string(id) + ":" + std::to_string(quantity) + ":error=" + std::to_string(error));
+					}
+					catch (...) {} // A settled purchase must still deliver its completion.
+					demonware::hq_logging::safe_info("[HQ purchase] sku=%u quantity=%u error=%u\n", id, quantity, error);
+					utils::hook::invoke<void>(0x275360_g, 0, 24, error == 0, tx.data());
 				}
-				catch (const std::exception& e) { static std::atomic_bool warned{}; demonware::hq_logging::safe_warn_once(warned, "[HQ purchase] %s\n", e.what()); }
-				catch (...) { static std::atomic_bool warned{}; demonware::hq_logging::safe_warn_once(warned, "[HQ purchase] unknown exception\n"); }
-				// Persistence defines purchase success. Ready-checked sync catches refresh
-				// failures and the existing polling loops retry without another debit.
-				if (!error) { sync_wallet(); sync_inventory(); }
-				demonware::hq_protocol::trace("native_purchase", key + ":" + std::to_string(id) + ":" + std::to_string(quantity) + ":error=" + std::to_string(error));
-				console::info("[HQ purchase] sku=%u quantity=%u error=%u\n", id, quantity, error);
-				utils::hook::invoke<void>(0x275360_g, 0, 24, error == 0, tx.data());
+				catch (const std::exception& error)
+				{
+					demonware::hq_logging::safe_warn_once(warned, "[HQ callback] deferred purchase: %s\n", error.what());
+				}
+				catch (...)
+				{
+					demonware::hq_logging::safe_warn_once(warned, "[HQ callback] deferred purchase: unknown exception\n");
+				}
 			}, scheduler::pipeline::main);
 		}
 
@@ -685,48 +711,60 @@ namespace hq_native
 		// requires the same id in the scheduled challenge cache (`aecache` prints that).
 		void contract_state()
 		{
-			for (const auto& entry : demonware::hq_marketplace::catalog())
+			static std::atomic_bool warned{};
+			try
 			{
-				if (!*entry.contract) continue;
-				const auto cached = native_skus.find(entry.id);
-				if (cached == native_skus.end())
+				for (const auto& entry : demonware::hq_marketplace::catalog())
 				{
-					console::info("[HQ contracts] sku %u (%s) not cached\n", entry.id, entry.contract);
-					continue;
+					if (!*entry.contract) continue;
+					const auto cached = native_skus.find(entry.id);
+					if (cached == native_skus.end())
+					{
+						console::info("[HQ contracts] sku %u (%s) not cached\n", entry.id, entry.contract);
+						continue;
+					}
+					const auto* bytes = cached->second.bytes.data();
+					std::string items;
+					for (unsigned item = 0; item < bytes[0x244]; ++item)
+					{
+						const auto guid = *reinterpret_cast<const unsigned*>(bytes + 0x30 + item * 0x38);
+						const unsigned* native{};
+						utils::hook::invoke<void>(0x279300_g, 0, guid, &native);
+						if (!items.empty()) items += ",";
+						items += std::to_string(guid) + "x" + std::to_string(native ? native[1] : 0);
+					}
+					console::info("[HQ contracts] sku %u (%s) type=%u price=%u currency=%u data=\"%s\" owned=[%s]\n",
+						entry.id, entry.contract, *reinterpret_cast<const unsigned*>(bytes + 4),
+						*reinterpret_cast<const unsigned*>(bytes + 0x250),
+						*reinterpret_cast<const unsigned*>(bytes + 0x24C),
+						reinterpret_cast<const char*>(bytes + 0x29C), items.data());
 				}
-				const auto* bytes = cached->second.bytes.data();
-				std::string items;
-				for (unsigned item = 0; item < bytes[0x244]; ++item)
+				const auto* table = reinterpret_cast<const unsigned char*>(0x60A4090_g);
+				for (std::size_t i = 0; i < user_achievement_records; ++i)
 				{
-					const auto guid = *reinterpret_cast<const unsigned*>(bytes + 0x30 + item * 0x38);
-					const unsigned* native{};
-					utils::hook::invoke<void>(0x279300_g, 0, guid, &native);
-					if (!items.empty()) items += ",";
-					items += std::to_string(guid) + "x" + std::to_string(native ? native[1] : 0);
+					const auto* record = table + i * user_achievement_size;
+					const auto id = *reinterpret_cast<const std::int32_t*>(record + 0xC);
+					if (id == -1 || *reinterpret_cast<const std::int32_t*>(record + 8) != 4) continue;
+					console::info("[HQ contracts] native kind 4 record id %d status %d progress %u/%d timeLimit %d "
+						"timeLeft %d expires %llu reward %p\n", id,
+						*reinterpret_cast<const std::int32_t*>(record + 0x38),
+						*reinterpret_cast<const std::uint16_t*>(record + 0x28),
+						*reinterpret_cast<const std::int32_t*>(record + 0x10),
+						*reinterpret_cast<const std::int32_t*>(record + 4),
+						*reinterpret_cast<const std::int32_t*>(record + 0x3C),
+						*reinterpret_cast<const std::uint64_t*>(record + 0x18),
+						*reinterpret_cast<void* const*>(record + 0x20));
 				}
-				console::info("[HQ contracts] sku %u (%s) type=%u price=%u currency=%u data=\"%s\" owned=[%s]\n",
-					entry.id, entry.contract, *reinterpret_cast<const unsigned*>(bytes + 4),
-					*reinterpret_cast<const unsigned*>(bytes + 0x250),
-					*reinterpret_cast<const unsigned*>(bytes + 0x24C),
-					reinterpret_cast<const char*>(bytes + 0x29C), items.data());
+				console::info("[HQ contracts] nine retail periodic rows: AEC_CONTRACT, StatsTable contract cost tokens, match-only timers, expiration 0\n");
 			}
-			const auto* table = reinterpret_cast<const unsigned char*>(0x60A4090_g);
-			for (std::size_t i = 0; i < user_achievement_records; ++i)
+			catch (const std::exception& error)
 			{
-				const auto* record = table + i * user_achievement_size;
-				const auto id = *reinterpret_cast<const std::int32_t*>(record + 0xC);
-				if (id == -1 || *reinterpret_cast<const std::int32_t*>(record + 8) != 4) continue;
-				console::info("[HQ contracts] native kind 4 record id %d status %d progress %u/%d timeLimit %d "
-					"timeLeft %d expires %llu reward %p\n", id,
-					*reinterpret_cast<const std::int32_t*>(record + 0x38),
-					*reinterpret_cast<const std::uint16_t*>(record + 0x28),
-					*reinterpret_cast<const std::int32_t*>(record + 0x10),
-					*reinterpret_cast<const std::int32_t*>(record + 4),
-					*reinterpret_cast<const std::int32_t*>(record + 0x3C),
-					*reinterpret_cast<const std::uint64_t*>(record + 0x18),
-					*reinterpret_cast<void* const*>(record + 0x20));
+				demonware::hq_logging::safe_warn_once(warned, "[HQ callback] contract_state: %s\n", error.what());
 			}
-			console::info("[HQ contracts] nine retail periodic rows: AEC_CONTRACT, StatsTable contract cost tokens, match-only timers, expiration 0\n");
+			catch (...)
+			{
+				demonware::hq_logging::safe_warn_once(warned, "[HQ callback] contract_state: unknown exception\n");
+			}
 		}
 		void ownership_status(const command::params& params)
 		{
@@ -742,6 +780,7 @@ namespace hq_native
 			}
 			scheduler::once([guid]
 			{
+				static std::atomic_bool warned{};
 				try
 				{
 					if (!*reinterpret_cast<const unsigned char*>(0x80385A8_g))
@@ -767,8 +806,14 @@ namespace hq_native
 					console::info("[HQ ownership] IsGuidUnlocked=%u CAC=%s\n", unsigned(unlocked.at(0).as<bool>()),
 						cac.at(0).as<std::string>().c_str());
 				}
-				catch (const std::exception& error) { static std::atomic_bool warned{}; demonware::hq_logging::safe_warn_once(warned, "[HQ ownership] probe unavailable: %s\n", error.what()); }
-				catch (...) { static std::atomic_bool warned{}; demonware::hq_logging::safe_warn_once(warned, "[HQ ownership] probe unavailable\n"); }
+				catch (const std::exception& error)
+				{
+					demonware::hq_logging::safe_warn_once(warned, "[HQ callback] ownership probe: %s\n", error.what());
+				}
+				catch (...)
+				{
+					demonware::hq_logging::safe_warn_once(warned, "[HQ callback] ownership probe: unknown exception\n");
+				}
 			}, scheduler::pipeline::main);
 		}
 

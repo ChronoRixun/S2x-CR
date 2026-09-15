@@ -83,97 +83,129 @@ namespace hq_economy
 
 		void load_loot_catalog()
 		{
-			const auto* collections = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/collections.csv", false).stringTable;
-			const auto* items = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/itemscollections.csv", false).stringTable;
-			if (!collections || !items) return;
-			std::vector<std::uint32_t> pool;
-			for (int row = 0; row < items->rowCount; ++row)
+			static std::atomic_bool warned{};
+			try
 			{
-				bool known{};
-				for (int c = 0; c < collections->rowCount; ++c)
-					known |= std::string_view{cell(items, row, 0)} == cell(collections, c, 0);
-				std::uint32_t count{};
-				if (!known || !parse_number(cell(items, row, 2), count) || count > 64) continue;
-				for (std::uint32_t col = 3; col < 3 + count; ++col)
+				const auto* collections = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/collections.csv", false).stringTable;
+				const auto* items = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/itemscollections.csv", false).stringTable;
+				if (!collections || !items) return;
+				std::vector<std::uint32_t> pool;
+				for (int row = 0; row < items->rowCount; ++row)
 				{
-					std::uint32_t id{};
-					if (parse_number(cell(items, row, static_cast<int>(col)), id)) pool.push_back(id);
+					bool known{};
+					for (int c = 0; c < collections->rowCount; ++c)
+						known |= std::string_view{cell(items, row, 0)} == cell(collections, c, 0);
+					std::uint32_t count{};
+					if (!known || !parse_number(cell(items, row, 2), count) || count > 64) continue;
+					for (std::uint32_t col = 3; col < 3 + count; ++col)
+					{
+						std::uint32_t id{};
+						if (parse_number(cell(items, row, static_cast<int>(col)), id)) pool.push_back(id);
+					}
 				}
+				std::map<std::uint32_t, unsigned> rarities;
+				std::map<std::uint32_t, std::string> types;
+				for (const auto id : pool)
+				{
+					const auto rarity = utils::hook::invoke<int>(0x652330_g, id);
+					if (rarity >= 0) rarities[id] = static_cast<unsigned>(rarity);
+					// 0x652330 calls this same GUID-column reader for rarity (29).
+					const auto* type = utils::hook::invoke<const char*>(0xD1BA0_g, id, 0);
+					if (type) types[id] = type;
+				}
+				demonware::hq_marketplace::set_rarities(rarities);
+				demonware::hq_marketplace::set_item_types(types);
+				demonware::achievement_engine::set_loot_catalog(std::move(pool));
 			}
-			std::map<std::uint32_t, unsigned> rarities;
-			std::map<std::uint32_t, std::string> types;
-			for (const auto id : pool)
+			catch (const std::exception& error)
 			{
-				const auto rarity = utils::hook::invoke<int>(0x652330_g, id);
-				if (rarity >= 0) rarities[id] = static_cast<unsigned>(rarity);
-				// 0x652330 calls this same GUID-column reader for rarity (29).
-				const auto* type = utils::hook::invoke<const char*>(0xD1BA0_g, id, 0);
-				if (type) types[id] = type;
+				demonware::hq_logging::safe_warn_once(warned, "[HQ callback] load_loot_catalog: %s\n", error.what());
 			}
-			demonware::hq_marketplace::set_rarities(rarities);
-			demonware::hq_marketplace::set_item_types(types);
-			demonware::achievement_engine::set_loot_catalog(std::move(pool));
+			catch (...)
+			{
+				demonware::hq_logging::safe_warn_once(warned, "[HQ callback] load_loot_catalog: unknown exception\n");
+			}
 		}
 
 		void tick_contracts()
 		{
-			static demonware::hq_contract_clock timer;
-			const auto* mode = game::Dvar_FindMalleableVar("g_gametype");
-			const bool current = game::CL_IsLocalClientInGame(0) && !*game::virtualLobby_Loaded &&
-				mode && mode->current.string && std::string_view{mode->current.string} != "hub";
+			static std::atomic_bool warned{};
 			try
 			{
+				static demonware::hq_contract_clock timer;
+				const auto* mode = game::Dvar_FindMalleableVar("g_gametype");
+				const bool current = game::CL_IsLocalClientInGame(0) && !*game::virtualLobby_Loaded &&
+					mode && mode->current.string && std::string_view{mode->current.string} != "hub";
 				timer.tick(current, demonware::hq_contract_clock::clock::now());
 			}
-			catch (const std::exception& e) { static std::atomic_bool warned{}; demonware::hq_logging::safe_warn_once(warned, "[HQ contracts] timer: %s\n", e.what()); }
+			catch (const std::exception& error)
+			{
+				demonware::hq_logging::safe_warn_once(warned, "[HQ callback] tick_contracts: %s\n", error.what());
+			}
+			catch (...)
+			{
+				demonware::hq_logging::safe_warn_once(warned, "[HQ callback] tick_contracts: unknown exception\n");
+			}
 		}
 
 		void load_catalog()
 		{
-			const auto* daily = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/dailychallengestable.csv", false).stringTable;
-			const auto* definitions = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "dw/dwgamechallenges.csv", false).stringTable;
-			if (!daily || !definitions) return;
-			std::vector<demonware::hq_economy::achievement> catalog;
-			// Six native daily identities. Retail observed win Social Score and rifle 2x drops;
-			// the other rewards/targets are local choices, not a recovered daily rotation.
-			for (const auto& [name, target, currency, amount] :
-				std::vector<std::tuple<const char*, unsigned, unsigned, unsigned>>{
-				{"daily_ch_1v1_wins", 1, 7, 250}, {"daily_ch_assault_kills", 35, 0, 2},
-				{"daily_ch_kills", 25, 0, 1}, {"daily_ch_headshots", 3, 0, 1},
-				{"daily_ch_commend", 1, 7, 250}, {"daily_ch_shotgun_kills", 100, 0, 2}})
+			static std::atomic_bool warned{};
+			try
 			{
-				demonware::hq_economy::achievement entry;
-				entry.name = entry.challenge_name = name; entry.target = target;
-				entry.rewards = {{currency ? "GRANT_CURRENCY" : "GRANT_PRODUCT", currency ? currency : 1, amount}};
-				// Existing collection loot GUID (itemscollections.csv row 27), a local item offer.
-				if (std::string_view{name} == "daily_ch_shotgun_kills") entry.rewards = {{"GRANT_PRODUCT", 0x20000D, 1}};
-				catalog.push_back(entry);
+				const auto* daily = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/dailychallengestable.csv", false).stringTable;
+				const auto* definitions = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "dw/dwgamechallenges.csv", false).stringTable;
+				if (!daily || !definitions) return;
+				std::vector<demonware::hq_economy::achievement> catalog;
+				// Six native daily identities. Retail observed win Social Score and rifle 2x drops;
+				// the other rewards/targets are local choices, not a recovered daily rotation.
+				for (const auto& [name, target, currency, amount] :
+					std::vector<std::tuple<const char*, unsigned, unsigned, unsigned>>{
+					{"daily_ch_1v1_wins", 1, 7, 250}, {"daily_ch_assault_kills", 35, 0, 2},
+					{"daily_ch_kills", 25, 0, 1}, {"daily_ch_headshots", 3, 0, 1},
+					{"daily_ch_commend", 1, 7, 250}, {"daily_ch_shotgun_kills", 100, 0, 2}})
+				{
+					demonware::hq_economy::achievement entry;
+					entry.name = entry.challenge_name = name; entry.target = target;
+					entry.rewards = {{currency ? "GRANT_CURRENCY" : "GRANT_PRODUCT", currency ? currency : 1, amount}};
+					// Existing collection loot GUID (itemscollections.csv row 27), a local item offer.
+					if (std::string_view{name} == "daily_ch_shotgun_kills") entry.rewards = {{"GRANT_PRODUCT", 0x20000D, 1}};
+					catalog.push_back(entry);
+				}
+				for (const auto& [name, target] : std::map<std::string, unsigned>{
+					{"weekly_ch_kills", 500}, {"weekly_ch_wins", 10}, {"weekly_ch_scorestreak_calls", 25}})
+				{
+					demonware::hq_economy::achievement entry;
+					entry.name = entry.challenge_name = name; entry.kind = 2; entry.target = target;
+					entry.rewards = {{"GRANT_PRODUCT", 2, 1}};
+					catalog.push_back(entry);
+				}
+				for (const auto& definition : demonware::hq_contract_catalog::entries)
+				{
+					const auto weapon = *definition.item_reference ? game::BG_GetItemGUIDFromReference(definition.item_reference) : 0;
+					if (*definition.item_reference && !weapon) continue; // fail closed if the asset is unavailable
+					catalog.push_back(demonware::hq_contract_catalog::achievement(definition, weapon));
+				}
+				// Rules live in the asset catalog, never in editable persisted progress records.
+				std::map<std::string, demonware::hq_event_predicate::rule> rules;
+				for (int row = 0; row < definitions->rowCount; ++row)
+				{
+					std::uint32_t kind{}, event{};
+					if (!parse_number(cell(definitions, row, 2), kind) || kind < 1 || kind > 4 ||
+						!parse_number(cell(definitions, row, 3), event) || !event) continue;
+					rules.emplace(cell(definitions, row, 1), demonware::hq_event_predicate::rule{event, cell(definitions, row, 4)});
+				}
+				demonware::achievement_engine::set_event_rules(std::move(rules));
+				demonware::achievement_engine::set_catalog(std::move(catalog));
 			}
-			for (const auto& [name, target] : std::map<std::string, unsigned>{
-				{"weekly_ch_kills", 500}, {"weekly_ch_wins", 10}, {"weekly_ch_scorestreak_calls", 25}})
+			catch (const std::exception& error)
 			{
-				demonware::hq_economy::achievement entry;
-				entry.name = entry.challenge_name = name; entry.kind = 2; entry.target = target;
-				entry.rewards = {{"GRANT_PRODUCT", 2, 1}};
-				catalog.push_back(entry);
+				demonware::hq_logging::safe_warn_once(warned, "[HQ callback] load_catalog: %s\n", error.what());
 			}
-			for (const auto& definition : demonware::hq_contract_catalog::entries)
+			catch (...)
 			{
-				const auto weapon = *definition.item_reference ? game::BG_GetItemGUIDFromReference(definition.item_reference) : 0;
-				if (*definition.item_reference && !weapon) continue; // fail closed if the asset is unavailable
-				catalog.push_back(demonware::hq_contract_catalog::achievement(definition, weapon));
+				demonware::hq_logging::safe_warn_once(warned, "[HQ callback] load_catalog: unknown exception\n");
 			}
-			// Rules live in the asset catalog, never in editable persisted progress records.
-			std::map<std::string, demonware::hq_event_predicate::rule> rules;
-			for (int row = 0; row < definitions->rowCount; ++row)
-			{
-				std::uint32_t kind{}, event{};
-				if (!parse_number(cell(definitions, row, 2), kind) || kind < 1 || kind > 4 ||
-					!parse_number(cell(definitions, row, 3), event) || !event) continue;
-				rules.emplace(cell(definitions, row, 1), demonware::hq_event_predicate::rule{event, cell(definitions, row, 4)});
-			}
-			demonware::achievement_engine::set_event_rules(std::move(rules));
-			demonware::achievement_engine::set_catalog(std::move(catalog));
 		}
 	}
 

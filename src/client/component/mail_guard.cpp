@@ -93,8 +93,20 @@ namespace mail_guard
 			// ApplyConversionRule completion after that, using its existing refresh handler.
 			scheduler::once([controller, ok]
 			{
-				if (!game::environment::is_zombies()) ui_scripting::notify("inventory", {
-					{"controller", controller}, {"inventoryEventType", 4}, {"inventoryTaskType", 126}, {"success", ok}});
+				static std::atomic_bool warned{};
+				try
+				{
+					if (!game::environment::is_zombies()) ui_scripting::notify("inventory", {
+						{"controller", controller}, {"inventoryEventType", 4}, {"inventoryTaskType", 126}, {"success", ok}});
+				}
+				catch (const std::exception& error)
+				{
+					demonware::hq_logging::safe_warn_once(warned, "[HQ callback] voucher inventory notification: %s\n", error.what());
+				}
+				catch (...)
+				{
+					demonware::hq_logging::safe_warn_once(warned, "[HQ callback] voucher inventory notification: unknown exception\n");
+				}
 			}, scheduler::pipeline::main, 250ms);
 			// Report the grant, not merely that a valid slot was found: Engine.
 			// Inventory_RedeemVoucherItem returns this synchronously to the kiosk Lua, so a

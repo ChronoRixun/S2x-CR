@@ -55,7 +55,7 @@ namespace demonware::hq_protocol
 			{
 				return;
 			}
-	
+
 			static std::atomic_uint64_t sequence{};
 			const auto path = std::string{"s2x/dump/dw/hq_"} + label + "_" +
 				std::to_string(GetCurrentProcessId()) + "_" + std::to_string(sequence++) + ".bin";
