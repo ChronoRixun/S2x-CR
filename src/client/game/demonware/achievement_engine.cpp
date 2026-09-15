@@ -212,6 +212,7 @@ namespace demonware::achievement_engine
 		const auto have_counters = std::any_of(definitions.begin(), definitions.end(),
 			[](const auto& d) { return d.name == "daily_ch_assault_kills"; });
 		constexpr auto recount_marker = "migration:above-beyond-recount-v1";
+		if (!hq_economy::valid_receipt_key(recount_marker)) return false;
 		const auto recount = have_counters && !data.transactions.contains(recount_marker);
 		std::uint32_t daily_claims{}, weekly_claims{};
 		// Count before offer reconciliation can replace an older definition. Completion,
@@ -456,6 +457,7 @@ namespace demonware::achievement_engine
 		std::uint64_t hash = 14695981039346656037ULL;
 		for (const auto byte : fingerprint) { hash ^= static_cast<unsigned char>(byte); hash *= 1099511628211ULL; }
 		const auto key = "event:" + std::to_string(hash);
+		if (!hq_economy::valid_receipt_key(key)) return false;
 		return hq_economy::transact([&](hq_economy::state& data)
 		{
 			if (event.timestamp > 0 && data.transactions.contains(key)) return true;
@@ -519,6 +521,13 @@ namespace demonware::achievement_engine
 				response.AddMember("reason", text(reason, alloc), alloc);
 				return encode(response);
 			};
+			if (action == "open_supply_drop" && (client_tx.empty() || !hq_economy::valid_receipt_key("drop:" + client_tx)))
+				return fail("invalid_transaction");
+			if (action == "claim_achievement_reward")
+			{
+				if (client_tx.empty()) return fail("missing_transaction");
+				if (!hq_economy::valid_receipt_key("claim:" + client_tx)) return fail("invalid_achievement");
+			}
 			const auto now = static_cast<std::uint64_t>(time(nullptr));
 			const auto day = now / 86400;
 			auto scheduled = offers(day);
@@ -687,8 +696,6 @@ namespace demonware::achievement_engine
 				const std::uint32_t drop_id = drop == "sd_mp" ? 1 : drop == "sd_mp_rare" ? 2 :
 					drop == "sd_zombie_rare" ? 6 : 0;
 				if (!drop_id) return fail("unsupported_supply_drop");
-				if (client_tx.empty() || client_tx.size() > 128 || client_tx.find('\0') != std::string::npos)
-					return fail("invalid_transaction");
 				std::vector<std::uint32_t> pool;
 				{
 					std::lock_guard lock{catalog_mutex};

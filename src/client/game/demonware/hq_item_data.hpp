@@ -17,7 +17,7 @@ namespace demonware::hq_item_data
 	{
 		std::uint32_t count{};
 		if (!hq_marketplace::context(buffer) || !buffer->read_string(&transaction) || transaction.empty() ||
-			transaction.size() > 24 || !buffer->read_uint32(&count) || !count || count > 30) return false;
+			transaction.size() > 24 || !hq_economy::valid_receipt_key("item-data:" + transaction) || !buffer->read_uint32(&count) || !count || count > 30) return false;
 		std::vector<update> parsed;
 		std::set<std::pair<std::uint32_t, std::uint16_t>> keys;
 		for (std::uint32_t i = 0; i < count; ++i)
@@ -38,7 +38,7 @@ namespace demonware::hq_item_data
 
 	inline bool apply(const std::string& transaction, const std::vector<update>& updates)
 	{
-		if (transaction.empty() || transaction.size() > 24 || updates.empty() || updates.size() > 30) return false;
+		if (transaction.empty() || transaction.size() > 24 || !hq_economy::valid_receipt_key("item-data:" + transaction) || updates.empty() || updates.size() > 30) return false;
 		// Two independent FNV streams keep the receipt bounded; no raw binary in JSON keys.
 		std::uint64_t hash = 14695981039346656037ULL, second = 1099511628211ULL;
 		const auto mix = [&](const unsigned char byte) { hash = (hash ^ byte) * 1099511628211ULL; second = (second ^ byte) * 0x100000001B3ULL; };

@@ -116,7 +116,7 @@ namespace demonware::hq_marketplace
 
 	unsigned purchase(const std::string& transaction, const std::uint32_t id, const std::uint32_t quantity)
 	{
-		if (transaction.empty() || transaction.size() > 128 || transaction.find('\0') != std::string::npos || quantity != 1)
+		if (transaction.empty() || !hq_economy::valid_receipt_key("purchase:" + transaction) || quantity != 1)
 			return BD_MARKETPLACE_INVALID_PARAMETER;
 		const auto entry = find_sku(id);
 		if (!entry) return BD_MARKETPLACE_RESOURCE_NOT_FOUND;
@@ -227,7 +227,7 @@ namespace demonware::hq_marketplace
 	{
 		// IW7 candidate: context, ClientTx, count, (item ID, resulting quantity, collision).
 		std::uint32_t count{};
-		if (!context(buffer) || !buffer->read_string(&transaction) || transaction.empty() || transaction.size() > 256 ||
+		if (!context(buffer) || !buffer->read_string(&transaction) || transaction.empty() || !hq_economy::valid_receipt_key("pawn:" + transaction) ||
 			!buffer->read_uint32(&count) || count > 100) return false;
 		std::set<std::pair<std::uint32_t, std::uint16_t>> keys{};
 		std::vector<hq_economy::item> parsed{};
@@ -254,6 +254,7 @@ namespace demonware::hq_marketplace
 
 	bool pawn(const std::string& transaction, const std::vector<hq_economy::item>& items)
 	{
+		if (transaction.empty() || !hq_economy::valid_receipt_key("pawn:" + transaction)) return false;
 		// Quantity reconciliation only. Never invent a currency payout without pawn values.
 		std::string fingerprint{};
 		for (const auto& item : items) fingerprint += std::to_string(item.guid) + ":" +

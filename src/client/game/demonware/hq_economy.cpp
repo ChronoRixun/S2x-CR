@@ -43,20 +43,16 @@ namespace demonware::hq_economy
 		{
 			if (!value.IsObject() || !value.HasMember(key) || !value[key].IsString() || value[key].GetStringLength() > maximum)
 				throw std::runtime_error(std::string{"invalid economy string: "} + key);
-			return {value[key].GetString(), value[key].GetStringLength()};
+			std::string result{value[key].GetString(), value[key].GetStringLength()};
+			if (maximum == identifier_limit && result.find('\0') != std::string::npos)
+				throw std::runtime_error(std::string{"invalid economy identifier: "} + key);
+			return result;
 		}
 
-		// Identifiers reach the game through AE JSON and native string fields, so they
-		// are bounded well below the generic payload limit.
-		constexpr std::size_t identifier_limit = 128;
-
-		state load()
+		state decode(const std::string& bytes)
 		{
 			state data{};
-			if (!std::filesystem::exists(state_path)) return data;
-			if (std::filesystem::file_size(state_path) > 16 * 1024 * 1024) throw std::runtime_error("economy file too large");
-			std::string bytes{};
-			if (!utils::io::read_file(state_path, &bytes)) throw std::runtime_error("cannot read economy");
+			if (bytes.size() > 16 * 1024 * 1024) throw std::runtime_error("economy file too large");
 			rapidjson::Document document{};
 			document.Parse<rapidjson::kParseIterativeFlag>(bytes.data(), bytes.size());
 			if (document.HasParseError() || !document.IsObject() || number(document, "schemaVersion") != 1)
@@ -125,14 +121,28 @@ namespace demonware::hq_economy
 				if (!data.achievements.emplace(entry.name, entry).second) throw std::runtime_error("duplicate achievement");
 			}
 			for (const auto& value : document["transactions"].GetArray())
-				if (!data.transactions.emplace(string(value, "id", identifier_limit), string(value, "request")).second)
+			{
+				const auto id = string(value, "id", identifier_limit);
+				if (!valid_receipt_key(id)) throw std::runtime_error("invalid transaction identifier");
+				if (!data.transactions.emplace(id, string(value, "request")).second)
 					throw std::runtime_error("duplicate transaction");
+			}
 			return data;
+		}
+
+		state load()
+		{
+			if (!std::filesystem::exists(state_path)) return {};
+			if (std::filesystem::file_size(state_path) > 16 * 1024 * 1024) throw std::runtime_error("economy file too large");
+			std::string bytes{};
+			if (!utils::io::read_file(state_path, &bytes)) throw std::runtime_error("cannot read economy");
+			return decode(bytes);
 		}
 
 		bool migrate_contracts(state& data)
 		{
 			constexpr auto marker = "migration:retail-contracts-v1";
+			if (!valid_receipt_key(marker)) throw std::runtime_error("invalid migration receipt");
 			if (data.transactions.contains(marker)) return false;
 			// Run before the asset catalog is ready, so an early AE fetch cannot publish
 			// the owner's synthetic Slice-9 completions into the native cache.
@@ -150,6 +160,7 @@ namespace demonware::hq_economy
 		bool migrate_contract_tokens(state& data)
 		{
 			constexpr auto marker = "migration:retail-contract-tokens-v1";
+			if (!valid_receipt_key(marker)) throw std::runtime_error("invalid migration receipt");
 			if (data.transactions.contains(marker)) return false;
 			// Slice 10 stores already carry retail-contracts-v1. Retire every collision
 			// of its unknown StatsTable tokens without replaying purchases or claims.
@@ -194,8 +205,8 @@ namespace demonware::hq_economy
 			for (const auto& [name, entry] : data.achievements)
 			{
 				writer.StartObject();
-				writer.Key("name"); writer.String(entry.name.c_str());
-				writer.Key("challengeName"); writer.String(entry.challenge_name.c_str());
+				writer.Key("name"); writer.String(entry.name.data(), static_cast<rapidjson::SizeType>(entry.name.size()));
+				writer.Key("challengeName"); writer.String(entry.challenge_name.data(), static_cast<rapidjson::SizeType>(entry.challenge_name.size()));
 				writer.Key("kind"); writer.Int(entry.kind);
 				writer.Key("progress"); writer.Uint(entry.progress);
 				writer.Key("progressTarget"); writer.Uint(entry.target);
@@ -204,14 +215,14 @@ namespace demonware::hq_economy
 				writer.Key("offerDay"); writer.Uint64(entry.offer_day);
 				writer.Key("usageTimeTarget"); writer.Uint(entry.usage_target);
 				writer.Key("usageTime"); writer.Uint(entry.usage);
-				writer.Key("status"); writer.String(entry.status.c_str());
-				writer.Key("claimTransaction"); writer.String(entry.claim_transaction.c_str());
+				writer.Key("status"); writer.String(entry.status.data(), static_cast<rapidjson::SizeType>(entry.status.size()));
+				writer.Key("claimTransaction"); writer.String(entry.claim_transaction.data(), static_cast<rapidjson::SizeType>(entry.claim_transaction.size()));
 				writer.Key("successRewards"); writer.StartArray();
 				for (const auto& result : entry.rewards)
 				{
 					writer.StartObject();
-					writer.Key("type"); writer.String(result.type.c_str());
-					writer.Key("achievementName"); writer.String(result.achievement_name.c_str());
+					writer.Key("type"); writer.String(result.type.data(), static_cast<rapidjson::SizeType>(result.type.size()));
+					writer.Key("achievementName"); writer.String(result.achievement_name.data(), static_cast<rapidjson::SizeType>(result.achievement_name.size()));
 					writer.Key("id"); writer.Uint(result.id);
 					writer.Key("amount"); writer.Uint(result.amount);
 					writer.EndObject();
@@ -223,8 +234,8 @@ namespace demonware::hq_economy
 			for (const auto& [id, request] : data.transactions)
 			{
 				writer.StartObject();
-				writer.Key("id"); writer.String(id.c_str());
-				writer.Key("request"); writer.String(request.c_str());
+				writer.Key("id"); writer.String(id.data(), static_cast<rapidjson::SizeType>(id.size()));
+				writer.Key("request"); writer.String(request.data(), static_cast<rapidjson::SizeType>(request.size()));
 				writer.EndObject();
 			}
 			writer.EndArray(); writer.EndObject();
@@ -234,6 +245,12 @@ namespace demonware::hq_economy
 		bool save(const state& data)
 		{
 			const auto bytes = encode(data);
+			// Use the loader itself so every saved field and limit stays loadable.
+			decode(bytes);
+			for (const auto& [key, entry] : data.inventory)
+				if (key != std::make_pair(entry.guid, entry.collision)) throw std::runtime_error("invalid inventory key");
+			for (const auto& [name, entry] : data.achievements)
+				if (name != entry.name) throw std::runtime_error("invalid achievement key");
 			const auto temporary = std::string{state_path} + ".tmp";
 			const auto file = CreateFileA(temporary.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
 				FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, nullptr);
@@ -246,11 +263,17 @@ namespace demonware::hq_economy
 		}
 	}
 
+	bool valid_receipt_key(const std::string_view key)
+	{
+		return !key.empty() && key.size() <= identifier_limit && key.find('\0') == std::string_view::npos;
+	}
+
 	bool migrate_payroll(state& data)
 	{
 		// v1 parked the payroll balance in currency 7 (Social Score). A new stamp lets the
 		// corrected pass run exactly once more on a store the old marker already touched.
 		constexpr auto marker = "migration:payroll-currency6-v1";
+		if (!valid_receipt_key(marker)) throw std::runtime_error("invalid migration receipt");
 		if (data.transactions.contains(marker)) return false;
 		// Legacy native receipts contain a microsecond timestamp; manual claim
 		// receipts contain payroll_officer:<day>. Native acknowledgement of a
@@ -336,8 +359,7 @@ namespace demonware::hq_economy
 			migrate_payroll(next);
 			migrate_contracts(next);
 			migrate_contract_tokens(next);
-			if (!mutation(next) || next.revision == UINT64_MAX || next.inventory.size() > 10000 ||
-				next.achievements.size() > 10000 || next.transactions.size() > 10000) return false;
+			if (!mutation(next) || next.revision == UINT64_MAX) return false;
 			++next.revision;
 			if (!save(next)) throw std::runtime_error("atomic economy save failed");
 			cached = std::move(next);

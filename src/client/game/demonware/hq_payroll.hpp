@@ -41,6 +41,7 @@ namespace demonware::hq_payroll
 		if (seconds > now + 300) return outcome::rejected;
 		if (seconds / period != now / period) return outcome::stale; // stale batch, acknowledge only
 		const auto receipt = "payroll:" + std::to_string(seconds / period);
+		if (!hq_economy::valid_receipt_key(receipt)) return outcome::rejected;
 		// An already stamped receipt still has a completion record to republish, unless
 		// the record was pruned - then there is nothing truthful to tell the kiosk.
 		if (data.transactions.contains(receipt))

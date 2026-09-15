@@ -50,6 +50,7 @@ namespace demonware::hq_mail
 		const auto found = std::find_if(deliveries.begin(), deliveries.end(), [&](const auto& d) { return d.id == id && code == d.code; });
 		if (found == deliveries.end()) return false;
 		const auto key = "mail:" + std::to_string(id);
+		if (!hq_economy::valid_receipt_key(key)) return false;
 		if (const auto receipt = state.transactions.find(key); receipt != state.transactions.end()) return receipt->second == code;
 		// Strong rollback guarantee also for callers outside transact().
 		auto next = state;

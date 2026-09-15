@@ -5,6 +5,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace demonware::hq_economy
@@ -66,6 +67,10 @@ namespace demonware::hq_economy
 		std::map<std::string, achievement> achievements{};
 		std::map<std::string, std::string> transactions{};
 	};
+
+	// Complete persisted receipt key, including its producer prefix.
+	inline constexpr std::size_t identifier_limit = 128;
+	bool valid_receipt_key(std::string_view key);
 
 	state snapshot();
 	// Drop the in-memory copy so the next snapshot()/transact() re-reads the JSON file.
