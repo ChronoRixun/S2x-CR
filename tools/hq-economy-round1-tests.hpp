@@ -88,12 +88,15 @@ inline void round1_replay_tests()
 		require(achievement_engine::submit_event(event, true), "insert event at/beyond replay window");
 		hq_economy::invalidate();
 		const auto before = hq_economy::snapshot();
+		const auto mtime = std::filesystem::last_write_time("players2/user/hq_economy.json");
 		require(before.achievements.at("round1_kills").progress == i + 1, "one increment per new event");
 		require(achievement_engine::submit_event(event, true), "retransmit newest event after reload");
 		const auto after = hq_economy::snapshot();
+		require(after.revision == before.revision &&
+			std::filesystem::last_write_time("players2/user/hq_economy.json") == mtime, "duplicate event preserves revision and mtime");
 		require(after.achievements.at("round1_kills").progress == i + 1, "retransmission never increments twice");
 		require(std::count_if(after.transactions.begin(), after.transactions.end(),
 			[](const auto& pair) { return pair.first.starts_with("event:"); }) == 2048, "replay window stays bounded");
 	}
-	std::cout << "PASS: round1 replay insertion order across reload, 2052 events and retransmissions\n";
+	std::cout << "PASS: round1 replay insertion order across reload, 2052 events and retransmissions, duplicate revision/mtime unchanged\n";
 }

@@ -356,10 +356,17 @@ namespace demonware::hq_economy
 			std::lock_guard lock{state_mutex};
 			const file_lock disk_lock{};
 			auto next = load(); // always validate the on-disk copy before mutating it
+			const auto before = encode(next);
 			migrate_payroll(next);
 			migrate_contracts(next);
 			migrate_contract_tokens(next);
-			if (!mutation(next) || next.revision == UINT64_MAX) return false;
+			if (!mutation(next)) return false;
+			if (encode(next) == before)
+			{
+				cached = std::move(next);
+				return true;
+			}
+			if (next.revision == UINT64_MAX) return false;
 			++next.revision;
 			if (!save(next)) throw std::runtime_error("atomic economy save failed");
 			cached = std::move(next);
