@@ -385,7 +385,8 @@ namespace demonware::achievement_engine
 		loot_items = std::move(items);
 	}
 
-	bool submit_event(const reward_game_events::event& event, const bool native_payroll)
+	static bool apply_event(hq_economy::state& data, const reward_game_events::event& event,
+		const bool native_payroll, hq_payroll::push& notification)
 	{
 		const auto event_type = hq_event_predicate::event_id(event.name);
 		const auto payroll = event_type == 18;
@@ -410,8 +411,7 @@ namespace demonware::achievement_engine
 				if (parameter.selector == "2" && parameter.value) master_prestige = true;
 			const auto* published = master_prestige ? "payroll_officer_masterprestige" : "payroll_officer";
 
-			hq_payroll::push notification{};
-			const auto ok = hq_economy::transact([&](hq_economy::state& data)
+			return [&]()
 			{
 				const auto before = data.currencies.contains(hq_economy::armory_credits) ? data.currencies.at(hq_economy::armory_credits) : 0;
 				const auto result = hq_payroll::settle(data, event.timestamp, now);
@@ -456,13 +456,7 @@ namespace demonware::achievement_engine
 					std::to_string(unsigned{hq_economy::armory_credits}) + " " + std::to_string(before) + " -> " + std::to_string(after) +
 					(result == hq_payroll::outcome::granted ? " (settled)" : " (replayed, already settled this period)");
 				return true;
-			});
-			if (ok && !notification.json.empty())
-			{
-				std::lock_guard lock{hq_payroll::notification_mutex};
-				hq_payroll::notification = std::move(notification);
-			}
-			return ok;
+			}();
 		}
 
 		// Timestamp plus parameters identifies a repeated native event. Zero timestamps
@@ -484,7 +478,7 @@ namespace demonware::achievement_engine
 		for (const auto byte : fingerprint) { hash ^= static_cast<unsigned char>(byte); hash *= 1099511628211ULL; }
 		const auto key = "event:" + std::to_string(hash);
 		if (!hq_economy::valid_receipt_key(key)) return false;
-		return hq_economy::transact([&](hq_economy::state& data)
+		return [&]()
 		{
 			if (event.timestamp > 0 && data.transactions.contains(key)) return true;
 			if (payroll)
@@ -515,9 +509,19 @@ namespace demonware::achievement_engine
 			if (event.timestamp > 0)
 			{
 				if (data.revision == UINT64_MAX) return false;
-				// Each inserted event commits at a distinct revision. Persist that order
-				// in the existing receipt value; wall-clock seconds can tie or go backwards.
-				data.transactions[key] = "sequence:" + std::to_string(data.revision + 1);
+				// Events in a batch share a revision. Advance the persisted sequence
+				// separately so eviction retains insertion order within the batch too.
+				std::uint64_t sequence = data.revision;
+				for (const auto& [id, value] : data.transactions)
+				{
+					if (!id.starts_with("event:") || !value.starts_with("sequence:")) continue;
+					std::uint64_t prior{};
+					const auto text = std::string_view{value}.substr(9);
+					const auto parsed = std::from_chars(text.data(), text.data() + text.size(), prior);
+					if (parsed.ec == std::errc{} && parsed.ptr == text.data() + text.size()) sequence = std::max(sequence, prior);
+				}
+				if (sequence == UINT64_MAX) return false;
+				data.transactions[key] = "sequence:" + std::to_string(sequence + 1);
 			}
 			std::vector<std::pair<std::uint64_t, std::string>> events;
 			for (const auto& [id, value] : data.transactions)
@@ -538,7 +542,39 @@ namespace demonware::achievement_engine
 			for (std::size_t i = 2048; i < events.size(); ++i)
 				data.transactions.erase(events[i - 2048].second);
 			return true;
+		}();
+	}
+
+	bool submit_events(const std::vector<reward_game_events::event>& events, const bool native_payroll)
+	{
+		bool recognized{};
+		for (const auto& event : events)
+		{
+			if (!hq_event_predicate::event_id(event.name)) continue;
+			recognized = true;
+			if (event.timestamp < 0 || !hq_event_predicate::evaluate({}, event).valid) return false;
+		}
+		if (!recognized) return true;
+		hq_payroll::push notification{};
+		const auto ok = hq_economy::transact([&](hq_economy::state& data)
+		{
+			for (const auto& event : events)
+				if (!apply_event(data, event, native_payroll, notification)) return false;
+			return true;
 		});
+		// Publish only after the entire batch commits. The native consumer retains
+		// its existing main-thread handoff and latest-payroll notification policy.
+		if (ok && !notification.json.empty())
+		{
+			std::lock_guard lock{hq_payroll::notification_mutex};
+			hq_payroll::notification = std::move(notification);
+		}
+		return ok;
+	}
+
+	bool submit_event(const reward_game_events::event& event, const bool native_payroll)
+	{
+		return submit_events({event}, native_payroll);
 	}
 
 	std::string dispatch(const std::string_view body)

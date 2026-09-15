@@ -10,6 +10,8 @@
 
 #include "game/game.hpp"
 #include "game/demonware/hq_event_relay.hpp"
+#include "game/demonware/hq_relay_queue.hpp"
+#include "game/demonware/achievement_engine.hpp"
 #include "game/demonware/hq_protocol.hpp"
 #include "steam/steam.hpp"
 
@@ -40,6 +42,39 @@ namespace hidden_challenge_relay
 		std::atomic_bool accepting_forwards{};
 		std::mutex pending_forward_mutex{};
 		std::deque<pending_forward> pending_forwards{};
+
+		demonware::hq_event_relay::client_queue client_events;
+
+		bool queue_client_event(const demonware::reward_game_events::event& event)
+		{
+			if (client_events.push(event)) return true;
+			static std::uint64_t next_warning{};
+			const auto now = GetTickCount64();
+			if (now >= next_warning)
+			{
+				next_warning = now + 5000;
+				console::warn("[HQ relay] client queue full; dropping newest event\n");
+			}
+			return false;
+		}
+
+		void process_client_events()
+		{
+			// Only the async worker owns the in-flight batch. A failed transaction
+			// keeps it ahead of later events; queue producers never wait on store I/O.
+			static std::vector<demonware::reward_game_events::event> batch;
+			if (!accepting_forwards.load()) return;
+			try
+			{
+				if (batch.empty()) batch = client_events.take();
+				if (batch.empty()) return;
+				if (!demonware::achievement_engine::submit_events(batch, true)) return;
+				if (utils::flags::has_flag("-demonware_debug"))
+					console::info("[HQ relay] applied %zu queued events\n", batch.size());
+				batch.clear();
+			}
+			catch (...) { console::warn("[HQ relay] could not apply queued server events\n"); }
+		}
 
 		bool parse_unsigned(const char* text, std::uint32_t& value)
 		{
@@ -73,14 +108,7 @@ namespace hidden_challenge_relay
 					}
 					static demonware::hq_event_relay::receiver receiver;
 					const auto user = steam::SteamUser()->GetSteamID().bits;
-					const auto ok = receiver.accept(wire, user, GetTickCount64(), [user](const auto& event)
-					{
-						const auto applied = demonware::submit_hq_event(event);
-						demonware::hq_protocol::trace(applied ? "relay_applied" : "relay_rejected",
-							demonware::hq_event_relay::encode(user, event));
-						return applied;
-					});
-					if (!ok) demonware::hq_protocol::trace("relay_rejected_chunk", wire);
+					receiver.accept(wire, user, GetTickCount64(), queue_client_event);
 				}
 				catch (...) { console::warn("[HQ relay] could not apply server event\n"); }
 				return;
@@ -345,6 +373,8 @@ namespace hidden_challenge_relay
 
 			if (!game::environment::is_dedicated())
 			{
+				if (!game::environment::is_zombies())
+					scheduler::loop(process_client_events, scheduler::pipeline::async, 100ms);
 				deploy_server_command_hook.create(game::CG_DeployServerCommandString,
 					deploy_server_command_stub);
 			}
