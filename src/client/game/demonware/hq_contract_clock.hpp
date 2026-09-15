@@ -14,6 +14,12 @@ namespace demonware
 
 		void tick(const bool playing, const clock::time_point now)
 		{
+			// Observe play boundaries even when the store cannot be read.
+			for (auto& [name, timer] : timers_)
+			{
+				if (playing && timer.last) timer.pending += now - *timer.last;
+				timer.last = playing ? std::optional{now} : std::nullopt;
+			}
 			const auto data = hq_economy::snapshot(); // Cached read; idle timers never open a transaction.
 			std::erase_if(timers_, [&](const auto& pair)
 			{
@@ -26,10 +32,13 @@ namespace demonware
 				if (entry.kind != 4 || entry.status != "inProgress" || !entry.usage_target) continue;
 				auto [it, inserted] = timers_.try_emplace(name);
 				auto& timer = it->second;
-				if (inserted) { timer.activation = entry.activation; timer.generation = entry.activation_generation; }
-				// New activations start here, never at another activation's previous sample.
-				if (playing && timer.last) timer.pending += now - *timer.last;
-				timer.last = playing ? std::optional{now} : std::nullopt;
+				if (inserted)
+				{
+					timer.activation = entry.activation;
+					timer.generation = entry.activation_generation;
+					// New activations start here; existing timers were already sampled above.
+					timer.last = playing ? std::optional{now} : std::nullopt;
+				}
 				due |= timer.seconds() != 0;
 			}
 			if (!due) return;
