@@ -17,7 +17,7 @@ The project is inspired by the work of the former XLabs community, but S2x is an
 
 ### Headquarters economy
 
-Headquarters balances, inventory, Orders, contracts, Mail and reward receipts are saved in `players2/user/hq_economy.json`; use `hqeconomy reload` in the console to reload it. If two game instances share a profile, one sees the other's commits only after its next successful mutation or an explicit reload; the file lock prevents lost writes. The receipt ledger holds at most 10,000 entries, and permanent claim, purchase, drop and payroll receipts are never pruned, so new rewards and purchases eventually fail when it fills. Deleting this file resets only the Headquarters economy.
+Headquarters balances, inventory, Orders, contracts, Mail and reward receipts are saved in `players2/user/hq_economy.json`; `hqeconomy reload` in the console reloads it. If two game instances share one profile, each sees the other's saved changes only after its own next successful economy change or an `hqeconomy reload`; the file lock prevents lost writes. The receipt ledger holds at most 10,000 entries and is never pruned, so after enough play new claims, purchases and payroll stop saving and the console says so once. Deleting `players2/user/hq_economy.json` with every instance closed resets the Headquarters economy and nothing else.
 
 ## Requirements
 

@@ -11,9 +11,9 @@ namespace demonware::hq_economy
 		constexpr auto state_path = "players2/user/hq_economy.json";
 		std::mutex state_mutex{};
 		// Parsed copy of the store. snapshot() runs on the game's main thread from
-		// the AE injection loop, so it must not touch the disk once loaded; the
-		// another instance's commits are observed only after a successful transact()
-		// or explicit hqeconomy reload (invalidate()). The file lock prevents lost writes.
+		// the AE injection loop, so it must not touch the disk once loaded; another
+		// instance's saved changes are observed only after a successful transact()
+		// or an explicit hqeconomy reload (invalidate()). The file lock prevents lost writes.
 		std::optional<state> cached{};
 
 		class file_lock
