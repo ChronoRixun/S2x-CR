@@ -943,7 +943,10 @@ namespace demonware::achievement_engine
 			else
 			{
 				hq_protocol::trace("unsupported_ae_json", std::string{body});
-				console::warn("[HQ AE] unsupported action '%s': %.*s\n", action.c_str(), static_cast<int>(std::min<std::size_t>(body.size(), 768)), body.data());
+				auto logged_action = action.substr(0, 64);
+				for (auto& byte : logged_action)
+					if (byte < 32 || byte > 126 || byte == '\'' || byte == '\\') byte = '?';
+				console::warn("[HQ AE] unsupported action '%s': unsupported_action\n", logged_action.c_str());
 				return fail("unsupported_action");
 			}
 			return encode(response);
