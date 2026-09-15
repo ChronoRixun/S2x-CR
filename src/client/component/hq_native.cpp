@@ -73,6 +73,7 @@ namespace hq_native
 		constexpr unsigned native_wallet_slots = demonware::hq_economy::native_wallet_slots;
 		// Main-pipeline ownership, scoped to the native caches' ready lifetime.
 		std::set<unsigned> managed_currencies, managed_items;
+		bool inventory_notification_dirty{};
 
 		void wallet_status()
 		{
@@ -292,24 +293,23 @@ namespace hq_native
 			if (!entry.guid || entry.collision || entry.metadata.size() > 64) return;
 			managed_items.insert(entry.guid);
 			const auto item = demonware::hq_inventory_cache::project(entry, static_cast<std::uint64_t>(time(nullptr)));
+			inventory_notification_dirty = true; // Retain notification work even if a native call partially fails.
 			utils::hook::invoke<unsigned>(0x27DD30_g, 0, &item, 0, 0, entry.metadata.data(), static_cast<unsigned char>(entry.metadata.size()));
 		}
 
 		void sync_inventory()
 		{
 			// Wait for165's native callback; never seed or reset its ready flag.
-			if (!*reinterpret_cast<const unsigned char*>(0x80385A8_g)) { managed_items.clear(); return; }
+			if (!*reinterpret_cast<const unsigned char*>(0x80385A8_g)) { managed_items.clear(); inventory_notification_dirty = false; return; }
 			try
 			{
 				const auto data = demonware::hq_economy::snapshot();
 				const auto now = static_cast<std::uint64_t>(time(nullptr));
-				bool changed{};
 				for (auto it = managed_items.begin(); it != managed_items.end();)
 				{
 					if (data.inventory.contains({*it, 0})) { ++it; continue; }
 					refresh_item({*it, 0});
 					it = managed_items.erase(it);
-					changed = true;
 				}
 				for (const auto& [key, entry] : data.inventory)
 				{
@@ -327,13 +327,17 @@ namespace hq_native
 					if (quantity == expected && (!cached ||
 						(cached->expires == projected.expires && cached->duration == projected.duration))) continue;
 					refresh_item(entry);
-					changed = true;
-					demonware::hq_protocol::trace("inventory_native_refresh", std::to_string(entry.guid) + ":" + std::to_string(quantity) + "->" + std::to_string(expected));
+					try
+					{
+						demonware::hq_protocol::trace("inventory_native_refresh", std::to_string(entry.guid) + ":" + std::to_string(quantity) + "->" + std::to_string(expected));
+					}
+					catch (...) {} // Optional diagnostics must not interrupt cache synchronization.
 				}
-				if (changed)
+				if (inventory_notification_dirty)
 				{
 					utils::hook::invoke<void>(0xD5F30_g, 0);
 					utils::hook::invoke<void>(0x2752E0_g, 0, 2);
+					inventory_notification_dirty = false;
 				}
 			}
 			catch (const std::exception& error)
