@@ -683,14 +683,13 @@ namespace hq_native
 			for (const auto& entry : demonware::hq_marketplace::catalog())
 			{
 				if (!*entry.contract) continue;
-				void* record{};
-				const auto result = sku_lookup(entry.id, &record);
-				const auto* bytes = static_cast<const unsigned char*>(record);
-				if (result != 0 || !bytes)
+				const auto cached = native_skus.find(entry.id);
+				if (cached == native_skus.end())
 				{
-					console::warn("[HQ contracts] sku %u (%s) lookup failed (result=%u)\n", entry.id, entry.contract, result);
+					console::info("[HQ contracts] sku %u (%s) not cached\n", entry.id, entry.contract);
 					continue;
 				}
+				const auto* bytes = cached->second.bytes.data();
 				std::string items;
 				for (unsigned item = 0; item < bytes[0x244]; ++item)
 				{
@@ -801,7 +800,7 @@ namespace hq_native
 			command::add("hqtask99", task99);
 			command::add("hqskutest", sku_test);
 			command::add("hqpayrollstate", payroll_state);
-			command::add("hqcontracts", contract_state);
+			command::add("hqcontracts", [] { scheduler::once(contract_state, scheduler::pipeline::main); });
 			command::add("hqownership", ownership_status);
 		}
 	};
