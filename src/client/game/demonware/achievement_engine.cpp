@@ -8,6 +8,7 @@
 #include "steam/steam.hpp"
 #include <charconv>
 #include <random>
+#include <set>
 
 namespace demonware::achievement_engine
 {
@@ -689,6 +690,23 @@ namespace demonware::achievement_engine
 			for (const auto& [name, entry] : data.achievements)
 				if ((entry.kind == 1 || entry.kind == 2) && (entry.status == "available" || entry.status == "inProgress" || entry.status == "claimable" ||
 					(entry.status == "finished" && (entry.kind == 2 ? entry.offer_day / 7 == day / 7 : entry.offer_day == day)))) scheduled.push_back(entry);
+			std::set<std::string> legacy_names;
+			const auto append_legacy = [&](rapidjson::Value& results)
+			{
+				for (const auto& legacy : achievement_store::get_all())
+				{
+					// Persisted legacy completions win name collisions with HQ records.
+					if (!legacy_names.insert(legacy.name).second) continue;
+					hq_economy::achievement filter{};
+					filter.name = legacy.name; filter.kind = legacy.kind;
+					filter.status = get_achievement_status_name(legacy.status);
+					if (matches(request, filter))
+					{
+						auto record = achievement_response::serialize_achievements({legacy}, alloc);
+						results.PushBack(record[0], alloc);
+					}
+				}
+			};
 			if (action == "get_user_achievements_for_users")
 			{
 				if (request.HasMember("UserIDs") && !request["UserIDs"].IsArray()) return fail("invalid_user_ids");
@@ -701,8 +719,14 @@ namespace demonware::achievement_engine
 					std::size_t limit = 1000;
 					if (request.HasMember("Limit") && request["Limit"].IsUint() && request["Limit"].GetUint())
 						limit = std::min<std::size_t>(1000, request["Limit"].GetUint());
-					if (id == local_id) for (const auto& [name, entry] : data.achievements)
-						if (entries.Size() < limit && !redeemed_order(entry) && matches(request, entry)) entries.PushBack(serialize(entry, alloc, day), alloc);
+					if (id == local_id)
+					{
+						append_legacy(entries);
+						for (const auto& [name, entry] : data.achievements)
+							if (!legacy_names.contains(name) && !redeemed_order(entry) && matches(request, entry))
+								entries.PushBack(serialize(entry, alloc, day), alloc);
+						if (entries.Size() > limit) entries.Erase(entries.Begin() + limit, entries.End());
+					}
 					users.AddMember(text(id, alloc), entries, alloc);
 				};
 				if (request.HasMember("UserIDs") && request["UserIDs"].IsArray())
@@ -734,20 +758,7 @@ namespace demonware::achievement_engine
 						return encode(response);
 					}
 				}
-				if (action == "get_user_achievements")
-					{
-					for (const auto& legacy : achievement_store::get_all())
-					{
-						hq_economy::achievement filter{};
-						filter.name = legacy.name; filter.kind = legacy.kind;
-						filter.status = get_achievement_status_name(legacy.status);
-						if (matches(request, filter))
-						{
-							auto record = achievement_response::serialize_achievements({legacy}, alloc);
-							results.PushBack(record[0], alloc);
-						}
-					}
-					}
+				if (action == "get_user_achievements") append_legacy(results);
 				std::vector<hq_economy::achievement> entries{};
 				if (action == "get_scheduled_user_achievements")
 				{
@@ -771,7 +782,7 @@ namespace demonware::achievement_engine
 				else for (const auto& [name, entry] : data.achievements)
 				{
 					if ((entry.status == "expired") != (action == "get_expired_user_achievements")) continue;
-					if (action == "get_user_achievements" && redeemed_order(entry)) continue;
+					if (action == "get_user_achievements" && (legacy_names.contains(name) || redeemed_order(entry))) continue;
 					if (action == "get_expired_user_achievements" && request.HasMember("Timestamp"))
 					{
 						if (!request["Timestamp"].IsUint64()) return fail("invalid_timestamp");
