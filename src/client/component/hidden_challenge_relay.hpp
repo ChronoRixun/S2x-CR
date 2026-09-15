@@ -6,5 +6,5 @@
 namespace hidden_challenge_relay
 {
 	void submit(std::uint64_t user_id, std::uint32_t group, std::uint32_t challenge);
-	void submit_reward(std::uint64_t user_id, const demonware::reward_game_events::event& event);
+	demonware::reward_delivery submit_reward(std::uint64_t user_id, const demonware::reward_game_events::event& event);
 }

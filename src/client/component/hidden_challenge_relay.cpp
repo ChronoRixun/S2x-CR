@@ -44,6 +44,7 @@ namespace hidden_challenge_relay
 		std::deque<pending_forward> pending_forwards{};
 
 		demonware::hq_event_relay::client_queue client_events;
+		demonware::hq_event_relay::server_queue server_events;
 
 		bool queue_client_event(const demonware::reward_game_events::event& event)
 		{
@@ -69,9 +70,10 @@ namespace hidden_challenge_relay
 				if (batch.empty()) batch = client_events.take();
 				if (batch.empty()) return;
 				if (!demonware::achievement_engine::submit_events(batch, true)) return;
+				const auto count = batch.size();
+				batch.clear(); // A diagnostic failure must not replay a committed batch.
 				if (utils::flags::has_flag("-demonware_debug"))
-					console::info("[HQ relay] applied %zu queued events\n", batch.size());
-				batch.clear();
+					console::info("[HQ relay] applied %zu queued events\n", count);
 			}
 			catch (...) { console::warn("[HQ relay] could not apply queued server events\n"); }
 		}
@@ -153,12 +155,11 @@ namespace hidden_challenge_relay
 			{
 				std::lock_guard lock{pending_forward_mutex};
 				if (game::environment::is_zombies()) forwards.swap(pending_forwards);
-				else for (unsigned i = 0; i < 32 && !pending_forwards.empty(); ++i)
-				{
-					forwards.push_back(std::move(pending_forwards.front()));
-					pending_forwards.pop_front();
-				}
 			}
+
+			if (!game::environment::is_zombies())
+				for (auto& [user, part] : server_events.take(32))
+					forwards.push_back({user, 0, 0, std::move(part)});
 
 			for (const auto& forward : forwards)
 			{
@@ -298,17 +299,20 @@ namespace hidden_challenge_relay
 				// Distinct timestamps: the store's replay receipt is (event id, timestamp,
 				// sorted parameters), so otherwise identical kills would collapse into one.
 				auto stamp = base;
+				unsigned failed{};
 				for (std::uint32_t i = 0; i < kills; ++i)
 				{
 					auto event = synthetic_kill(stamp++, i < headshots);
-					demonware::route_reward_user_event(xuid, event);
+					if (demonware::route_reward_user_event(xuid, event) == demonware::reward_delivery::retryable_failure) ++failed;
 				}
 				auto multi = synthetic_event("multi_kill", stamp++, {{1, 4}, {2, 1}, {3, 2}});
-				demonware::route_reward_user_event(xuid, multi);
+				if (demonware::route_reward_user_event(xuid, multi) == demonware::reward_delivery::retryable_failure) ++failed;
 				auto win = synthetic_event("end_game", stamp++, {{1, 1}, {2, 1}});
-				demonware::route_reward_user_event(xuid, win);
+				if (demonware::route_reward_user_event(xuid, win) == demonware::reward_delivery::retryable_failure) ++failed;
 				console::info("[HQ relay test] target slot %zu: %u killed_a_player (%u with selector 6 = 1), 1 multi_kill, 1 end_game\n",
 					slot, kills, headshots);
+				console::info("[HQ relay test] target slot %zu: %u accepted, %u retryable failures\n",
+					slot, kills + 2 - failed, failed);
 			}
 		}
 
@@ -316,6 +320,7 @@ namespace hidden_challenge_relay
 		{
 			std::lock_guard lock{pending_forward_mutex};
 			pending_forwards.clear();
+			server_events.clear();
 		}
 	}
 
@@ -342,24 +347,20 @@ namespace hidden_challenge_relay
 		pending_forwards.push_back({user_id, group, challenge});
 	}
 
-	void submit_reward(const std::uint64_t user_id, const demonware::reward_game_events::event& event)
+	demonware::reward_delivery submit_reward(const std::uint64_t user_id,
+		const demonware::reward_game_events::event& event)
 	{
-		if (!accepting_forwards.load() || game::environment::is_zombies()) return;
+		using demonware::reward_delivery;
+		if (!accepting_forwards.load() || game::environment::is_zombies()) return reward_delivery::retryable_failure;
 		try
 		{
-			auto wire = demonware::hq_event_relay::encode(user_id, event);
-			if (wire.empty()) { console::debug("[HQ relay] ignored invalid server event\n"); return; }
-			auto parts = demonware::hq_event_relay::chunks(user_id, wire);
+			// Serialize acceptance against shutdown, just like hidden completions.
 			std::lock_guard lock{pending_forward_mutex};
-			if (!accepting_forwards.load()) return;
-			if (pending_forwards.size() + parts.size() > 4800)
-			{
-				console::debug("[HQ relay] pending forward queue is full\n");
-				return;
-			}
-			for (auto& part : parts) pending_forwards.push_back({user_id, 0, 0, std::move(part)});
+			if (!accepting_forwards.load()) return reward_delivery::retryable_failure;
+			return server_events.push(user_id, event);
 		}
 		catch (...) { console::warn("[HQ relay] could not queue server event\n"); }
+		return reward_delivery::retryable_failure;
 	}
 
 	class component final : public multiplayer_component

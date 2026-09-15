@@ -42,9 +42,11 @@ namespace demonware
 			std::vector<user_event_batch>& users, bool extended_parameters, std::string& reason);
 	}
 
+	enum class reward_delivery { applied, queued, retryable_failure };
+
 	bool submit_hq_event(const reward_game_events::event& event);
 
 	// bdReward.cpp: the single task-11 routing path (local store or relay, then
 	// hidden challenges). Shared with the `hqrelaytest` synthetic batch command.
-	void route_reward_user_event(std::uint64_t user_id, reward_game_events::event& event);
+	reward_delivery route_reward_user_event(std::uint64_t user_id, reward_game_events::event& event);
 }
