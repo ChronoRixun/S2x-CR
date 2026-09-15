@@ -220,59 +220,53 @@ namespace hidden_challenge_relay
 		// calls, so the events reach the owning client over the ordinary chunked relay.
 		void relay_test_command(const command::params& params)
 		{
+			std::uint64_t requested_xuid{};
+			std::uint32_t kills = 1, headshots = 0;
+			if (params.size() < 2 || params.size() > 4 ||
+				(std::string_view{params[1]} != "all" &&
+					(!demonware::hq_event_relay::number(std::string_view{params[1]}, requested_xuid) || !requested_xuid)) ||
+				(params.size() > 2 && !parse_unsigned(params[2], kills)) ||
+				(params.size() > 3 && !parse_unsigned(params[3], headshots)))
+			{
+				console::info("[HQ relay test] usage: hqrelaytest <xuid|all> [kills] [headshots] (sends synthetic reward events to connected clients; requires sv_cheats 1)\n");
+				return;
+			}
 			if (game::environment::is_zombies())
 			{
 				console::info("[HQ relay test] multiplayer only\n");
 				return;
 			}
-			const auto dedicated = game::environment::is_dedicated();
-			const auto local = dedicated ? 0ull : steam::SteamUser()->GetSteamID().bits;
-			console::info("[HQ relay test] running on a %s; local XUID %llu\n",
-				dedicated ? "dedicated server" : "client", static_cast<unsigned long long>(local));
-			const auto members = party_xuids();
-			for (const auto xuid : members)
-				console::info("[HQ relay test] party member XUID %llu\n", static_cast<unsigned long long>(xuid));
-			if (params.size() < 2)
+			// Match the existing multiplayer developer commands' sv_cheats gate.
+			const auto* cheats = game::Dvar_FindMalleableVar("sv_cheats");
+			if (!cheats || !cheats->current.enabled)
 			{
-				console::info("[HQ relay test] usage: hqrelaytest <xuid|all> [kills] [headshots]\n");
+				console::info("[HQ relay test] requires sv_cheats 1; sends synthetic reward events to connected clients\n");
 				return;
 			}
-
+			const auto dedicated = game::environment::is_dedicated();
+			const auto local = dedicated ? 0ull : steam::SteamUser()->GetSteamID().bits;
+			const auto members = party_xuids();
 			std::vector<std::uint64_t> targets{};
-			if (std::string_view{params[1]} == "all")
+			if (requested_xuid) targets.push_back(requested_xuid);
+			else
 			{
 				targets = members;
 				if (targets.empty() && local) targets.push_back(local);
-				if (targets.empty())
-				{
-					console::info("[HQ relay test] no addressable member; pass an explicit XUID\n");
-					return;
-				}
 			}
-			else
+			if (targets.empty())
 			{
-				std::uint64_t xuid{};
-				if (!demonware::hq_event_relay::number(std::string_view{params[1]}, xuid) || !xuid)
-				{
-					console::info("[HQ relay test] '%s' is not a XUID\n", params[1]);
-					return;
-				}
-				targets.push_back(xuid);
-			}
-
-			std::uint32_t kills = 1, headshots = 0;
-			if ((params.size() > 2 && !parse_unsigned(params[2], kills)) ||
-				(params.size() > 3 && !parse_unsigned(params[3], headshots)))
-			{
-				console::info("[HQ relay test] kills and headshots must be numbers\n");
+				console::info("[HQ relay test] no addressable member; pass an explicit XUID\n");
 				return;
 			}
+			console::info("[HQ relay test] running on a %s; %zu party members, %zu targets\n",
+				dedicated ? "dedicated server" : "client", members.size(), targets.size());
 			if (kills > maximum_synthetic_kills) kills = maximum_synthetic_kills;
 			if (headshots > kills) headshots = kills;
 
 			const auto base = static_cast<std::int64_t>(time(nullptr));
-			for (const auto xuid : targets)
+			for (std::size_t slot = 0; slot < targets.size(); ++slot)
 			{
+				const auto xuid = targets[slot];
 				// Distinct timestamps: the store's replay receipt is (event id, timestamp,
 				// sorted parameters), so otherwise identical kills would collapse into one.
 				auto stamp = base;
@@ -285,8 +279,8 @@ namespace hidden_challenge_relay
 				demonware::route_reward_user_event(xuid, multi);
 				auto win = synthetic_event("end_game", stamp++, {{1, 1}, {2, 1}});
 				demonware::route_reward_user_event(xuid, win);
-				console::info("[HQ relay test] XUID %llu: %u killed_a_player (%u with selector 6 = 1), 1 multi_kill, 1 end_game\n",
-					static_cast<unsigned long long>(xuid), kills, headshots);
+				console::info("[HQ relay test] target slot %zu: %u killed_a_player (%u with selector 6 = 1), 1 multi_kill, 1 end_game\n",
+					slot, kills, headshots);
 			}
 		}
 
