@@ -47,11 +47,15 @@ namespace demonware::hq_event_relay
 	};
 
 	// Capacity counts whole events, including an event partly sent this frame.
-	// At most 16 MiB of encoded payload is retained (2048 * maximum_wire).
+	// Bound both event slots and encoded bytes, including outstanding reservations.
 	class server_queue
 	{
 	public:
-		static constexpr std::size_t capacity = 2048;
+		// Task 11 accepts 48 * 100 events; leave 320 slots for smaller queued requests.
+		static constexpr std::size_t capacity = 5120;
+		// Decimal fields expand by at most 3x, plus under 64 header bytes/event:
+		// 3 * 3 MiB + 4800 * 64 < 10 MiB. Keep 2 MiB additional headroom.
+		static constexpr std::size_t byte_capacity = 12 * 1024 * 1024;
 
 		reward_delivery push(const std::uint64_t user, const reward_game_events::event& event)
 		{
@@ -63,35 +67,43 @@ namespace demonware::hq_event_relay
 		{
 			// Allocate and encode before accepting anything; publication is a no-throw splice.
 			std::list<pending_event> prepared;
+			std::size_t bytes{};
 			for (const auto& [user, event] : events)
 			{
 				auto wire = encode(user, event);
 				if (wire.empty()) return reward_delivery::permanent_failure;
+				if (prepared.size() == capacity || wire.size() > byte_capacity - bytes)
+					return reward_delivery::retryable_failure;
+				bytes += wire.size();
 				prepared.push_back({user, std::move(wire), 0});
 			}
 			const auto count = prepared.size();
 			{
 				std::lock_guard lock{mutex_};
-				if (count > capacity - pending_.size() - reserved_) return reward_delivery::retryable_failure;
+				if (count > capacity - pending_.size() - reserved_ || bytes > byte_capacity - pending_bytes_ - reserved_bytes_) return reward_delivery::retryable_failure;
 				reserved_ += count;
+				reserved_bytes_ += bytes;
 			}
 			// Request-scoped ownership releases capacity on failure or exception.
 			struct reservation
 			{
 				server_queue& queue;
-				std::size_t count;
+				std::size_t count, bytes;
 				~reservation()
 				{
 					std::lock_guard lock{queue.mutex_};
 					queue.reserved_ -= count;
+					queue.reserved_bytes_ -= bytes;
 				}
-			} reserved{*this, count};
+			} reserved{*this, count, bytes};
 			if (!apply_local()) return reward_delivery::retryable_failure;
 			{
 				std::lock_guard lock{mutex_};
 				pending_.splice(pending_.end(), prepared);
 				reserved_ -= count;
-				reserved.count = 0;
+				reserved_bytes_ -= bytes;
+				pending_bytes_ += bytes;
+				reserved.count = reserved.bytes = 0;
 			}
 			return count ? reward_delivery::queued : reward_delivery::applied;
 		}
@@ -110,7 +122,11 @@ namespace demonware::hq_event_relay
 					result.emplace_back(event.user, std::move(parts[event.next]));
 					++event.next;
 				}
-				if (event.next == parts.size()) pending_.pop_front();
+				if (event.next == parts.size())
+				{
+					pending_bytes_ -= event.wire.size();
+					pending_.pop_front();
+				}
 			}
 			return result;
 		}
@@ -119,6 +135,7 @@ namespace demonware::hq_event_relay
 		{
 			std::lock_guard lock{mutex_};
 			pending_.clear();
+			pending_bytes_ = 0;
 		}
 
 	private:
@@ -130,6 +147,6 @@ namespace demonware::hq_event_relay
 		};
 		std::mutex mutex_;
 		std::list<pending_event> pending_;
-		std::size_t reserved_{};
+		std::size_t reserved_{}, pending_bytes_{}, reserved_bytes_{};
 	};
 }
