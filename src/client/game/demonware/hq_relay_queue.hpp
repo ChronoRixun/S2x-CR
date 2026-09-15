@@ -13,6 +13,12 @@ namespace demonware::hq_event_relay
 	public:
 		static constexpr std::size_t capacity = 256, batch_size = 32;
 
+		bool full()
+		{
+			std::lock_guard lock{mutex_};
+			return pending_.size() == capacity;
+		}
+
 		bool push(const reward_game_events::event& event)
 		{
 			std::lock_guard lock{mutex_};

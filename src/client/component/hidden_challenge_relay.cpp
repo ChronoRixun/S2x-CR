@@ -46,6 +46,17 @@ namespace hidden_challenge_relay
 		demonware::hq_event_relay::client_queue client_events;
 		demonware::hq_event_relay::server_queue server_events;
 
+		void warn_client_overflow()
+		{
+			static std::uint64_t next_warning{};
+			const auto now = GetTickCount64();
+			if (now >= next_warning)
+			{
+				next_warning = now + 5000;
+				console::warn("[HQ relay] client queue full; dropping newest event\n");
+			}
+		}
+
 		bool queue_client_event(const demonware::reward_game_events::event& event)
 		{
 			if (!demonware::achievement_engine::valid_event(event, true))
@@ -60,13 +71,7 @@ namespace hidden_challenge_relay
 				return false;
 			}
 			if (client_events.push(event)) return true;
-			static std::uint64_t next_warning{};
-			const auto now = GetTickCount64();
-			if (now >= next_warning)
-			{
-				next_warning = now + 5000;
-				console::warn("[HQ relay] client queue full; dropping newest event\n");
-			}
+			warn_client_overflow();
 			return false;
 		}
 
@@ -111,6 +116,12 @@ namespace hidden_challenge_relay
 				if (game::environment::is_zombies() || local_client_num != 0 || params.size() != 7) return;
 				try
 				{
+					// Drop before reconstruction/reassembly/decoding when no slot is free.
+					if (client_events.full())
+					{
+						warn_client_overflow();
+						return;
+					}
 					std::string wire;
 					for (auto i = 0; i < params.size(); ++i)
 					{
