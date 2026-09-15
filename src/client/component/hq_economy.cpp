@@ -8,6 +8,7 @@
 #include <charconv>
 #include "game/demonware/hq_marketplace.hpp"
 #include "game/demonware/hq_contract_catalog.hpp"
+#include "game/demonware/hq_contract_clock.hpp"
 #include <utils/hook.hpp>
 
 namespace hq_economy
@@ -115,21 +116,20 @@ namespace hq_economy
 
 		void tick_contracts()
 		{
-			static bool playing{};
+			static demonware::hq_contract_clock timer;
 			const auto* mode = game::Dvar_FindMalleableVar("g_gametype");
 			const bool current = game::CL_IsLocalClientInGame(0) && !*game::virtualLobby_Loaded &&
 				mode && mode->current.string && std::string_view{mode->current.string} != "hub";
+			const auto seconds = timer.sample(current, demonware::hq_contract_clock::clock::now());
 			try
 			{
-				if (playing && current)
+				if (seconds && demonware::hq_economy::transact([&](auto& data)
 				{
-					auto preview = demonware::hq_economy::snapshot();
-					if (demonware::achievement_engine::advance_contract_time(preview, 1))
-						demonware::hq_economy::transact([](auto& data) { return demonware::achievement_engine::advance_contract_time(data, 1); });
-				}
+					demonware::achievement_engine::advance_contract_time(data, seconds);
+					return true; // No active timers still acknowledges this interval.
+				})) timer.committed(seconds);
 			}
 			catch (const std::exception& e) { console::warn("[HQ contracts] timer: %s\n", e.what()); }
-			playing = current;
 		}
 
 		void load_catalog()
