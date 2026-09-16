@@ -121,8 +121,9 @@ namespace demonware::hq_event_relay
 				auto& event = *it;
 				// Keep each user's whole-event order while other users pass a blocked one.
 				if (blocked.contains(event.user)) { ++it; continue; }
-				// Never restart a paused event: ordered reliable delivery preserves its
-				// receiver partial. Blocking this user also blocks all its later events.
+				// Resume a paused event at its next fragment; block all later events for this user.
+				// Within one uninterrupted connection, the possibly lagging receiver sees ordered
+				// continuations or the next event's fragment zero, so pauses never orphan a partial.
 				auto parts = chunks(event.user, event.wire);
 				while (event.next < parts.size() && result.size() < limit)
 				{

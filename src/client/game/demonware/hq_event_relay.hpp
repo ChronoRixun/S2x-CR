@@ -101,10 +101,11 @@ namespace demonware::hq_event_relay
 		return result;
 	}
 
-	// Reliable commands arrive in order and server_queue drains one event per client
-	// at a time. One bounded partial tracks that stream's current event, without a
-	// deadline. An engine disconnect ends the stream; the next fragment zero replaces
-	// any remaining partial before a new connection can complete an event.
+	// Within one uninterrupted connection, reliable fragments arrive in order and
+	// server_queue drains events one at a time per client. The receiver may lag behind
+	// selection: its next fragment continues its partial or is a fragment zero that
+	// replaces it. Paused sends resume at the next fragment, never orphaning a partial.
+	// Keep one bounded partial without a deadline; reconnect recovery is not guaranteed.
 	class receiver
 	{
 	public:
@@ -132,6 +133,8 @@ namespace demonware::hq_event_relay
 			{
 				reset(); user_ = user; hash_ = hash; total_ = total;
 			}
+			// After header/length validation, wrong-identity/index continuations preserve the partial.
+			// Earlier validation failures (and invalid hex below) reset it.
 			if (user != user_ || hash != hash_ || total != total_ || index != next_) return false;
 			const auto hex = [](const char c) { return c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : -1; };
 			for (std::size_t i = 0; i < part.size(); i += 2)

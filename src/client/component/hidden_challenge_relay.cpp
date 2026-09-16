@@ -30,9 +30,7 @@ namespace hidden_challenge_relay
 	{
 		constexpr std::string_view server_command = "s2x_hc";
 		constexpr auto maximum_pending_forwards = 128u;
-		// Two per XUID leave room for all 48 party members within the global cap,
-		// even when connected clients wait indefinitely below the send threshold.
-		constexpr auto maximum_forwards_per_client = 2u;
+		// Connected Zombies clients retain forwards from state 3; sends require state 5.
 		constexpr auto minimum_command_client_state = 5;
 		// Four fragments per client/frame smooth bursts; 32 outstanding leaves 96
 		// of the engine's 128 reliable slots available for ordinary game traffic.
@@ -67,6 +65,7 @@ namespace hidden_challenge_relay
 
 		demonware::hq_event_relay::receiver& client_receiver()
 		{
+			// Owned by the client command-hook thread.
 			static demonware::hq_event_relay::receiver receiver;
 			return receiver;
 		}
@@ -221,7 +220,7 @@ namespace hidden_challenge_relay
 				if (!game::environment::is_zombies())
 				{
 					std::map<unsigned, unsigned> scheduled;
-					// The party has at most 48 members: every eligible client gets its budget.
+					// Budget for the engine's 48 party slots so every eligible client gets its allowance.
 					auto parts = server_events.take(48 * fragments_per_client_frame, [&](const std::uint64_t user)
 					{
 						const auto client_num = game::Party_FindMemberByXUID(party, user);
@@ -282,7 +281,7 @@ namespace hidden_challenge_relay
 			}
 		}
 
-		// Party_FindMemberByXUID (0x6FDDA0) walks 48 entries of a 0x38-byte table inside
+		// Party_FindMemberByXUID (0x6FDDA0) walks the engine's 48 party slots (0x38 bytes each) inside
 		// PartyData: a presence byte at +0xC0 + i * 0x38 and the member XUID at
 		// +0x90 + i * 0x38 (it returns 0xFF when no entry matches). Enumerating with the
 		// same layout means `hqrelaytest all` can only address members the relay itself
@@ -430,15 +429,20 @@ namespace hidden_challenge_relay
 			return;
 		}
 
-		// Bound at insertion so a parked client cannot fill the shared queue between frames.
-		const auto belongs_to_client = [user_id](const pending_forward& forward) { return forward.user_id == user_id; };
-		if (std::count_if(pending_forwards.begin(), pending_forwards.end(), belongs_to_client) >= maximum_forwards_per_client)
-			pending_forwards.erase(std::find_if(pending_forwards.begin(), pending_forwards.end(), belongs_to_client));
-
 		if (pending_forwards.size() >= maximum_pending_forwards)
 		{
-			console::debug("[hidden_challenges] pending forward queue is full\n");
-			return;
+			// Independent completions are lost only when full, when round 8 also dropped work.
+			// A newcomer displaces the largest holder, so a client parked at state 3/4
+			// cannot monopolize slots another client needs. Counts cover only this queue.
+			std::map<std::uint64_t, std::size_t> counts;
+			for (const auto& forward : pending_forwards) ++counts[forward.user_id];
+			auto oldest = pending_forwards.begin();
+			for (auto it = pending_forwards.begin(); it != pending_forwards.end(); ++it)
+			{
+				// Strict comparison preserves the oldest entry when holders tie.
+				if (counts[it->user_id] > counts[oldest->user_id]) oldest = it;
+			}
+			pending_forwards.erase(oldest);
 		}
 
 		pending_forwards.push_back({user_id, group, challenge});
