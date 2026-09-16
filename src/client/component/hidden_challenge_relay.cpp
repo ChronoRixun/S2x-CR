@@ -197,7 +197,22 @@ namespace hidden_challenge_relay
 				std::deque<pending_forward> forwards{};
 				{
 					std::lock_guard lock{pending_forward_mutex};
-					if (game::environment::is_zombies()) forwards.swap(pending_forwards);
+					if (game::environment::is_zombies())
+					{
+						for (auto it = pending_forwards.begin(); it != pending_forwards.end();)
+						{
+							const auto client_num = game::Party_FindMemberByXUID(party, it->user_id);
+							// Connected clients (state >= 3) keep their queue slots until active.
+							if (client_num != std::numeric_limits<std::uint8_t>::max() && client_num < max_clients &&
+								clients[client_num].state >= 3 && clients[client_num].state < minimum_command_client_state)
+							{
+								++it;
+								continue;
+							}
+							forwards.push_back(std::move(*it));
+							it = pending_forwards.erase(it);
+						}
+					}
 				}
 
 				if (!game::environment::is_zombies())
