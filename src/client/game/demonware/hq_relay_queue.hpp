@@ -6,6 +6,7 @@
 #include <list>
 #include <functional>
 #include <set>
+#include <chrono>
 
 namespace demonware::hq_event_relay
 {
@@ -110,7 +111,9 @@ namespace demonware::hq_event_relay
 		}
 
 		std::vector<std::pair<std::uint64_t, std::string>> take(const std::size_t limit,
-			const std::function<bool(std::uint64_t)>& can_take = [](std::uint64_t) { return true; })
+			const std::function<bool(std::uint64_t)>& can_take = [](std::uint64_t) { return true; },
+			const std::uint64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+				std::chrono::steady_clock::now().time_since_epoch()).count())
 		{
 			std::vector<std::pair<std::uint64_t, std::string>> result;
 			result.reserve(limit);
@@ -121,11 +124,17 @@ namespace demonware::hq_event_relay
 				auto& event = *it;
 				// Keep each user's whole-event order while other users pass a blocked one.
 				if (blocked.contains(event.user)) { ++it; continue; }
+				// Restart expired partial deliveries at fragment zero; never resume a stale tail.
+				if (event.next && (now_ms < event.last_fragment ||
+					now_ms - event.last_fragment >= idle_timeout_ms || now_ms - event.started >= absolute_timeout_ms))
+					event.next = 0;
 				auto parts = chunks(event.user, event.wire);
 				while (event.next < parts.size() && result.size() < limit)
 				{
 					if (!can_take(event.user)) { blocked.insert(event.user); break; }
 					result.emplace_back(event.user, std::move(parts[event.next]));
+					if (!event.next) event.started = now_ms;
+					event.last_fragment = now_ms;
 					++event.next;
 				}
 				if (event.next == parts.size())
@@ -151,6 +160,7 @@ namespace demonware::hq_event_relay
 			std::uint64_t user;
 			std::string wire;
 			std::size_t next;
+			std::uint64_t started{}, last_fragment{};
 		};
 		std::mutex mutex_;
 		std::list<pending_event> pending_;

@@ -62,6 +62,12 @@ namespace hidden_challenge_relay
 			}
 		}
 
+		demonware::hq_event_relay::receiver& client_receiver()
+		{
+			static demonware::hq_event_relay::receiver receiver;
+			return receiver;
+		}
+
 		bool queue_client_event(const demonware::reward_game_events::event& event)
 		{
 			if (!demonware::achievement_engine::valid_event(event, true))
@@ -143,9 +149,8 @@ namespace hidden_challenge_relay
 						if (i) wire += ' ';
 						wire.append(params[i], length);
 					}
-					static demonware::hq_event_relay::receiver receiver;
 					const auto user = steam::SteamUser()->GetSteamID().bits;
-					receiver.accept(wire, user, GetTickCount64(), queue_client_event);
+					client_receiver().accept(wire, user, GetTickCount64(), queue_client_event);
 				}
 				catch (...) { console::warn("[HQ relay] could not apply server event\n"); }
 				return;
@@ -212,7 +217,7 @@ namespace hidden_challenge_relay
 							count >= maximum_relay_backlog - outstanding) return false;
 						++count; // Include fragments selected here but not yet sent to the engine.
 						return true;
-					});
+					}, GetTickCount64());
 					for (auto& [user, part] : parts)
 						forwards.push_back({user, 0, 0, std::move(part)});
 				}
@@ -471,7 +476,11 @@ namespace hidden_challenge_relay
 			if (!game::environment::is_dedicated())
 			{
 				if (!game::environment::is_zombies())
+				{
 					scheduler::loop(process_client_events, scheduler::pipeline::async, 100ms);
+					// Reclaim incomplete reassembly even if no further commands arrive.
+					scheduler::loop([] { client_receiver().expire(GetTickCount64()); }, scheduler::pipeline::main, 100ms);
+				}
 				deploy_server_command_hook.create(game::CG_DeployServerCommandString,
 					deploy_server_command_stub);
 			}

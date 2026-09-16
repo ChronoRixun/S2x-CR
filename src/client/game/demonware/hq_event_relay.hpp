@@ -15,6 +15,8 @@ namespace demonware::hq_event_relay
 	inline constexpr std::size_t maximum_parameters = 256, maximum_wire = 8192;
 	// SV_AddServerCommand (0x6DDFE0) copies into 0x400-byte slots, including NUL.
 	inline constexpr std::size_t maximum_command = 1023, chunk_bytes = 400;
+	// Reassembly expires after 10 seconds idle or two minutes total.
+	inline constexpr std::uint64_t idle_timeout_ms = 10000, absolute_timeout_ms = 120000;
 	inline constexpr std::size_t maximum_chunks = (maximum_wire + chunk_bytes - 1) / chunk_bytes;
 
 	template <typename T>
@@ -106,9 +108,16 @@ namespace demonware::hq_event_relay
 	class receiver
 	{
 	public:
+		void expire(const std::uint64_t now_ms)
+		{
+			if (next_ && (now_ms < last_fragment_ || now_ms - last_fragment_ >= idle_timeout_ms ||
+				now_ms - started_ >= absolute_timeout_ms)) reset();
+		}
+
 		template <typename Submit>
 		bool accept(std::string_view part, const std::uint64_t user, const std::uint64_t now_ms, Submit&& submit)
 		{
+			expire(now_ms);
 			const auto reject = [this]() { reset(); return false; };
 			if (!user || part.empty() || part.size() > maximum_command) return reject();
 			const auto token = [&part]()
@@ -128,10 +137,9 @@ namespace demonware::hq_event_relay
 				(index + 1 < total && part.size() != chunk_bytes * 2)) return reject();
 			if (index == 0)
 			{
-				reset(); user_ = user; hash_ = hash; total_ = total; started_ = now_ms;
+				reset(); user_ = user; hash_ = hash; total_ = total; started_ = last_fragment_ = now_ms;
 			}
-			if (user != user_ || hash != hash_ || total != total_ || index != next_ ||
-				now_ms < started_ || now_ms - started_ > 10000) return reject();
+			if (user != user_ || hash != hash_ || total != total_ || index != next_) return reject();
 			const auto hex = [](const char c) { return c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : -1; };
 			for (std::size_t i = 0; i < part.size(); i += 2)
 			{
@@ -139,6 +147,7 @@ namespace demonware::hq_event_relay
 				if (high < 0 || low < 0 || wire_.size() == maximum_wire) return reject();
 				wire_ += static_cast<char>((high << 4) | low);
 			}
+			last_fragment_ = now_ms;
 			if (++next_ != total_) return true;
 			auto wire = std::move(wire_);
 			reset();
@@ -147,9 +156,9 @@ namespace demonware::hq_event_relay
 		}
 
 	private:
-		void reset() { wire_.clear(); user_ = hash_ = started_ = 0; next_ = total_ = 0; }
+		void reset() { wire_.clear(); user_ = hash_ = started_ = last_fragment_ = 0; next_ = total_ = 0; }
 		std::string wire_;
-		std::uint64_t user_{}, hash_{}, started_{};
+		std::uint64_t user_{}, hash_{}, started_{}, last_fragment_{};
 		unsigned next_{}, total_{};
 	};
 
