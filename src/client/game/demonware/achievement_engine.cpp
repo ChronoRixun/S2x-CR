@@ -2,6 +2,7 @@
 #include "achievement_engine.hpp"
 #include "achievement_response.hpp"
 #include "hq_protocol.hpp"
+#include "hq_logging.hpp"
 #include "hq_payroll.hpp"
 #include "hq_marketplace.hpp"
 #include "component/console/console.hpp"
@@ -40,6 +41,22 @@ namespace demonware::achievement_engine
 			rapidjson::Writer<rapidjson::StringBuffer> writer{buffer};
 			value.Accept(writer);
 			return {buffer.GetString(), buffer.GetSize()};
+		}
+
+		bool load_hq_records(hq_economy::state& data)
+		{
+			try { data = hq_economy::snapshot(); return true; }
+			catch (const std::exception& error)
+			{
+				// Both user fetches preserve independent legacy records when HQ is unavailable.
+				try
+				{
+					if (hq_protocol::report_due(std::string{"ae/records_unavailable/"} + error.what()))
+						hq_logging::safe_error("[HQ AE] HQ records unavailable: %s\n", error.what());
+				}
+				catch (...) {} // Diagnostics must not prevent the legacy fallback.
+				return false;
+			}
 		}
 
 		bool above_beyond(const hq_economy::achievement& entry)
@@ -663,22 +680,9 @@ namespace demonware::achievement_engine
 			auto scheduled = offers(day);
 			hq_economy::state data{};
 			bool economy_available = true;
-			if (action != "pump_global_achievement_counters")
-			{
-				try { data = hq_economy::snapshot(); }
-				catch (const std::exception& error)
-				{
-					economy_available = false;
-					if (action != "get_user_achievements") throw;
-					// A damaged HQ file must not hide independently persisted Zombies records.
-					// The fault persists until the file is repaired and the client keeps
-					// asking, so report the first occurrence of each distinct message and
-					// then at most one a minute; the request itself still degrades exactly
-					// as before.
-					if (hq_protocol::report_due(std::string{"ae/records_unavailable/"} + error.what()))
-						console::error("[HQ AE] HQ records unavailable: %s\n", error.what());
-				}
-			}
+			if (action == "get_user_achievements" || action == "get_user_achievements_for_users")
+				economy_available = load_hq_records(data);
+			else if (action != "pump_global_achievement_counters") data = hq_economy::snapshot();
 			const auto fetch = action == "get_user_achievements" || action == "get_scheduled_user_achievements" ||
 				action == "get_expired_user_achievements" || action == "get_user_achievements_for_users";
 			if (economy_available && (fetch || action.starts_with("activate_") || action == "deactivate_user_achievement" || action == "claim_achievement_reward"))
@@ -736,8 +740,10 @@ namespace demonware::achievement_engine
 					std::size_t limit = 1000;
 					if (request.HasMember("Limit") && request["Limit"].IsUint() && request["Limit"].GetUint())
 						limit = std::min<std::size_t>(1000, request["Limit"].GetUint());
-					if (id == local_id)
+					if (id == local_id || !economy_available)
 					{
+						// Without HQ records, return the legacy fallback for each requested user.
+						legacy_names.clear();
 						append_legacy(entries);
 						for (const auto& [name, stored] : data.achievements)
 						{
