@@ -78,7 +78,7 @@ namespace demonware::achievement_engine
 				const auto parsed = std::from_chars(token.data(), token.data() + token.size(), offset);
 				if (parsed.ec != std::errc{} || parsed.ptr != token.data() + token.size()) return false;
 			}
-			// A missing or zero Limit means "no limit"; never reject the request for it.
+			// A missing or zero Limit uses the default 1000-record cap.
 			std::size_t limit = 1000;
 			if (request.HasMember("Limit") && request["Limit"].IsUint() && request["Limit"].GetUint() > 0)
 			{
@@ -92,8 +92,8 @@ namespace demonware::achievement_engine
 
 		bool load_hq_records_or_legacy_fallback(hq_economy::state& data)
 		{
-			// Missing, unreadable, damaged or locked storage falls back to the same local
-			// legacy records under every requested ID; no other user's records are loaded.
+			// Missing storage is initialized; unreadable, damaged or locked storage uses local
+			// legacy fallback under every requested ID; no other user's records are loaded.
 			// All internal errors propagate. Diagnostics use the existing bounded throttle
 			// table, whose eviction can allow a message before the throttle window expires.
 			try

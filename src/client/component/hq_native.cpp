@@ -108,7 +108,8 @@ namespace hq_native
 			static std::atomic_bool warned{};
 			try
 			{
-				// Consume before readiness checks: unavailable caches drop this refresh, never retry forever.
+				// Consume before readiness checks: losing wallet/context readiness drops this refresh.
+				// While ready, a permanently refusing native fetch retries on every poll.
 				const auto refresh_achievements = demonware::achievement_engine::consume_event_cache_refresh();
 				// Never race the initial native balance fetch or run native UI on the DW thread.
 				if (!*reinterpret_cast<const unsigned char*>(0x7F6FE94_g)) { managed_currencies.clear(); return; }
@@ -120,7 +121,8 @@ namespace hq_native
 					game::AE_GenerateTransactionId(transaction);
 					if (!game::AE_FetchUserAchievements(0, transaction))
 					{
-						// Re-arm the bit rather than queue fetches: one accepted fetch covers all pending events.
+						// One accepted fetch covers events consumed for this attempt. Later publications
+						// survive and can trigger another fetch; refusal re-arms the same bit.
 						demonware::achievement_engine::retry_event_cache_refresh();
 					}
 				}

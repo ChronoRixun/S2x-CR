@@ -9,6 +9,7 @@ namespace demonware::achievement_engine
 {
 	// Main-thread native poll consumes once, including when the cache is unavailable.
 	bool consume_event_cache_refresh();
+	// Re-arm only a refused fetch; the next poll drops it if wallet/context readiness is lost.
 	void retry_event_cache_refresh();
 
 	struct cache_update
