@@ -499,6 +499,9 @@ namespace demonware::achievement_engine
 			for (auto& [name, entry] : data.achievements)
 			{
 				if (entry.status != "inProgress") continue;
+				// Activation is in seconds, event timestamps are in microseconds.
+				// Zero timestamps count on arrival because their occurrence time is unknown.
+				if (event.timestamp > 0 && static_cast<std::uint64_t>(event.timestamp) / 1000000 < entry.activation) continue;
 				const auto rule = rules.find(name);
 				if (rule == rules.end() || rule->second.event_id != event_type ||
 					!hq_event_predicate::evaluate(rule->second.expression, event).matches) continue;
