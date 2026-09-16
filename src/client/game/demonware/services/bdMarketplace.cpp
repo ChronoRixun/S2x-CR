@@ -158,6 +158,11 @@ namespace demonware
 
 	void bdMarketplace::getBalanceV2(service_server* server, byte_buffer* buffer) const
 	{
+		if (game::environment::is_zombies())
+		{
+			server->create_reply(this->task_id()).send(); // unchanged upstream fallback
+			return;
+		}
 
 		hq_protocol::trace(this->task_id() == 130 ? "marketplace_130" : "marketplace_132", buffer->get_remaining());		guarded(server, this->task_id(), [&]
 		{
@@ -192,6 +197,11 @@ namespace demonware
 
 	void bdMarketplace::getInventoryPaginated(service_server* server, byte_buffer* buffer) const
 	{
+		if (game::environment::is_zombies())
+		{
+			server->create_reply(this->task_id()).send(); // unchanged upstream fallback
+			return;
+		}
 
 		hq_protocol::trace("marketplace_165", buffer->get_remaining());		guarded(server, this->task_id(), [&]
 		{
@@ -211,6 +221,11 @@ namespace demonware
 
 	void bdMarketplace::putPlayersInventoryItems(service_server* server, byte_buffer* buffer) const
 	{
+		if (game::environment::is_zombies())
+		{
+			server->create_reply(this->task_id()).send(); // unchanged upstream fallback
+			return;
+		}
 
 		hq_protocol::trace("marketplace_193", buffer->get_remaining());		guarded(server, this->task_id(), [&]
 		{
@@ -224,6 +239,11 @@ namespace demonware
 
 	void bdMarketplace::pawnItems(service_server* server, byte_buffer* buffer) const
 	{
+		if (game::environment::is_zombies())
+		{
+			server->create_reply(this->task_id()).send(); // unchanged upstream fallback
+			return;
+		}
 
 		hq_protocol::trace("marketplace_199", buffer->get_remaining());		guarded(server, this->task_id(), [&]
 		{
