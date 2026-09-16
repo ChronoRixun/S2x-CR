@@ -147,11 +147,6 @@ namespace demonware::hq_marketplace
 			balance -= entry->price;
 			for (const auto item : granted_items(*entry))
 			{
-				auto& owned_item = next.inventory[{item, 0}];
-				// These products are permanent. Discard expired units before the grant;
-				// clearing expiry alone would revive quantities the player no longer owns.
-				if (!hq_economy::live(owned_item, static_cast<std::uint64_t>(time(nullptr)))) owned_item.quantity = 0;
-				owned_item.expires = 0;
 				if (!hq_economy::grant(next, {"GRANT_PRODUCT", item, 1})) return false;
 			}
 			next.transactions.emplace(key, fingerprint);

@@ -427,6 +427,9 @@ namespace demonware::hq_economy
 		if (value.type == "GRANT_PRODUCT" && value.id && value.amount)
 		{
 			auto& entry = data.inventory[{value.id, 0}];
+			// Product rewards are permanent; discard expired units before clearing expiry.
+			if (!live(entry, static_cast<std::uint64_t>(time(nullptr)))) entry.quantity = 0;
+			entry.expires = 0;
 			if (value.amount > UINT32_MAX - entry.quantity) return false;
 			entry.guid = value.id;
 			entry.quantity += value.amount;
