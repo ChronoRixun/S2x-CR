@@ -6,6 +6,7 @@
 #include <list>
 #include <functional>
 #include <set>
+#include <map>
 
 namespace demonware::hq_event_relay
 {
@@ -139,6 +140,25 @@ namespace demonware::hq_event_relay
 				else ++it;
 			}
 			return result;
+		}
+
+		// Check each recipient once and release whole events, including partially sent heads.
+		// Outstanding producer reservations still belong to their request.
+		void discard_where(const std::function<bool(std::uint64_t)>& discard)
+		{
+			std::lock_guard lock{mutex_};
+			std::map<std::uint64_t, bool> recipients;
+			for (auto it = pending_.begin(); it != pending_.end();)
+			{
+				auto [recipient, inserted] = recipients.try_emplace(it->user, false);
+				if (inserted) recipient->second = discard(it->user);
+				if (recipient->second)
+				{
+					pending_bytes_ -= it->wire.size();
+					it = pending_.erase(it);
+				}
+				else ++it;
+			}
 		}
 
 		void clear()

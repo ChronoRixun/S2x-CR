@@ -219,6 +219,22 @@ namespace hidden_challenge_relay
 
 				if (!game::environment::is_zombies())
 				{
+					// A missing party member has lost its reliable connection and partial reassembly.
+					// State 3/4 party members during map changes must retain their queued events.
+					static std::uint64_t next_discard_log{};
+					const auto now = GetTickCount64();
+					const auto log_discards = now >= next_discard_log;
+					server_events.discard_where([&](const std::uint64_t user)
+					{
+						if (game::Party_FindMemberByXUID(party, user) != std::numeric_limits<std::uint8_t>::max()) return false;
+						if (log_discards)
+						{
+							next_discard_log = now + 5000;
+							demonware::hq_logging::safe_info("[HQ relay] discarded queued events for disconnected XUID %llu\n",
+								static_cast<unsigned long long>(user));
+						}
+						return true;
+					});
 					std::map<unsigned, unsigned> scheduled;
 					// Budget for the engine's 48 party slots so every eligible client gets its allowance.
 					auto parts = server_events.take(48 * fragments_per_client_frame, [&](const std::uint64_t user)
