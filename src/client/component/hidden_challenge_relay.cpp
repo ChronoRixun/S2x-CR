@@ -17,7 +17,7 @@
 #include "steam/steam.hpp"
 
 #include <charconv>
-#include <ctime>
+#include <chrono>
 #include <deque>
 #include <mutex>
 
@@ -338,13 +338,13 @@ namespace hidden_challenge_relay
 			if (kills > maximum_synthetic_kills) kills = maximum_synthetic_kills;
 			if (headshots > kills) headshots = kills;
 
-			const auto base = static_cast<std::int64_t>(time(nullptr));
+			auto stamp = std::chrono::duration_cast<std::chrono::microseconds>(
+				std::chrono::system_clock::now().time_since_epoch()).count();
 			for (std::size_t slot = 0; slot < targets.size(); ++slot)
 			{
 				const auto xuid = targets[slot];
 				// Distinct timestamps: the store's replay receipt is (event id, timestamp,
 				// sorted parameters), so otherwise identical kills would collapse into one.
-				auto stamp = base;
 				unsigned failed{};
 				for (std::uint32_t i = 0; i < kills; ++i)
 				{
