@@ -36,6 +36,24 @@ namespace demonware::achievement_engine
 				? std::string{value[key].GetString(), value[key].GetStringLength()} : std::string{};
 		}
 
+		std::string diagnostic_text(const std::string_view value)
+		{
+			// Inspect at most 64 bytes; hex escaping bounds the diagnostic text to 256 bytes.
+			std::string result;
+			for (const unsigned char byte : value.substr(0, 64))
+			{
+				if (byte < 32 || byte > 126 || byte == '\'' || byte == '\\')
+				{
+					constexpr char hex[] = "0123456789ABCDEF";
+					result += "\\x";
+					result += hex[byte >> 4];
+					result += hex[byte & 15];
+				}
+				else result += byte;
+			}
+			return result;
+		}
+
 		std::string encode(const rapidjson::Value& value)
 		{
 			rapidjson::StringBuffer buffer{};
@@ -55,6 +73,7 @@ namespace demonware::achievement_engine
 			return end;
 		}
 
+		// Single-user fetches retain permissive page parsing and the foreign-ID early return.
 		bool apply_page(const rapidjson::Value& request, rapidjson::Value& results,
 			std::string& next_token, allocator& alloc)
 		{
@@ -807,31 +826,31 @@ namespace demonware::achievement_engine
 						}
 						if (entries.Size() > limit)
 						{
-							// The native handler accumulates at most 30 records and never issues a continuation
-							// (build/research/ghidra/decomp-payroll/142660.c:93). The client sends Limit 50,
-							// so a single capped page is the most it can display; continuation was removed deliberately.
+							// This response handler accumulates at most 30 accepted records (native image offset
+							// 0x142660; build/research/ghidra/decomp-payroll/142660.c:93); saved multi-user requests
+							// use Limit 50. By owner policy, return one capped page with no continuation.
 							static std::mutex warning_mutex;
-							static auto next_warning = std::chrono::steady_clock::time_point::min();
+							static auto next_warning = std::chrono::steady_clock::time_point::min(); // global across users and requests
 							const std::lock_guard lock{warning_mutex};
-							const auto now = std::chrono::steady_clock::now();
-							if (now >= next_warning)
+							const auto warning_now = std::chrono::steady_clock::now();
+							if (warning_now >= next_warning)
 							{
-								next_warning = now + std::chrono::seconds{60};
+								next_warning = warning_now + std::chrono::seconds{60};
 								hq_logging::safe_warn("[HQ] Multi-user achievements for %s truncated from %u to %zu records\n",
-									id.c_str(), entries.Size(), limit);
+									diagnostic_text(id).c_str(), entries.Size(), limit);
 							}
 							entries.Erase(entries.Begin() + limit, entries.End());
 						}
 					}
 					users.AddMember(text(id, alloc), entries, alloc);
 				};
-				if (request.HasMember("UserIDs") && request["UserIDs"].IsArray())
+				if (request.HasMember("UserIDs"))
 					for (const auto& id : request["UserIDs"].GetArray())
 					{
 						if (id.IsString()) add(id.GetString());
 						else if (id.IsUint64()) add(std::to_string(id.GetUint64()));
 					}
-				if (!request.HasMember("UserIDs")) add(std::to_string(steam::SteamUser()->GetSteamID().bits));
+				if (!request.HasMember("UserIDs")) add(local_id);
 				response.AddMember("Achievements", users, alloc);
 				response.AddMember("NextPageToken", "", alloc);
 			}
@@ -1152,9 +1171,7 @@ namespace demonware::achievement_engine
 			else
 			{
 				hq_protocol::trace("unsupported_ae_json", std::string{body});
-				auto logged_action = action.substr(0, 64);
-				for (auto& byte : logged_action)
-					if (byte < 32 || byte > 126 || byte == '\'' || byte == '\\') byte = '?';
+				const auto logged_action = diagnostic_text(action);
 				console::warn("[HQ AE] unsupported action '%s': unsupported_action\n", logged_action.c_str());
 				return fail("unsupported_action");
 			}
