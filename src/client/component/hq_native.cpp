@@ -8,6 +8,7 @@
 #include <utils/hook.hpp>
 #include "game/demonware/hq_vendor.hpp"
 #include "game/demonware/hq_payroll.hpp"
+#include "game/demonware/achievement_engine.hpp"
 #include "game/demonware/hq_products.hpp"
 #include "game/demonware/hq_mail.hpp"
 #include "game/demonware/hq_inventory_cache.hpp"
@@ -107,8 +108,18 @@ namespace hq_native
 			static std::atomic_bool warned{};
 			try
 			{
+				// Consume before readiness checks: unavailable caches drop this refresh, never retry forever.
+				const auto refresh_achievements = demonware::achievement_engine::consume_event_cache_refresh();
 				// Never race the initial native balance fetch or run native UI on the DW thread.
 				if (!*reinterpret_cast<const unsigned char*>(0x7F6FE94_g)) { managed_currencies.clear(); return; }
+				if (refresh_achievements && game::AE_GetUserContext(0))
+				{
+					// Borrow the payroll poll's main-thread boundary; the native fetch replaces
+					// progress and status together, including the transition to claimable.
+					char transaction[32]{};
+					game::AE_GenerateTransactionId(transaction);
+					game::AE_FetchUserAchievements(0, transaction);
+				}
 				std::optional<demonware::hq_payroll::push> notification;
 				{
 					std::lock_guard lock{demonware::hq_payroll::notification_mutex};

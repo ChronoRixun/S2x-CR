@@ -7,6 +7,9 @@
 
 namespace demonware::achievement_engine
 {
+	// Main-thread native poll consumes once, including when the cache is unavailable.
+	bool consume_event_cache_refresh();
+
 	struct cache_update
 	{
 		bool fetch_user{}; // Rollover can decrease progress; the native push only increases it.

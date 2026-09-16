@@ -14,6 +14,7 @@ namespace demonware::achievement_engine
 {
 	namespace
 	{
+		std::atomic_bool event_cache_dirty{};
 		std::mutex cache_sink_mutex{};
 		std::function<void(cache_update)> cache_sink{};
 		std::mutex catalog_mutex{};
@@ -386,8 +387,13 @@ namespace demonware::achievement_engine
 		loot_items = std::move(items);
 	}
 
+	bool consume_event_cache_refresh()
+	{
+		return event_cache_dirty.exchange(false);
+	}
+
 	static bool apply_event(hq_economy::state& data, const reward_game_events::event& event,
-		const bool native_payroll, hq_payroll::push& notification)
+		const bool native_payroll, hq_payroll::push& notification, bool& changed)
 	{
 		const auto event_type = hq_event_predicate::event_id(event.name);
 		const auto payroll = event_type == 18;
@@ -506,6 +512,7 @@ namespace demonware::achievement_engine
 					!hq_event_predicate::evaluate(rule->second.expression, event).matches) continue;
 				// One occurrence per matching event. Column 4 is a filter, not a count
 				// selector; multi_kill (2) never also counts as killed_a_player (1).
+				changed = true;
 				if (entry.progress < entry.target) ++entry.progress;
 				if (entry.progress >= entry.target) entry.status = "claimable";
 			}
@@ -560,6 +567,7 @@ namespace demonware::achievement_engine
 		std::erase_if(events, [](const auto& event) { return !valid_event(event, true); });
 		if (events.empty()) return true;
 		hq_payroll::push notification{};
+		bool changed{};
 		const auto ok = hq_economy::transact([&](hq_economy::state& data)
 		{
 			std::erase_if(events, [&](const auto& event)
@@ -567,13 +575,18 @@ namespace demonware::achievement_engine
 				// Rejection must discard this event's mutations, not its valid neighbors.
 				auto candidate = data;
 				auto next_notification = notification;
-				if (!apply_event(candidate, event, true, next_notification)) return true;
+				bool next_changed{};
+				if (!apply_event(candidate, event, true, next_notification, next_changed)) return true;
+				changed |= next_changed;
 				data = std::move(candidate);
 				notification = std::move(next_notification);
 				return false;
 			});
 			return true;
 		});
+		// Publish after commit so rolled-back progress never reaches native caches.
+		// One dirty bit coalesces event batches and transactions until the main-thread poll.
+		if (ok && changed) event_cache_dirty = true;
 		if (ok && !notification.json.empty())
 		{
 			std::lock_guard lock{hq_payroll::notification_mutex};
@@ -593,14 +606,16 @@ namespace demonware::achievement_engine
 		}
 		if (!recognized) return true;
 		hq_payroll::push notification{};
+		bool changed{};
 		const auto ok = hq_economy::transact([&](hq_economy::state& data)
 		{
 			for (const auto& event : events)
-				if (!apply_event(data, event, native_payroll, notification)) return false;
+				if (!apply_event(data, event, native_payroll, notification, changed)) return false;
 			return true;
 		});
-		// Publish only after the entire batch commits. The native consumer retains
-		// its existing main-thread handoff and latest-payroll notification policy.
+		// Publish after commit so rolled-back progress never reaches native caches.
+		// One dirty bit coalesces event batches and transactions until the main-thread poll.
+		if (ok && changed) event_cache_dirty = true;
 		if (ok && !notification.json.empty())
 		{
 			std::lock_guard lock{hq_payroll::notification_mutex};
