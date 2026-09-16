@@ -5,6 +5,7 @@
 #include <mutex>
 #include <list>
 #include <functional>
+#include <set>
 
 namespace demonware::hq_event_relay
 {
@@ -108,25 +109,31 @@ namespace demonware::hq_event_relay
 			return count ? reward_delivery::queued : reward_delivery::applied;
 		}
 
-		std::vector<std::pair<std::uint64_t, std::string>> take(const std::size_t limit)
+		std::vector<std::pair<std::uint64_t, std::string>> take(const std::size_t limit,
+			const std::function<bool(std::uint64_t)>& can_take = [](std::uint64_t) { return true; })
 		{
 			std::vector<std::pair<std::uint64_t, std::string>> result;
 			result.reserve(limit);
 			std::lock_guard lock{mutex_};
-			while (!pending_.empty() && result.size() < limit)
+			std::set<std::uint64_t> blocked;
+			for (auto it = pending_.begin(); it != pending_.end() && result.size() < limit;)
 			{
-				auto& event = pending_.front();
+				auto& event = *it;
+				// Keep each user's whole-event order while other users pass a blocked one.
+				if (blocked.contains(event.user)) { ++it; continue; }
 				auto parts = chunks(event.user, event.wire);
 				while (event.next < parts.size() && result.size() < limit)
 				{
+					if (!can_take(event.user)) { blocked.insert(event.user); break; }
 					result.emplace_back(event.user, std::move(parts[event.next]));
 					++event.next;
 				}
 				if (event.next == parts.size())
 				{
 					pending_bytes_ -= event.wire.size();
-					pending_.pop_front();
+					it = pending_.erase(it);
 				}
+				else ++it;
 			}
 			return result;
 		}

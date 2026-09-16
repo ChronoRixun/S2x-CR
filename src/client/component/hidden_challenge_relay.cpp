@@ -20,6 +20,7 @@
 #include <chrono>
 #include <deque>
 #include <mutex>
+#include <map>
 
 #include <utils/hook.hpp>
 
@@ -29,7 +30,10 @@ namespace hidden_challenge_relay
 	{
 		constexpr std::string_view server_command = "s2x_hc";
 		constexpr auto maximum_pending_forwards = 128u;
-		constexpr auto minimum_command_client_state = 4;
+		constexpr auto minimum_command_client_state = 5;
+		// Four fragments per client/frame smooth bursts; 32 outstanding leaves 96
+		// of the engine's 128 reliable slots available for ordinary game traffic.
+		constexpr unsigned fragments_per_client_frame = 4, maximum_relay_backlog = 32;
 
 		struct pending_forward
 		{
@@ -192,8 +196,26 @@ namespace hidden_challenge_relay
 				}
 
 				if (!game::environment::is_zombies())
-					for (auto& [user, part] : server_events.take(32))
+				{
+					std::map<unsigned, unsigned> scheduled;
+					// The party has at most 48 members: every eligible client gets its budget.
+					auto parts = server_events.take(48 * fragments_per_client_frame, [&](const std::uint64_t user)
+					{
+						const auto client_num = game::Party_FindMemberByXUID(party, user);
+						if (client_num == std::numeric_limits<std::uint8_t>::max() || client_num >= max_clients)
+							return false;
+						const auto& client = clients[client_num];
+						if (client.state < minimum_command_client_state) return false;
+						const auto outstanding = client.reliableSequence - client.reliableAcknowledge;
+						auto& count = scheduled[client_num];
+						if (count >= fragments_per_client_frame || outstanding >= maximum_relay_backlog ||
+							count >= maximum_relay_backlog - outstanding) return false;
+						++count; // Include fragments selected here but not yet sent to the engine.
+						return true;
+					});
+					for (auto& [user, part] : parts)
 						forwards.push_back({user, 0, 0, std::move(part)});
+				}
 
 				for (const auto& forward : forwards)
 				{
