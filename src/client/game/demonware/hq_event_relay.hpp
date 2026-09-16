@@ -9,7 +9,9 @@
 
 namespace demonware::hq_event_relay
 {
-	inline constexpr std::string_view command = "s2x_hq";
+	// CG_DeployServerCommandString (0x431F1D) ignores first bytes above 0x7C.
+	// Tilde keeps stock clients out of the engine's single-byte opcode handlers.
+	inline constexpr std::string_view command = "~s2x_hq";
 	inline constexpr std::size_t maximum_parameters = 256, maximum_wire = 8192;
 	// SV_AddServerCommand (0x6DDFE0) copies into 0x400-byte slots, including NUL.
 	inline constexpr std::size_t maximum_command = 1023, chunk_bytes = 400;
