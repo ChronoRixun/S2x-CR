@@ -105,13 +105,12 @@ namespace demonware
 	{
 		bool submit_hidden_challenge_events(std::vector<reward_game_events::event>& events)
 		{
-			bool ok = true;
+			// Commit the whole economy batch before handing any event to hidden challenges.
+			if (!game::environment::is_zombies() && !game::environment::is_dedicated() &&
+				!achievement_engine::submit_events(events, true)) return false;
 			for (auto& event : events)
-			{
-				ok = submit_hq_event(event) && ok;
 				hidden_challenges::submit_reward_game_event(std::move(event));
-			}
-			return ok;
+			return true;
 		}
 	}
 
