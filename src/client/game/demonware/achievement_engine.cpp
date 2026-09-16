@@ -8,6 +8,7 @@
 #include "component/console/console.hpp"
 #include "steam/steam.hpp"
 #include <charconv>
+#include <chrono>
 #include <random>
 #include <set>
 
@@ -41,60 +42,6 @@ namespace demonware::achievement_engine
 			rapidjson::Writer<rapidjson::StringBuffer> writer{buffer};
 			value.Accept(writer);
 			return {buffer.GetString(), buffer.GetSize()};
-		}
-
-		constexpr int page_token_base = 36;
-		constexpr std::size_t page_number_digits = 13; // Maximum base-36 uint64 width.
-		constexpr std::size_t native_page_token_limit = 31;
-		constexpr std::size_t page_token_limit = 1 + page_number_digits + 1 + page_number_digits;
-		static_assert(page_token_limit <= native_page_token_limit);
-
-		struct traversal_snapshot
-		{
-			std::uint64_t id{};
-			rapidjson::Document users{rapidjson::kObjectType};
-		};
-		std::mutex traversal_mutex;
-		// This in-process backend's requester is the local Steam user, not a requested UserID.
-		// No disconnect hook: one snapshot per requester, replaced on the next first-page
-		// request and erased on completion. A claim between pages still delivers the record
-		// as it was at snapshot time, as with an ordinary paged listing.
-		std::map<std::uint64_t, traversal_snapshot> traversals;
-
-		std::string page_number(const std::uint64_t value)
-		{
-			char buffer[page_number_digits];
-			const auto result = std::to_chars(buffer, buffer + sizeof(buffer), value, page_token_base);
-			return {buffer, result.ptr};
-		}
-
-		bool parse_page_number(const std::string_view value, std::uint64_t& number)
-		{
-			if (value.empty() || value.size() > page_number_digits) return false;
-			const auto parsed = std::from_chars(value.data(), value.data() + value.size(), number, page_token_base);
-			return parsed.ec == std::errc{} && parsed.ptr == value.data() + value.size();
-		}
-
-		// Copy slices without consuming the retained arrays; each user can have a different
-		// fallback result. A shared position advances every unfinished array independently.
-		std::string snapshot_page(const traversal_snapshot& snapshot, const std::uint64_t offset,
-			const std::size_t limit, rapidjson::Value& users, allocator& alloc)
-		{
-			bool more{};
-			for (auto user = snapshot.users.MemberBegin(); user != snapshot.users.MemberEnd(); ++user)
-			{
-				rapidjson::Value entries{rapidjson::kArrayType};
-				const auto end = std::min<std::uint64_t>(offset, user->value.Size()) + limit;
-				for (auto i = offset; i < std::min<std::uint64_t>(end, user->value.Size()); ++i)
-				{
-					rapidjson::Value record;
-					record.CopyFrom(user->value[static_cast<rapidjson::SizeType>(i)], alloc);
-					entries.PushBack(record, alloc);
-				}
-				more |= end < user->value.Size();
-				users.AddMember(text({user->name.GetString(), user->name.GetStringLength()}, alloc), entries, alloc);
-			}
-			return more ? "s" + page_number(snapshot.id) + ":" + page_number(offset + limit) : std::string{};
 		}
 
 		// Slice a validated page and return its exclusive end position.
@@ -774,65 +721,17 @@ namespace demonware::achievement_engine
 				if (client_tx.empty()) return fail("missing_transaction");
 				if (!hq_economy::valid_receipt_key("claim:" + client_tx)) return fail("invalid_achievement");
 			}
-			std::unique_lock traversal_lock{traversal_mutex, std::defer_lock};
-			std::uint64_t requester{};
 			std::size_t limit = 1000;
 			if (action == "get_user_achievements_for_users")
 			{
 				if (request.HasMember("UserIDs") && !request["UserIDs"].IsArray()) return fail("invalid_user_ids");
-				// Single-user compatibility retains offsets, permissive Limit parsing and
-				// non-string PageToken handling, and the foreign-ID early return. Multi-user
-				// validation runs once, even for empty UserIDs; invalid Limit also uses invalid_page_token.
+				// Validate once, even for empty UserIDs. Missing/zero Limit uses the 1000-record default cap.
 				if (request.HasMember("Limit"))
 				{
 					if (!request["Limit"].IsUint()) return fail("invalid_page_token");
 					if (request["Limit"].GetUint()) limit = std::min<std::size_t>(request["Limit"].GetUint(), 1000);
 				}
-				if (request.HasMember("PageToken") && !request["PageToken"].IsString()) return fail("invalid_page_token");
-				const auto token = string(request, "PageToken");
-				std::uint64_t snapshot_id{}, offset{};
-				if (!token.empty())
-				{
-					const auto separator = token.find(':');
-					if (token.size() > page_token_limit || token.front() != 's' || separator == std::string::npos ||
-						!parse_page_number(std::string_view{token}.substr(1, separator - 1), snapshot_id) ||
-						!parse_page_number(std::string_view{token}.substr(separator + 1), offset) || !offset)
-						return fail("invalid_page_token");
-				}
-				requester = steam::SteamUser()->GetSteamID().bits;
-				traversal_lock.lock();
-				if (!token.empty())
-				{
-					rapidjson::Value users{rapidjson::kObjectType};
-					std::string next_token;
-					const auto found = traversals.find(requester);
-					if (found != traversals.end() && found->second.id == snapshot_id)
-					{
-						next_token = snapshot_page(found->second, offset, limit, users, alloc);
-						if (next_token.empty()) traversals.erase(found);
-					}
-					else
-					{
-						// The native handler appends results and cannot restart on error. A lost
-						// snapshot ends with empty arrays, never a duplicate first page. This is
-						// the only lossy case: the client outlived replacement/removal of its snapshot.
-						const auto add_empty = [&](const std::string& id)
-						{
-							if (!users.HasMember(id.c_str())) users.AddMember(text(id, alloc), rapidjson::Value{rapidjson::kArrayType}, alloc);
-						};
-						if (request.HasMember("UserIDs"))
-							for (const auto& id : request["UserIDs"].GetArray())
-							{
-								if (id.IsString()) add_empty(id.GetString());
-								if (id.IsUint64()) add_empty(std::to_string(id.GetUint64()));
-							}
-						else add_empty(std::to_string(requester));
-					}
-					response.AddMember("Achievements", users, alloc);
-					response.AddMember("NextPageToken", text(next_token, alloc), alloc);
-					return encode(response); // Continuations never read or reconcile the live store.
-				}
-				traversals.erase(requester);
+				// PageToken is ignored, including its type, as before multi-user pagination.
 			}
 			const auto now = static_cast<std::uint64_t>(time(nullptr));
 			const auto day = now / 86400;
@@ -890,48 +789,51 @@ namespace demonware::achievement_engine
 			if (action == "get_user_achievements_for_users")
 			{
 				rapidjson::Value users{rapidjson::kObjectType};
-				const auto local_id = std::to_string(requester);
+				const auto local_id = std::to_string(steam::SteamUser()->GetSteamID().bits);
 				const auto add = [&](const std::string& id)
 				{
 					if (users.HasMember(id.c_str())) return;
 					rapidjson::Value entries{rapidjson::kArrayType};
-					// Legacy (0) precedes HQ (1), preserving first-page order. Persisted names
-					// distinguish HQ keys even when payroll projection gives them the same name.
-					std::map<std::string, rapidjson::Value> records;
 					if (id == local_id || !economy_available)
 					{
 						// Fallback reads local legacy records separately for each requested ID.
 						legacy_names.clear();
 						append_legacy(entries);
-						for (auto& legacy : entries.GetArray()) records.emplace("0:" + string(legacy, "name"), std::move(legacy));
-						entries.Clear();
 						for (const auto& [name, stored] : data.achievements)
 						{
 							const auto entry = hq_payroll::project(stored);
 							if (!legacy_names.contains(entry.name) && !redeemed_order(entry) && matches(request, entry))
-								records.emplace("1:" + name, serialize(entry, alloc, day));
+								entries.PushBack(serialize(entry, alloc, day), alloc);
+						}
+						if (entries.Size() > limit)
+						{
+							// The native handler accumulates at most 30 records and never issues a continuation
+							// (build/research/ghidra/decomp-payroll/142660.c:93). The client sends Limit 50,
+							// so a single capped page is the most it can display; continuation was removed deliberately.
+							static std::mutex warning_mutex;
+							static auto next_warning = std::chrono::steady_clock::time_point::min();
+							const std::lock_guard lock{warning_mutex};
+							const auto now = std::chrono::steady_clock::now();
+							if (now >= next_warning)
+							{
+								next_warning = now + std::chrono::seconds{60};
+								hq_logging::safe_warn("[HQ] Multi-user achievements for %s truncated from %u to %zu records\n",
+									id.c_str(), entries.Size(), limit);
+							}
+							entries.Erase(entries.Begin() + limit, entries.End());
 						}
 					}
-					for (auto& [key, record] : records) entries.PushBack(record, alloc);
 					users.AddMember(text(id, alloc), entries, alloc);
 				};
 				if (request.HasMember("UserIDs") && request["UserIDs"].IsArray())
 					for (const auto& id : request["UserIDs"].GetArray())
 					{
 						if (id.IsString()) add(id.GetString());
-						if (id.IsUint64()) add(std::to_string(id.GetUint64()));
+						else if (id.IsUint64()) add(std::to_string(id.GetUint64()));
 					}
-				if (!request.HasMember("UserIDs")) add(local_id);
-				traversal_snapshot snapshot;
-				snapshot.users.CopyFrom(users, snapshot.users.GetAllocator());
-				// Random IDs also distinguish traversals across process restarts.
-				static std::mt19937_64 snapshot_ids{std::random_device{}()};
-				snapshot.id = snapshot_ids();
-				users.SetObject();
-				const auto next_token = snapshot_page(snapshot, 0, limit, users, alloc);
-				if (!next_token.empty()) traversals.emplace(requester, std::move(snapshot));
+				if (!request.HasMember("UserIDs")) add(std::to_string(steam::SteamUser()->GetSteamID().bits));
 				response.AddMember("Achievements", users, alloc);
-				response.AddMember("NextPageToken", text(next_token, alloc), alloc);
+				response.AddMember("NextPageToken", "", alloc);
 			}
 			else if (action == "get_user_achievements" || action == "get_scheduled_user_achievements" ||
 				action == "get_expired_user_achievements")
