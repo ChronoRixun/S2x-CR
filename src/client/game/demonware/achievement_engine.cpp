@@ -43,12 +43,19 @@ namespace demonware::achievement_engine
 			return {buffer.GetString(), buffer.GetSize()};
 		}
 
-		bool load_hq_records(hq_economy::state& data)
+		bool load_hq_records_or_legacy_fallback(hq_economy::state& data)
 		{
-			try { data = hq_economy::snapshot(); return true; }
-			catch (const std::exception& error)
+			// Missing, unreadable, damaged or locked storage falls back to the same local
+			// legacy records under every requested ID; no other user's records are loaded.
+			// All internal errors propagate. Diagnostics use the existing bounded throttle
+			// table, whose eviction can allow a message before the throttle window expires.
+			try
 			{
-				// Both user fetches preserve independent legacy records when HQ is unavailable.
+				data = hq_economy::snapshot();
+				return true;
+			}
+			catch (const hq_economy::store_unavailable& error)
+			{
 				try
 				{
 					if (hq_protocol::report_due(std::string{"ae/records_unavailable/"} + error.what()))
@@ -681,7 +688,7 @@ namespace demonware::achievement_engine
 			hq_economy::state data{};
 			bool economy_available = true;
 			if (action == "get_user_achievements" || action == "get_user_achievements_for_users")
-				economy_available = load_hq_records(data);
+				economy_available = load_hq_records_or_legacy_fallback(data);
 			else if (action != "pump_global_achievement_counters") data = hq_economy::snapshot();
 			const auto fetch = action == "get_user_achievements" || action == "get_scheduled_user_achievements" ||
 				action == "get_expired_user_achievements" || action == "get_user_achievements_for_users";
@@ -742,7 +749,7 @@ namespace demonware::achievement_engine
 						limit = std::min<std::size_t>(1000, request["Limit"].GetUint());
 					if (id == local_id || !economy_available)
 					{
-						// Without HQ records, return the legacy fallback for each requested user.
+						// Fallback copies the same local legacy records under every requested ID.
 						legacy_names.clear();
 						append_legacy(entries);
 						for (const auto& [name, stored] : data.achievements)

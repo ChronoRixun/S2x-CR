@@ -4,6 +4,7 @@
 #include <functional>
 #include <map>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -80,6 +81,14 @@ namespace demonware::hq_economy
 	// Complete persisted receipt key, including its producer prefix.
 	inline constexpr std::size_t identifier_limit = 128;
 	bool valid_receipt_key(std::string_view key);
+
+	// Missing, unreadable, damaged or locked storage detected while loading.
+	// Migration, serialization and allocation errors are not store_unavailable.
+	class store_unavailable : public std::runtime_error
+	{
+	public:
+		using std::runtime_error::runtime_error;
+	};
 
 	state snapshot();
 	// Drop the in-memory copy so the next snapshot()/transact() re-reads the JSON file.

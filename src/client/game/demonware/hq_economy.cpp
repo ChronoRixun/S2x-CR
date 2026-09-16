@@ -16,15 +16,31 @@ namespace demonware::hq_economy
 		// or an explicit hqeconomy reload (invalidate()). The file lock prevents lost writes.
 		std::optional<state> cached{};
 
+		class invalid_store : public std::runtime_error
+		{
+		public:
+			using std::runtime_error::runtime_error;
+		};
+
 		class file_lock
 		{
 		public:
 			file_lock()
 			{
-				std::filesystem::create_directories("players2/user");
+				std::error_code error;
+				std::filesystem::create_directories("players2/user", error);
+				if (error) throw store_unavailable("cannot access economy directory");
 				handle_ = CreateFileA("players2/user/hq_economy.lock", GENERIC_READ | GENERIC_WRITE,
 					0, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-				if (handle_ == INVALID_HANDLE_VALUE) throw std::runtime_error("economy is locked by another process");
+				if (handle_ == INVALID_HANDLE_VALUE)
+				{
+					const auto lock_error = GetLastError();
+					if (lock_error == ERROR_SHARING_VIOLATION || lock_error == ERROR_LOCK_VIOLATION)
+						throw store_unavailable("economy is locked by another process");
+					if (lock_error == ERROR_ACCESS_DENIED || lock_error == ERROR_PATH_NOT_FOUND)
+						throw store_unavailable("cannot access economy lock");
+					throw std::runtime_error("cannot acquire economy lock");
+				}
 			}
 			~file_lock() { CloseHandle(handle_); }
 			file_lock(const file_lock&) = delete;
@@ -36,37 +52,37 @@ namespace demonware::hq_economy
 		std::uint64_t number(const rapidjson::Value& value, const char* key, std::uint64_t maximum = UINT64_MAX)
 		{
 			if (!value.IsObject() || !value.HasMember(key) || !value[key].IsUint64() || value[key].GetUint64() > maximum)
-				throw std::runtime_error(std::string{"invalid economy number: "} + key);
+				throw invalid_store(std::string{"invalid economy number: "} + key);
 			return value[key].GetUint64();
 		}
 
 		std::string string(const rapidjson::Value& value, const char* key, const std::size_t maximum = 1024)
 		{
 			if (!value.IsObject() || !value.HasMember(key) || !value[key].IsString() || value[key].GetStringLength() > maximum)
-				throw std::runtime_error(std::string{"invalid economy string: "} + key);
+				throw invalid_store(std::string{"invalid economy string: "} + key);
 			std::string result{value[key].GetString(), value[key].GetStringLength()};
 			if (maximum == identifier_limit && result.find('\0') != std::string::npos)
-				throw std::runtime_error(std::string{"invalid economy identifier: "} + key);
+				throw invalid_store(std::string{"invalid economy identifier: "} + key);
 			return result;
 		}
 
 		state decode(const std::string& bytes)
 		{
 			state data{};
-			if (bytes.size() > 16 * 1024 * 1024) throw std::runtime_error("economy file too large");
+			if (bytes.size() > 16 * 1024 * 1024) throw invalid_store("economy file too large");
 			rapidjson::Document document{};
 			document.Parse<rapidjson::kParseIterativeFlag>(bytes.data(), bytes.size());
 			if (document.HasParseError() || !document.IsObject() || number(document, "schemaVersion") != 1)
-				throw std::runtime_error("invalid economy schema; original preserved");
+				throw invalid_store("invalid economy schema; original preserved");
 			data.revision = number(document, "revision");
 			for (const auto* key : {"currencies", "inventory", "achievements", "transactions"})
 				if (!document.HasMember(key) || !document[key].IsArray() || document[key].Size() > 10000)
-					throw std::runtime_error("invalid economy collection");
+					throw invalid_store("invalid economy collection");
 			for (const auto& value : document["currencies"].GetArray())
 			{
 				const auto id = static_cast<std::uint8_t>(number(value, "currencyID", UINT8_MAX));
 				if (!data.currencies.emplace(id, static_cast<std::uint32_t>(number(value, "amount", UINT32_MAX))).second)
-					throw std::runtime_error("duplicate currency");
+					throw invalid_store("duplicate currency");
 			}
 			for (const auto& value : document["inventory"].GetArray())
 			{
@@ -79,15 +95,15 @@ namespace demonware::hq_economy
 				if (value.HasMember("itemData"))
 				{
 					const auto& item_bytes = value["itemData"];
-					if (!item_bytes.IsArray() || item_bytes.Size() > 64) throw std::runtime_error("invalid item data");
+					if (!item_bytes.IsArray() || item_bytes.Size() > 64) throw invalid_store("invalid item data");
 					for (const auto& byte : item_bytes.GetArray())
 					{
-						if (!byte.IsUint() || byte.GetUint() > 255) throw std::runtime_error("invalid item data byte");
+						if (!byte.IsUint() || byte.GetUint() > 255) throw invalid_store("invalid item data byte");
 						entry.metadata += static_cast<char>(byte.GetUint());
 					}
 				}
 				if (!entry.guid || !data.inventory.emplace(std::make_pair(entry.guid, entry.collision), entry).second)
-					throw std::runtime_error("invalid or duplicate item");
+					throw invalid_store("invalid or duplicate item");
 			}
 			for (const auto& value : document["achievements"].GetArray())
 			{
@@ -109,15 +125,15 @@ namespace demonware::hq_economy
 				entry.claim_transaction = string(value, "claimTransaction", identifier_limit);
 				if (value.HasMember("masterPrestige"))
 				{
-					if (!value["masterPrestige"].IsBool()) throw std::runtime_error("invalid payroll master prestige flag");
+					if (!value["masterPrestige"].IsBool()) throw invalid_store("invalid payroll master prestige flag");
 					entry.master_prestige = value["masterPrestige"].GetBool();
 				}
 				if (entry.name.empty() || !entry.kind || !entry.target ||
 					(entry.status != "available" && entry.status != "inactive" && entry.status != "inProgress" &&
 					entry.status != "claimable" && entry.status != "finished" && entry.status != "expired"))
-					throw std::runtime_error("invalid achievement state");
+					throw invalid_store("invalid achievement state");
 				if (!value.HasMember("successRewards") || !value["successRewards"].IsArray() || value["successRewards"].Size() > 100)
-					throw std::runtime_error("invalid achievement rewards");
+					throw invalid_store("invalid achievement rewards");
 				for (const auto& reward_value : value["successRewards"].GetArray())
 				{
 					reward result{};
@@ -127,25 +143,43 @@ namespace demonware::hq_economy
 					result.amount = static_cast<std::uint32_t>(number(reward_value, "amount", UINT32_MAX));
 					entry.rewards.push_back(result);
 				}
-				if (!data.achievements.emplace(entry.name, entry).second) throw std::runtime_error("duplicate achievement");
+				if (!data.achievements.emplace(entry.name, entry).second) throw invalid_store("duplicate achievement");
 			}
 			for (const auto& value : document["transactions"].GetArray())
 			{
 				const auto id = string(value, "id", identifier_limit);
-				if (!valid_receipt_key(id)) throw std::runtime_error("invalid transaction identifier");
+				if (!valid_receipt_key(id)) throw invalid_store("invalid transaction identifier");
 				if (!data.transactions.emplace(id, string(value, "request")).second)
-					throw std::runtime_error("duplicate transaction");
+					throw invalid_store("duplicate transaction");
 			}
 			return data;
 		}
 
-		state load()
+		state load(const bool allow_missing = false)
 		{
-			if (!std::filesystem::exists(state_path)) return {};
-			if (std::filesystem::file_size(state_path) > 16 * 1024 * 1024) throw std::runtime_error("economy file too large");
+			std::error_code error;
+			const auto exists = std::filesystem::exists(state_path, error);
+			if (error) throw store_unavailable("cannot access economy file");
+			if (!exists)
+			{
+				// Transactions may initialize a new economy; fetches use legacy fallback.
+				if (allow_missing) return {};
+				throw store_unavailable("economy file missing");
+			}
+			const auto size = std::filesystem::file_size(state_path, error);
+			if (error) throw store_unavailable("cannot read economy file size");
+			if (size > 16 * 1024 * 1024) throw store_unavailable("economy file too large");
 			std::string bytes{};
-			if (!utils::io::read_file(state_path, &bytes)) throw std::runtime_error("cannot read economy");
-			return decode(bytes);
+			if (!utils::io::read_file(state_path, &bytes)) throw store_unavailable("cannot read economy");
+			try
+			{
+				return decode(bytes);
+			}
+			catch (const invalid_store& validation_error)
+			{
+				// save() also validates with decode(); only on-disk damage is recoverable.
+				throw store_unavailable(validation_error.what());
+			}
 		}
 
 		bool migrate_contracts(state& data)
@@ -377,7 +411,7 @@ namespace demonware::hq_economy
 		{
 			std::lock_guard lock{state_mutex};
 			const file_lock disk_lock{};
-			auto next = load(); // always validate the on-disk copy before mutating it
+			auto next = load(true); // always validate the on-disk copy before mutating it
 			const auto before = encode(next);
 			migrate_payroll(next);
 			migrate_contracts(next);
