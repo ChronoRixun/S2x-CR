@@ -31,9 +31,17 @@ namespace demonware::hq_payroll
 	inline std::mutex notification_mutex;
 	inline std::optional<push> notification;
 
+	// Project the persisted identity for both pushes and fetches without changing cooldown.
+	inline hq_economy::achievement project(hq_economy::achievement entry)
+	{
+		if (entry.name == "payroll_officer" && entry.master_prestige)
+			entry.name = entry.challenge_name = "payroll_officer_masterprestige";
+		return entry;
+	}
+
 	// The stock kiosk waits four hours since completion. UTC bucket receipts
 	// additionally reject delayed retries; crossing a bucket alone is not eligibility.
-	inline outcome settle(hq_economy::state& data, const std::int64_t timestamp, const std::uint64_t now)
+	inline outcome settle(hq_economy::state& data, const std::int64_t timestamp, const std::uint64_t now, const bool master_prestige = false)
 	{
 		if (timestamp <= 0) return outcome::rejected;
 		const auto seconds = static_cast<std::uint64_t>(timestamp) / 1000000;
@@ -45,13 +53,22 @@ namespace demonware::hq_payroll
 		// An already stamped receipt still has a completion record to republish, unless
 		// the record was pruned - then there is nothing truthful to tell the kiosk.
 		if (data.transactions.contains(receipt))
-			return data.achievements.contains("payroll_officer") ? outcome::replayed : outcome::stale;
+		{
+			const auto entry = data.achievements.find("payroll_officer");
+			if (entry == data.achievements.end()) return outcome::stale;
+			entry->second.master_prestige = master_prestige;
+			return outcome::replayed;
+		}
 		auto& entry = data.achievements["payroll_officer"];
 		// Do not stamp the new bucket during cooldown: a later eligible pickup
 		// in that same bucket must still be able to settle (03:59 -> 07:59).
 		// A cooldown event never becomes payable merely because its delivery is retried later.
 		if (entry.completion && (now < entry.completion || now - entry.completion < period ||
-			seconds < entry.completion || seconds - entry.completion < period)) return outcome::replayed;
+			seconds < entry.completion || seconds - entry.completion < period))
+		{
+			entry.master_prestige = master_prestige;
+			return outcome::replayed;
+		}
 		auto result = outcome::replayed;
 		// Respect a legacy manual claim in this period too.
 		if (!entry.completion || entry.completion / period < seconds / period)
@@ -65,6 +82,7 @@ namespace demonware::hq_payroll
 			entry.rewards = {{"GRANT_CURRENCY", hq_economy::armory_credits, hq_economy::payroll_amount}};
 			result = outcome::granted;
 		}
+		entry.master_prestige = master_prestige;
 		data.transactions[receipt] = std::to_string(timestamp);
 		return result;
 	}

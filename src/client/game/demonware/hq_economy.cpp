@@ -107,6 +107,11 @@ namespace demonware::hq_economy
 				entry.usage = static_cast<std::uint32_t>(number(value, "usageTime", entry.usage_target));
 				entry.status = string(value, "status", identifier_limit);
 				entry.claim_transaction = string(value, "claimTransaction", identifier_limit);
+				if (value.HasMember("masterPrestige"))
+				{
+					if (!value["masterPrestige"].IsBool()) throw std::runtime_error("invalid payroll master prestige flag");
+					entry.master_prestige = value["masterPrestige"].GetBool();
+				}
 				if (entry.name.empty() || !entry.kind || !entry.target ||
 					(entry.status != "available" && entry.status != "inactive" && entry.status != "inProgress" &&
 					entry.status != "claimable" && entry.status != "finished" && entry.status != "expired"))
@@ -228,6 +233,8 @@ namespace demonware::hq_economy
 				writer.Key("usageTime"); writer.Uint(entry.usage);
 				writer.Key("status"); writer.String(entry.status.data(), static_cast<rapidjson::SizeType>(entry.status.size()));
 				writer.Key("claimTransaction"); writer.String(entry.claim_transaction.data(), static_cast<rapidjson::SizeType>(entry.claim_transaction.size()));
+				// Omit the default so regular payroll retains the existing store bytes.
+				if (entry.master_prestige) { writer.Key("masterPrestige"); writer.Bool(true); }
 				writer.Key("successRewards"); writer.StartArray();
 				for (const auto& result : entry.rewards)
 				{

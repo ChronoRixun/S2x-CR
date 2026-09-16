@@ -65,6 +65,7 @@ namespace demonware::hq_economy
 		std::string status{"available"};
 		std::vector<reward> rewards{};
 		std::string claim_transaction{};
+		bool master_prestige{}; // Payroll identity used by the last accepted pickup; absent in legacy stores.
 	};
 
 	struct state

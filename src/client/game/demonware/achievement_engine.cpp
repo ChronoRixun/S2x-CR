@@ -410,12 +410,11 @@ namespace demonware::achievement_engine
 			bool master_prestige{};
 			for (const auto& parameter : event.parameters)
 				if (parameter.selector == "2" && parameter.value) master_prestige = true;
-			const auto* published = master_prestige ? "payroll_officer_masterprestige" : "payroll_officer";
 
 			return [&]()
 			{
 				const auto before = data.currencies.contains(hq_economy::armory_credits) ? data.currencies.at(hq_economy::armory_credits) : 0;
-				const auto result = hq_payroll::settle(data, event.timestamp, now);
+				const auto result = hq_payroll::settle(data, event.timestamp, now, master_prestige);
 				if (result == hq_payroll::outcome::rejected) return false;
 				// A batch from another period is acknowledged but describes no pickup the
 				// kiosk is waiting on, so it must not animate a collection.
@@ -425,8 +424,8 @@ namespace demonware::achievement_engine
 				// the kiosk arms a 5 s "Unable to get payroll at this time" banner on every
 				// click and only an achievementEngine CompletionUpdate for this achievement
 				// cancels it, so a second pickup inside the period needs the event too.
-				auto entry = data.achievements.at("payroll_officer");
-				entry.name = published; entry.challenge_name = published;
+				auto entry = hq_payroll::project(data.achievements.at("payroll_officer"));
+				entry.challenge_name = entry.name;
 				// The pickup itself pays out, so the published copy always describes a
 				// completed payroll even when the stored record is mid-claim; the store's
 				// own status stays where the claim flow left it.
@@ -453,7 +452,7 @@ namespace demonware::achievement_engine
 				triggers.PushBack(trigger, alloc);
 				push.AddMember("triggers", triggers, alloc);
 				notification.json = encode(push);
-				notification.summary = std::string{published} + " kind 5 status finished reason completed, currency " +
+				notification.summary = entry.name + " kind 5 status finished reason completed, currency " +
 					std::to_string(unsigned{hq_economy::armory_credits}) + " " + std::to_string(before) + " -> " + std::to_string(after) +
 					(result == hq_payroll::outcome::granted ? " (settled)" : " (replayed, already settled this period)");
 				return true;
@@ -725,9 +724,12 @@ namespace demonware::achievement_engine
 					if (id == local_id)
 					{
 						append_legacy(entries);
-						for (const auto& [name, entry] : data.achievements)
-							if (!legacy_names.contains(name) && !redeemed_order(entry) && matches(request, entry))
+						for (const auto& [name, stored] : data.achievements)
+						{
+							const auto entry = hq_payroll::project(stored);
+							if (!legacy_names.contains(entry.name) && !redeemed_order(entry) && matches(request, entry))
 								entries.PushBack(serialize(entry, alloc, day), alloc);
+						}
 						if (entries.Size() > limit) entries.Erase(entries.Begin() + limit, entries.End());
 					}
 					users.AddMember(text(id, alloc), entries, alloc);
@@ -782,10 +784,11 @@ namespace demonware::achievement_engine
 					response.AddMember("NextPeriodStartTimes", periods, alloc);
 					response.AddMember("ActivationLimits", limits, alloc);
 				}
-				else for (const auto& [name, entry] : data.achievements)
+				else for (const auto& [name, stored] : data.achievements)
 				{
+					const auto entry = hq_payroll::project(stored);
 					if ((entry.status == "expired") != (action == "get_expired_user_achievements")) continue;
-					if (action == "get_user_achievements" && (legacy_names.contains(name) || redeemed_order(entry))) continue;
+					if (action == "get_user_achievements" && (legacy_names.contains(entry.name) || redeemed_order(entry))) continue;
 					if (action == "get_expired_user_achievements" && request.HasMember("Timestamp"))
 					{
 						if (!request["Timestamp"].IsUint64()) return fail("invalid_timestamp");
