@@ -118,7 +118,11 @@ namespace hq_native
 					// progress and status together, including the transition to claimable.
 					char transaction[32]{};
 					game::AE_GenerateTransactionId(transaction);
-					game::AE_FetchUserAchievements(0, transaction);
+					if (!game::AE_FetchUserAchievements(0, transaction))
+					{
+						// Re-arm the bit rather than queue fetches: one accepted fetch covers all pending events.
+						demonware::achievement_engine::retry_event_cache_refresh();
+					}
 				}
 				std::optional<demonware::hq_payroll::push> notification;
 				{

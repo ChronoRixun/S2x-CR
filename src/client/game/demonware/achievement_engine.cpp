@@ -411,6 +411,11 @@ namespace demonware::achievement_engine
 		loot_items = std::move(items);
 	}
 
+	void retry_event_cache_refresh()
+	{
+		event_cache_dirty.store(true);
+	}
+
 	bool consume_event_cache_refresh()
 	{
 		return event_cache_dirty.exchange(false);
