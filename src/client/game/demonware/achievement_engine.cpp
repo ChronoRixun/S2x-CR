@@ -36,22 +36,24 @@ namespace demonware::achievement_engine
 				? std::string{value[key].GetString(), value[key].GetStringLength()} : std::string{};
 		}
 
-		std::string diagnostic_text(const std::string_view value)
+		const char* diagnostic_text(const std::string_view value, char (&buffer)[257]) noexcept
 		{
 			// Inspect at most 64 bytes; hex escaping bounds the diagnostic text to 256 bytes.
-			std::string result;
+			auto* output = buffer;
 			for (const unsigned char byte : value.substr(0, 64))
 			{
 				if (byte < 32 || byte > 126 || byte == '\'' || byte == '\\')
 				{
 					constexpr char hex[] = "0123456789ABCDEF";
-					result += "\\x";
-					result += hex[byte >> 4];
-					result += hex[byte & 15];
+					*output++ = '\\';
+					*output++ = 'x';
+					*output++ = hex[byte >> 4];
+					*output++ = hex[byte & 15];
 				}
-				else result += byte;
+				else *output++ = byte;
 			}
-			return result;
+			*output = '\0';
+			return buffer;
 		}
 
 		std::string encode(const rapidjson::Value& value)
@@ -73,7 +75,7 @@ namespace demonware::achievement_engine
 			return end;
 		}
 
-		// Single-user fetches retain permissive page parsing and the foreign-ID early return.
+		// Single-user fetches retain permissive page parsing here and the foreign-ID early return in dispatch.
 		bool apply_page(const rapidjson::Value& request, rapidjson::Value& results,
 			std::string& next_token, allocator& alloc)
 		{
@@ -829,15 +831,17 @@ namespace demonware::achievement_engine
 							// This response handler accumulates at most 30 accepted records (native image offset
 							// 0x142660; build/research/ghidra/decomp-payroll/142660.c:93); saved multi-user requests
 							// use Limit 50. By owner policy, return one capped page with no continuation.
+							// Global across users and requests.
 							static std::mutex warning_mutex;
-							static auto next_warning = std::chrono::steady_clock::time_point::min(); // global across users and requests
+							static auto next_warning = std::chrono::steady_clock::time_point::min();
 							const std::lock_guard lock{warning_mutex};
 							const auto warning_now = std::chrono::steady_clock::now();
 							if (warning_now >= next_warning)
 							{
 								next_warning = warning_now + std::chrono::seconds{60};
+								char diagnostic_buffer[257];
 								hq_logging::safe_warn("[HQ] Multi-user achievements for %s truncated from %u to %zu records\n",
-									diagnostic_text(id).c_str(), entries.Size(), limit);
+									diagnostic_text(id, diagnostic_buffer), entries.Size(), limit);
 							}
 							entries.Erase(entries.Begin() + limit, entries.End());
 						}
@@ -1171,8 +1175,8 @@ namespace demonware::achievement_engine
 			else
 			{
 				hq_protocol::trace("unsupported_ae_json", std::string{body});
-				const auto logged_action = diagnostic_text(action);
-				console::warn("[HQ AE] unsupported action '%s': unsupported_action\n", logged_action.c_str());
+				char diagnostic_buffer[257];
+				console::warn("[HQ AE] unsupported action '%s': unsupported_action\n", diagnostic_text(action, diagnostic_buffer));
 				return fail("unsupported_action");
 			}
 			return encode(response);
