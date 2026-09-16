@@ -43,6 +43,30 @@ namespace demonware::achievement_engine
 			return {buffer.GetString(), buffer.GetSize()};
 		}
 
+		bool apply_page(const rapidjson::Value& request, rapidjson::Value& results,
+			std::string& next_token, allocator& alloc)
+		{
+			std::size_t offset{};
+			const auto token = string(request, "PageToken");
+			if (!token.empty())
+			{
+				const auto parsed = std::from_chars(token.data(), token.data() + token.size(), offset);
+				if (parsed.ec != std::errc{} || parsed.ptr != token.data() + token.size()) return false;
+			}
+			// A missing or zero Limit means "no limit"; never reject the request for it.
+			std::size_t limit = 1000;
+			if (request.HasMember("Limit") && request["Limit"].IsUint() && request["Limit"].GetUint() > 0)
+			{
+				limit = std::min<std::size_t>(request["Limit"].GetUint(), 1000);
+			}
+			rapidjson::Value page{rapidjson::kArrayType};
+			const auto end = std::min<std::size_t>(results.Size(), std::min<std::size_t>(offset, results.Size()) + limit);
+			for (auto i = offset; i < end; ++i) page.PushBack(results[static_cast<rapidjson::SizeType>(i)], alloc);
+			if (end < results.Size()) next_token = std::to_string(end);
+			results = std::move(page);
+			return true;
+		}
+
 		bool load_hq_records_or_legacy_fallback(hq_economy::state& data)
 		{
 			// Missing, unreadable, damaged or locked storage falls back to the same local
@@ -743,15 +767,13 @@ namespace demonware::achievement_engine
 			if (action == "get_user_achievements_for_users")
 			{
 				if (request.HasMember("UserIDs") && !request["UserIDs"].IsArray()) return fail("invalid_user_ids");
+				std::string next_token;
 				rapidjson::Value users{rapidjson::kObjectType};
 				const auto local_id = std::to_string(steam::SteamUser()->GetSteamID().bits);
 				const auto add = [&](const std::string& id)
 				{
-					if (users.HasMember(id.c_str())) return;
+					if (users.HasMember(id.c_str())) return true;
 					rapidjson::Value entries{rapidjson::kArrayType};
-					std::size_t limit = 1000;
-					if (request.HasMember("Limit") && request["Limit"].IsUint() && request["Limit"].GetUint())
-						limit = std::min<std::size_t>(1000, request["Limit"].GetUint());
 					if (id == local_id || !economy_available)
 					{
 						// Fallback copies the same local legacy records under every requested ID.
@@ -763,19 +785,21 @@ namespace demonware::achievement_engine
 							if (!legacy_names.contains(entry.name) && !redeemed_order(entry) && matches(request, entry))
 								entries.PushBack(serialize(entry, alloc, day), alloc);
 						}
-						if (entries.Size() > limit) entries.Erase(entries.Begin() + limit, entries.End());
 					}
+					// Each user's array uses the same offset; any unfinished array keeps the token alive.
+					if (!apply_page(request, entries, next_token, alloc)) return false;
 					users.AddMember(text(id, alloc), entries, alloc);
+					return true;
 				};
 				if (request.HasMember("UserIDs") && request["UserIDs"].IsArray())
 					for (const auto& id : request["UserIDs"].GetArray())
 					{
-						if (id.IsString()) add(id.GetString());
-						else if (id.IsUint64()) add(std::to_string(id.GetUint64()));
+						if (id.IsString() && !add(id.GetString())) return fail("invalid_page_token");
+						if (id.IsUint64() && !add(std::to_string(id.GetUint64()))) return fail("invalid_page_token");
 					}
-				if (!request.HasMember("UserIDs")) add(std::to_string(steam::SteamUser()->GetSteamID().bits));
+				if (!request.HasMember("UserIDs") && !add(local_id)) return fail("invalid_page_token");
 				response.AddMember("Achievements", users, alloc);
-				response.AddMember("NextPageToken", "", alloc);
+				response.AddMember("NextPageToken", text(next_token, alloc), alloc);
 			}
 			else if (action == "get_user_achievements" || action == "get_scheduled_user_achievements" ||
 				action == "get_expired_user_achievements")
@@ -830,24 +854,10 @@ namespace demonware::achievement_engine
 					entries.push_back(entry);
 				}
 				for (const auto& entry : entries) if (matches(request, entry)) results.PushBack(serialize(entry, alloc, day, action == "get_scheduled_user_achievements"), alloc);
-				std::size_t offset{};
-				const auto token = string(request, "PageToken");
-				if (!token.empty())
-				{
-					const auto parsed = std::from_chars(token.data(), token.data() + token.size(), offset);
-					if (parsed.ec != std::errc{} || parsed.ptr != token.data() + token.size()) return fail("invalid_page_token");
-				}
-				// A missing or zero Limit means "no limit"; never reject the request for it.
-				std::size_t limit = 1000;
-				if (request.HasMember("Limit") && request["Limit"].IsUint() && request["Limit"].GetUint() > 0)
-				{
-					limit = std::min<std::size_t>(request["Limit"].GetUint(), 1000);
-				}
-				rapidjson::Value page{rapidjson::kArrayType};
-				const auto end = std::min<std::size_t>(results.Size(), std::min<std::size_t>(offset, results.Size()) + limit);
-				for (auto i = offset; i < end; ++i) page.PushBack(results[static_cast<rapidjson::SizeType>(i)], alloc);
-				response.AddMember("Achievements", page, alloc);
-				response.AddMember("NextPageToken", text(end < results.Size() ? std::to_string(end) : "", alloc), alloc);
+				std::string next_token;
+				if (!apply_page(request, results, next_token, alloc)) return fail("invalid_page_token");
+				response.AddMember("Achievements", results, alloc);
+				response.AddMember("NextPageToken", text(next_token, alloc), alloc);
 			}
 			else if (action == "open_supply_drop")
 			{
