@@ -43,6 +43,31 @@ namespace demonware::achievement_engine
 			return {buffer.GetString(), buffer.GetSize()};
 		}
 
+		std::string page_number(const std::uint64_t value)
+		{
+			char buffer[13]; // A uint64 fits in 13 base-36 digits.
+			const auto result = std::to_chars(buffer, buffer + sizeof(buffer), value, 36);
+			return {buffer, result.ptr};
+		}
+
+		std::uint64_t page_key(const std::string& key)
+		{
+			std::uint64_t hash = 14695981039346656037ull;
+			for (const unsigned char byte : key) hash = (hash ^ byte) * 1099511628211ull;
+			return hash;
+		}
+
+		// Slice a validated page and return its exclusive end position.
+		std::size_t apply_page(rapidjson::Value& results, const std::size_t offset, const std::size_t limit,
+			allocator& alloc)
+		{
+			rapidjson::Value page{rapidjson::kArrayType};
+			const auto end = std::min<std::size_t>(results.Size(), std::min<std::size_t>(offset, results.Size()) + limit);
+			for (auto i = offset; i < end; ++i) page.PushBack(results[static_cast<rapidjson::SizeType>(i)], alloc);
+			results = std::move(page);
+			return end;
+		}
+
 		bool apply_page(const rapidjson::Value& request, rapidjson::Value& results,
 			std::string& next_token, allocator& alloc)
 		{
@@ -59,11 +84,9 @@ namespace demonware::achievement_engine
 			{
 				limit = std::min<std::size_t>(request["Limit"].GetUint(), 1000);
 			}
-			rapidjson::Value page{rapidjson::kArrayType};
-			const auto end = std::min<std::size_t>(results.Size(), std::min<std::size_t>(offset, results.Size()) + limit);
-			for (auto i = offset; i < end; ++i) page.PushBack(results[static_cast<rapidjson::SizeType>(i)], alloc);
-			if (end < results.Size()) next_token = std::to_string(end);
-			results = std::move(page);
+			const auto count = results.Size();
+			const auto end = apply_page(results, offset, limit, alloc);
+			if (end < count) next_token = std::to_string(end);
 			return true;
 		}
 
@@ -767,6 +790,31 @@ namespace demonware::achievement_engine
 			if (action == "get_user_achievements_for_users")
 			{
 				if (request.HasMember("UserIDs") && !request["UserIDs"].IsArray()) return fail("invalid_user_ids");
+				// Single-user compatibility keeps its old offset, permissive Limit parsing and
+				// foreign-ID early return. Multi-user validation is independent of enumeration.
+				std::size_t limit = 1000;
+				if (request.HasMember("Limit"))
+				{
+					if (!request["Limit"].IsUint()) return fail("invalid_page_token");
+					if (request["Limit"].GetUint()) limit = std::min<std::size_t>(request["Limit"].GetUint(), 1000);
+				}
+				// Distinguish unavailable-store fallback, which has no persisted revision.
+				const auto prefix = economy_available ? "h" + page_number(data.revision) + ":" : std::string{"f0:"};
+				std::optional<std::uint64_t> cursor;
+				if (request.HasMember("PageToken"))
+				{
+					if (!request["PageToken"].IsString()) return fail("invalid_page_token");
+					const auto token = string(request, "PageToken");
+					if (!token.empty())
+					{
+						// A revision/mode mismatch is stale: restart with an empty token.
+						if (token.size() > 28 || !token.starts_with(prefix) || token.size() == prefix.size()) return fail("invalid_page_token");
+						std::uint64_t key{};
+						const auto parsed = std::from_chars(token.data() + prefix.size(), token.data() + token.size(), key, 36);
+						if (parsed.ec != std::errc{} || parsed.ptr != token.data() + token.size()) return fail("invalid_page_token");
+						cursor = key;
+					}
+				}
 				std::string next_token;
 				rapidjson::Value users{rapidjson::kObjectType};
 				const auto local_id = std::to_string(steam::SteamUser()->GetSteamID().bits);
@@ -774,20 +822,49 @@ namespace demonware::achievement_engine
 				{
 					if (users.HasMember(id.c_str())) return true;
 					rapidjson::Value entries{rapidjson::kArrayType};
+					// Legacy (0) precedes HQ (1), preserving first-page order. Persisted names
+					// distinguish HQ keys even when payroll projection gives them the same name.
+					std::map<std::string, rapidjson::Value> records;
 					if (id == local_id || !economy_available)
 					{
 						// Fallback copies the same local legacy records under every requested ID.
 						legacy_names.clear();
 						append_legacy(entries);
+						for (auto& legacy : entries.GetArray()) records.emplace("0:" + string(legacy, "name"), std::move(legacy));
+						entries.Clear();
 						for (const auto& [name, stored] : data.achievements)
 						{
 							const auto entry = hq_payroll::project(stored);
 							if (!legacy_names.contains(entry.name) && !redeemed_order(entry) && matches(request, entry))
-								entries.PushBack(serialize(entry, alloc, day), alloc);
+								records.emplace("1:" + name, serialize(entry, alloc, day));
 						}
 					}
-					// Each user's array uses the same offset; any unfinished array keeps the token alive.
-					if (!apply_page(request, entries, next_token, alloc)) return false;
+					// Native tokens have 31 usable bytes. Resolve the compact fingerprint to a
+					// unique stable key; missing/ambiguous keys require a restart, never a skip.
+					const auto after = [&](const std::uint64_t key) -> std::optional<std::size_t>
+					{
+						std::optional<std::size_t> position;
+						std::size_t index{};
+						for (const auto& record : records)
+						{
+							++index;
+							if (page_key(record.first) != key) continue;
+							if (position) return {}; // Fingerprint collision.
+							position = index;
+						}
+						return position;
+					};
+					const auto offset = cursor && !records.empty() ? after(*cursor) : std::optional<std::size_t>{0};
+					if (!offset) return false;
+					for (auto& [key, record] : records) entries.PushBack(record, alloc);
+					const auto end = apply_page(entries, *offset, limit, alloc);
+					// Nonempty arrays share local records. Completed arrays must not clear continuation.
+					if (end < records.size())
+					{
+						const auto key = page_key(std::next(records.begin(), end - 1)->first);
+						if (!after(key)) return false;
+						next_token = prefix + page_number(key); // At most 28 bytes, including the revision.
+					}
 					users.AddMember(text(id, alloc), entries, alloc);
 					return true;
 				};
