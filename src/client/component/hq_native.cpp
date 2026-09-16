@@ -318,6 +318,13 @@ namespace hq_native
 			const auto item = demonware::hq_inventory_cache::project(entry, static_cast<std::uint64_t>(time(nullptr)));
 			inventory_notification_dirty = true; // Retain notification work even if a native call partially fails.
 			utils::hook::invoke<unsigned>(0x27DD30_g, 0, &item, 0, 0, entry.metadata.data(), static_cast<unsigned char>(entry.metadata.size()));
+			if (entry.metadata.empty())
+			{
+				// 27DD30 skips zero-length metadata; explicitly clear its 64 bytes and length.
+				unsigned char* native{};
+				utils::hook::invoke<void>(0x279300_g, 0, entry.guid, &native);
+				if (native) std::memset(native + 0x20, 0, 65);
+			}
 		}
 
 		void sync_inventory()
@@ -348,7 +355,12 @@ namespace hq_native
 					const auto quantity = native ? native[1] : 0;
 					// Repair legacy expiry sentinels too; quantity alone hid unusable items.
 					const auto* cached = reinterpret_cast<const demonware::hq_inventory_cache::record*>(native);
-					if (quantity == expected && (!cached ||
+					// 279300 returns a 0x68-byte record: metadata at +0x20, length at +0x60.
+					// Compare at most 64 bytes directly: cheap here and cannot hide hash collisions.
+					const auto* bytes = reinterpret_cast<const unsigned char*>(native);
+					const auto metadata_matches = bytes ? bytes[0x60] == entry.metadata.size() &&
+						std::memcmp(bytes + 0x20, entry.metadata.data(), entry.metadata.size()) == 0 : entry.metadata.empty();
+					if (quantity == expected && metadata_matches && (!cached ||
 						(cached->expires == projected.expires && cached->duration == projected.duration))) continue;
 					refresh_item(entry);
 					try
