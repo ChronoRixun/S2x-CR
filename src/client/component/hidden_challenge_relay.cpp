@@ -30,6 +30,9 @@ namespace hidden_challenge_relay
 	{
 		constexpr std::string_view server_command = "s2x_hc";
 		constexpr auto maximum_pending_forwards = 128u;
+		// Two per XUID leave room for all 48 party members within the global cap,
+		// even when connected clients wait indefinitely below the send threshold.
+		constexpr auto maximum_forwards_per_client = 2u;
 		constexpr auto minimum_command_client_state = 5;
 		// Four fragments per client/frame smooth bursts; 32 outstanding leaves 96
 		// of the engine's 128 reliable slots available for ordinary game traffic.
@@ -150,7 +153,7 @@ namespace hidden_challenge_relay
 						wire.append(params[i], length);
 					}
 					const auto user = steam::SteamUser()->GetSteamID().bits;
-					client_receiver().accept(wire, user, GetTickCount64(), queue_client_event);
+					client_receiver().accept(wire, user, queue_client_event);
 				}
 				catch (...) { console::warn("[HQ relay] could not apply server event\n"); }
 				return;
@@ -232,7 +235,8 @@ namespace hidden_challenge_relay
 							count >= maximum_relay_backlog - outstanding) return false;
 						++count; // Include fragments selected here but not yet sent to the engine.
 						return true;
-					}, GetTickCount64());
+					});
+					// Preserve selection order through SV_CMD_RELIABLE: no per-client event interleaving.
 					for (auto& [user, part] : parts)
 						forwards.push_back({user, 0, 0, std::move(part)});
 				}
@@ -426,6 +430,11 @@ namespace hidden_challenge_relay
 			return;
 		}
 
+		// Bound at insertion so a parked client cannot fill the shared queue between frames.
+		const auto belongs_to_client = [user_id](const pending_forward& forward) { return forward.user_id == user_id; };
+		if (std::count_if(pending_forwards.begin(), pending_forwards.end(), belongs_to_client) >= maximum_forwards_per_client)
+			pending_forwards.erase(std::find_if(pending_forwards.begin(), pending_forwards.end(), belongs_to_client));
+
 		if (pending_forwards.size() >= maximum_pending_forwards)
 		{
 			console::debug("[hidden_challenges] pending forward queue is full\n");
@@ -493,8 +502,6 @@ namespace hidden_challenge_relay
 				if (!game::environment::is_zombies())
 				{
 					scheduler::loop(process_client_events, scheduler::pipeline::async, 100ms);
-					// Reclaim incomplete reassembly even if no further commands arrive.
-					scheduler::loop([] { client_receiver().expire(GetTickCount64()); }, scheduler::pipeline::main, 100ms);
 				}
 				deploy_server_command_hook.create(game::CG_DeployServerCommandString,
 					deploy_server_command_stub);
