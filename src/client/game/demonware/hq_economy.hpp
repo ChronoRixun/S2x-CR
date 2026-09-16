@@ -82,8 +82,12 @@ namespace demonware::hq_economy
 	inline constexpr std::size_t identifier_limit = 128;
 	bool valid_receipt_key(std::string_view key);
 
-	// Missing, unreadable, damaged or locked storage detected while loading.
-	// Migration, serialization and allocation errors are not store_unavailable.
+	// Missing storage initializes an empty economy through snapshot()/transact().
+	// Unreadable, damaged or locked storage throws store_unavailable while loading:
+	// the two achievement fetches use legacy fallback; other callers retain failure handling.
+	// Invalid content raises private invalid_store; only on-disk validation failures
+	// are translated to store_unavailable. Migration, serialization and allocation
+	// errors (including save-time validation) are not store_unavailable.
 	class store_unavailable : public std::runtime_error
 	{
 	public:

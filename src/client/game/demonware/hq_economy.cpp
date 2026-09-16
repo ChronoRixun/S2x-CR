@@ -155,17 +155,12 @@ namespace demonware::hq_economy
 			return data;
 		}
 
-		state load(const bool allow_missing = false)
+		state load()
 		{
 			std::error_code error;
 			const auto exists = std::filesystem::exists(state_path, error);
 			if (error) throw store_unavailable("cannot access economy file");
-			if (!exists)
-			{
-				// Transactions may initialize a new economy; fetches use legacy fallback.
-				if (allow_missing) return {};
-				throw store_unavailable("economy file missing");
-			}
+			if (!exists) return {}; // A new profile is migrated and saved by the caller.
 			const auto size = std::filesystem::file_size(state_path, error);
 			if (error) throw store_unavailable("cannot read economy file size");
 			if (size > 16 * 1024 * 1024) throw store_unavailable("economy file too large");
@@ -411,7 +406,7 @@ namespace demonware::hq_economy
 		{
 			std::lock_guard lock{state_mutex};
 			const file_lock disk_lock{};
-			auto next = load(true); // always validate the on-disk copy before mutating it
+			auto next = load(); // always validate the on-disk copy before mutating it
 			const auto before = encode(next);
 			migrate_payroll(next);
 			migrate_contracts(next);
