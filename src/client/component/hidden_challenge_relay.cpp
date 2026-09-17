@@ -295,7 +295,7 @@ namespace hidden_challenge_relay
 					});
 					// Preserve selection order through SV_CMD_RELIABLE: no per-client event interleaving.
 					for (auto& [user, part] : parts)
-						forwards.push_back({user, 0, 0, std::move(part)});
+						forwards.push_back({user, false, 0, 0, 0, 0, std::move(part)});
 				}
 
 				for (const auto& forward : forwards)
