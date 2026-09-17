@@ -92,7 +92,7 @@ S2x loads loose files from `%LOCALAPPDATA%\s2x\data\` and `<game folder>\s2x\` b
 
 - **GSC scripts**: `scripts\mp\*.gsc` (multiplayer and zombies) or `scripts\sp\*.gsc` (campaign), plus `scripts\mp\<mapname>\` and `scripts\mp\<gametype>\` subfolders.
 - **UI scripts**: `ui_scripts\mp\<folder>\__init__.lua` or `ui_scripts\sp\<folder>\__init__.lua`.
-- **String tables (`.csv`)**: place the file at the asset path, for example `%LOCALAPPDATA%\s2x\data\mp\botDivisionTable.csv` replaces `mp/botDivisionTable.csv`. Tables that do not exist in the game can be added the same way and read from GSC with `tablelookup`.
+- **String tables (`.csv`)**: place the file at the asset path under either search root — `%LOCALAPPDATA%\s2x\data\mp\botDivisionTable.csv` or `<game folder>\s2x\mp\botDivisionTable.csv` replaces `mp/botDivisionTable.csv`. Tables that do not exist in the game can be added the same way and read from GSC with `tablelookup`.
 
 Console commands for string tables:
 
