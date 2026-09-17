@@ -364,14 +364,52 @@ namespace game
 	WEAK symbol<void(bool cg)> LUI_CoD_Restart{ 0x3200A0, 0x1A3810 };
 	WEAK symbol<void()> LUI_EnterCriticalSection{ 0xBE8D0, 0x18B1F0 };
 	WEAK symbol<void()> LUI_LeaveCriticalSection{ 0xC5F80, 0x191FB0 };
+	// Achievement Engine (multiplayer binary only; the single-address constructor resolves to the
+	// MP image whenever multiplayer components are loaded). Offsets documented in build/research/ae-internals.md.
 	WEAK symbol<std::int64_t(void* transactionId)> AE_GenerateTransactionId{ 0x8390A0 };
 	WEAK symbol<bool(unsigned int controllerIndex, const void* transactionId)> AE_FetchUserAchievements{ 0x139350 };
 	WEAK symbol<bool(unsigned int controllerIndex, const char* pageToken, const void* transactionId,
 		unsigned int accountIndex)> AE_FetchUserAchievementsByPage{ 0x139400 };
+	WEAK symbol<bool(unsigned int controllerIndex, const void* transactionId)> AE_FetchScheduledChallenges{ 0x1399C0 };
 	WEAK symbol<std::byte> AE_UserAchievementTaskData{ 0x6039A60 };
+	WEAK symbol<std::byte> AE_ScheduledAchievementTaskData{ 0x60391D0 };
+	WEAK symbol<const char*(void* response)> AE_GetResponseString{ 0xA3B850 };
+	// Scheduled-challenge cache read by Engine.AE_GetScheduledChallenges: 0x1908 bytes per controller,
+	// 100 records of 0x30 bytes, ready byte at +0x1900 (see build/research/ae-ghidra-findings.md).
+	WEAK symbol<std::byte> AE_ScheduledChallengeCache{ 0x5C94C60 };
+	// Completion callbacks the scheduled issuer registers on its Demonware task.
+	WEAK symbol<void(void* task)> AE_ScheduledTaskSucceeded{ 0x13C220 };
+	WEAK symbol<void(void* task)> AE_ScheduledTaskFailed{ 0x13C120 };
 	WEAK symbol<bool(void* response, const char* value)> AE_SetResponseString{ 0xA3B8F0 };
+	// Achievement Engine user context for a controller: 0x789870 is
+	// "return (&table)[controller * 0xd]" over the two-entry table at 0xD8ACED8 (stride
+	// 0x68). The achievement push handler 0x13C480 takes that pointer as its first
+	// argument and maps it back to a controller index with 0x7897A0, which returns -1
+	// for a null pointer - and a -1 controller makes the LUI lookup 0x4A0D90 fail, so no
+	// achievementEngine event is raised and the user achievement table is indexed at
+	// -0x13890. Never call 0x13C480 with 0.
+	WEAK symbol<void*(int controllerIndex)> AE_GetUserContext{ 0x789870 };
+	// Per-group native task tables used by the task lookup 0x208270(group, controller, type):
+	// AE_TaskGroupTables[group] is the table pointer (null when the group is not initialised),
+	// its entries start at table + 8 with a stride of 0x50 and there are 32 of them. The
+	// Achievement Engine only ever uses group 0 (see build/research/ghidra/decomp-quick/208270.c).
+	WEAK symbol<std::byte*> AE_TaskGroupTables{ 0x6F72B00 };
 	WEAK symbol<void(unsigned int controllerIndex, const void* response,
 		unsigned int taskGroup)> AE_ProcessResponse{ 0x676A40 };
+	// Marketing Comms / Mail "is there unread mail?" poll, run every frame from 0x852630.
+	// Decompile: build/research/ghidra/decomp-crash/372069.c. It walks the per-controller
+	// mail state blocks below and, for every block whose ready flag is set, reads
+	// array[start] .. array[start + count - 1] of the message array WITHOUT null-checking
+	// the array pointer, which faults on a reply that carried no messages.
+	WEAK symbol<bool()> MarketingComms_HasUnreadMail{ 0x372020 };
+	// Per-controller mail state: 0x110 bytes per controller, exactly two controllers (the
+	// poll's cursor starts at block 0 + 0xB0 = 0x8A15010 and stops once it passes
+	// 0x8A1522F). +0x24 = getMessages-completed flag, +0xB0 = message array pointer,
+	// message entries are 0x1CA0 bytes each.
+	WEAK symbol<std::byte> MarketingComms_MailState{ 0x8A14F60 };
+	// Globals the poll scans with: first index (observed 8) and number of entries.
+	WEAK symbol<int> MarketingComms_MailScanStart{ 0x8A15B88 };
+	WEAK symbol<int> MarketingComms_MailScanCount{ 0x8A15B8C };
 	WEAK symbol<unsigned int(const char* reference)> BG_GetItemGUIDFromReference{ 0x6524C0 };
 	WEAK symbol<int(unsigned int controllerIndex, unsigned int itemGuid)> Inventory_GetItemQuantity{ 0x279480 };
 	WEAK symbol<bool(unsigned int itemGuid)> Inventory_IsItemGuidAZMConsumable{ 0x652490 };

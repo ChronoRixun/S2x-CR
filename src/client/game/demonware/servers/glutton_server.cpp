@@ -1,8 +1,7 @@
 #include <std_include.hpp>
-#include "../dw_include.hpp"
-
 #include "glutton_server.hpp"
 #include "../request_trace.hpp"
+#include "../achievement_engine.hpp"
 
 #include "../achievement_response.hpp"
 #include "../achievement_store.hpp"
@@ -86,110 +85,14 @@ namespace demonware
 
 namespace demonware
 {
-	namespace
+	void glutton_server::handle_request(const http_request& request)
 	{
-		void add_user_achievements(rapidjson::Value& users, const std::string_view user_id,
-			const std::vector<achievement_record>& achievements,
-			rapidjson::Document::AllocatorType& allocator)
+		rapidjson::Document response{rapidjson::kObjectType};
+		if (request.target.find("/secureingest/") == std::string::npos)
 		{
-			rapidjson::Value key{user_id.data(),
-				static_cast<rapidjson::SizeType>(user_id.size()), allocator};
-			auto array = achievement_response::serialize_achievements(achievements, allocator);
-			users.AddMember(key, array, allocator);
+			const auto json = achievement_engine::dispatch(request.body);
+			response.Parse(json.data(), json.size());
 		}
-	}
-
-	void glutton_server::handle_request(const http_request& http_request)
-	{
-		if (http_request.target.find("/secureingest/") != std::string::npos)
-		{
-			rapidjson::Document response{};
-			response.SetObject();
-			send_json(response);
-			return;
-		}
-
-		rapidjson::Document request{};
-		request.Parse(http_request.body.data(), http_request.body.size());
-		if (request.HasParseError() || !request.IsObject())
-		{
-			console::error("[DW]: [glutton]: received an invalid request.\n");
-			return;
-		}
-
-		const auto* action = request.HasMember("Action") && request["Action"].IsString()
-			? request["Action"].GetString()
-			: "";
-
-		rapidjson::Document response{};
-		response.SetObject();
-		auto& allocator = response.GetAllocator();
-		response.AddMember("Version", 0, allocator);
-		response.AddMember("Action", rapidjson::Value{action,
-			static_cast<rapidjson::SizeType>(std::strlen(action)), allocator}, allocator);
-		response.AddMember("Status", "ok", allocator);
-
-		if (request.HasMember("ClientTx") && request["ClientTx"].IsString())
-		{
-			const auto& client_tx = request["ClientTx"];
-			response.AddMember("ClientTx", rapidjson::Value{client_tx.GetString(),
-				client_tx.GetStringLength(), allocator}, allocator);
-		}
-
-		const auto is_single_user_request = std::strcmp(action, "get_user_achievements") == 0;
-		const auto is_multi_user_request =
-			std::strcmp(action, "get_user_achievements_for_users") == 0;
-		if (is_single_user_request || is_multi_user_request)
-		{
-			const auto achievements = achievement_store::get_all();
-			if (is_multi_user_request)
-			{
-				rapidjson::Value users{rapidjson::kObjectType};
-				bool added_user{};
-				if (request.HasMember("UserIDs") && request["UserIDs"].IsArray())
-				{
-					for (const auto& user : request["UserIDs"].GetArray())
-					{
-						if (user.IsString())
-						{
-							add_user_achievements(users,
-								{user.GetString(), user.GetStringLength()}, achievements, allocator);
-							added_user = true;
-						}
-						else if (user.IsUint64())
-						{
-							const auto user_id = std::to_string(user.GetUint64());
-							add_user_achievements(users, user_id, achievements, allocator);
-							added_user = true;
-						}
-					}
-				}
-
-				if (!added_user)
-				{
-					const auto user_id = std::to_string(steam::SteamUser()->GetSteamID().bits);
-					add_user_achievements(users, user_id, achievements, allocator);
-				}
-
-				response.AddMember("Achievements", users, allocator);
-			}
-			else
-			{
-				auto array = achievement_response::serialize_achievements(achievements, allocator);
-				response.AddMember("Achievements", array, allocator);
-			}
-
-			response.AddMember("NextPageToken", "", allocator);
-			console::demonware("[DW]: [glutton]: returned %zu user achievements.\n",
-				achievements.size());
-		}
-		else
-		{
-			// Unhandled Achievement Engine actions are answered with an empty success
-			// reply; log them so progression reports that vanish here can be found.
-			log_unhandled_action(action, http_request.body);
-		}
-
 		send_json(response);
 	}
 }

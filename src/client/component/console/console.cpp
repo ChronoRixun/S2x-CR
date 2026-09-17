@@ -106,8 +106,19 @@ namespace console
 		return { buffer, static_cast<size_t>(count) };
 	}
 
+	namespace
+	{
+		std::atomic<std::uint64_t> printed_lines{};
+	}
+
+	std::uint64_t lines_printed()
+	{
+		return printed_lines.load();
+	}
+
 	void dispatch_message(const int type, const std::string& message)
 	{
+		++printed_lines;
 		std::string out = message;
 		if (out.empty() || out.back() != '\n')
 		{

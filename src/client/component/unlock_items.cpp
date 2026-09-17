@@ -98,6 +98,25 @@ namespace unlock_items
 			return unlock_type && std::strcmp(unlock_type, "loot") != 0;
 		}
 
+		bool is_owned_mp_loot(const int controller, const unsigned int item_id,
+			const game::StringTable* table, const int row)
+		{
+			if (controller != 0 || !item_id || game::environment::is_zombies() ||
+				!table || !table->values || row < 0 || row >= table->rowCount || table->columnCount <= 1)
+				return false;
+			const auto* type = table->values[static_cast<std::size_t>(row) * table->columnCount + 1].string;
+			if (!type || std::strcmp(type, "loot") != 0) return false;
+			// GetItemLockState (CF850 -> D0B10) and IsGuidUnlocked (73F9F0 -> D1050)
+			// share these unlock-table checks. An owned loot row must use the same native
+			// inventory/expiry predicate as Inventory_IsItemGUIDUsableForPlayer. This is
+			// the cache filled by task 165 and HQ purchases/drops, not a second inventory.
+			if (!*reinterpret_cast<const unsigned char*>(0x80385A8_g)) return false;
+			// Mirror 27A310 after its unlock-all shortcut; do not recurse through D0980.
+			const unsigned* item{};
+			const auto slot = utils::hook::invoke<unsigned short>(0x279300_g, controller, item_id, &item);
+			return item && item[1] != 0 && !utils::hook::invoke<bool>(0x27A260_g, controller, slot);
+		}
+
 		int live_storage_is_item_unlocked_from_table_stub(const unsigned int item_id, const int controller_index,
 			void* stats_source, void* stats_buffer, game::StringTable* unlock_table, const int row, void* out_param)
 		{
@@ -108,6 +127,8 @@ namespace unlock_items
 			{
 				return 0;
 			}
+
+			if (is_owned_mp_loot(controller_index, item_id, unlock_table, row)) return 0;
 
 			return live_storage_is_item_unlocked_from_table_hook.invoke<int>(item_id, controller_index, stats_source,
 				stats_buffer, unlock_table, row, out_param);
@@ -123,6 +144,8 @@ namespace unlock_items
 			{
 				return 0;
 			}
+
+			if (local_client_num == 0 && is_owned_mp_loot(0, item_id, unlock_table, row)) return 0;
 
 			return live_storage_is_item_unlocked_from_table_local_client_hook.invoke<int>(local_client_num,
 				unlock_table, row, item_id);

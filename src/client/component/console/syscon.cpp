@@ -264,9 +264,70 @@ namespace syscon
 		);
 	}
 
+	namespace
+	{
+		// Console output used to reach the Edit control synchronously from the printing
+		// thread: four cross-thread SendMessage calls per line, each waiting for the
+		// console thread's 1 ms PeekMessage loop, about 10 ms per line on the owner's
+		// machine. A 3300-line burst (the LUI tracer opening the Quartermaster) therefore
+		// froze the game thread for ~35 s and every in-flight Demonware task timed out
+		// (build/research/quartermaster-fable.md). Printing now only queues; the console
+		// thread appends the backlog in one EM_REPLACESEL per drain.
+		using message_queue = std::queue<std::string>;
+		utils::concurrency::container<message_queue> pending_messages;
+		constexpr std::size_t max_pending_messages = 8192;
+		std::atomic<std::uint64_t> dropped_messages{};
+	}
+
 	void Sys_Print(const char* msg)
 	{
-		Conbuf_AppendText(msg);
+		if (!msg || !*msg)
+		{
+			return;
+		}
+
+		pending_messages.access([&](message_queue& queue)
+		{
+			// The window holds 64 KB anyway and the file log is complete; never let a
+			// stalled console thread grow the backlog without bound.
+			if (queue.size() >= max_pending_messages)
+			{
+				queue.pop();
+				++dropped_messages;
+			}
+
+			queue.emplace(msg);
+		});
+	}
+
+	// Console thread only: Conbuf_AppendText keeps unsynchronised state (s_total_chars,
+	// cleanBuffer), so it must not be called from the printing threads any more.
+	void Sys_FlushPending()
+	{
+		message_queue backlog;
+		pending_messages.access([&](message_queue& queue)
+		{
+			backlog.swap(queue);
+		});
+
+		if (backlog.empty())
+		{
+			return;
+		}
+
+		std::string batch;
+		while (!backlog.empty())
+		{
+			batch += backlog.front();
+			backlog.pop();
+		}
+
+		if (const auto dropped = dropped_messages.exchange(0))
+		{
+			batch += "[console] " + std::to_string(dropped) + " line(s) not shown here (see the log file)\r\n";
+		}
+
+		Conbuf_AppendText(batch.data());
 	}
 
 	LRESULT InputLineWndProc(const HWND hwnd, const UINT umsg, const WPARAM wparam, const LPARAM lparam)
@@ -294,7 +355,9 @@ namespace syscon
 				const auto length = GetWindowTextA(s_wcd.hwndInputLine, s_wcd.consoleText, sizeof(s_wcd.consoleText));
 				if (length && add_console_text_if_ready(s_wcd.consoleText))
 				{
-					sprintf_s(dest, sizeof(dest), "]%s\n", s_wcd.consoleText);
+					// Truncate: dest and consoleText are the same size, so the two extra
+					// characters would otherwise reach the fail-fast invalid parameter handler.
+					_snprintf_s(dest, sizeof(dest), _TRUNCATE, "]%s\n", s_wcd.consoleText);
 					SetWindowTextA(s_wcd.hwndInputLine, "");
 
 					Sys_Print(dest);
@@ -541,9 +604,6 @@ namespace syscon
 
 		int handles_[2]{};
 
-		using message_queue = std::queue<std::string>;
-		utils::concurrency::container<message_queue> messages;
-
 		void initialize()
 		{
 			this->console_thread_ = utils::thread::create_named_thread("Console", [this]()
@@ -556,12 +616,7 @@ namespace syscon
 					ShowWindow(syscon::s_wcd.hWnd, SW_MINIMIZE);
 				}
 
-				{
-					messages.access([&](message_queue&)
-					{
-						this->console_initialized_ = true;
-					});
-				}
+				this->console_initialized_ = true;
 
 				MSG msg;
 				while (!this->terminate_runner_.load())
@@ -607,11 +662,6 @@ namespace syscon
 
 			_close(this->handles_[0]);
 			_close(this->handles_[1]);
-
-			messages.access([&](message_queue& msgs)
-			{
-				msgs = {};
-			});
 		}
 
 		void log_messages()
@@ -621,31 +671,10 @@ namespace syscon
 				return;
 			}
 
-			std::queue<std::string> message_queue_copy;
-
-			messages.access([&](message_queue& msgs)
-			{
-				if (!msgs.empty())
-				{
-					message_queue_copy = std::move(msgs);
-					msgs = {};
-				}
-			});
-
-			while (!message_queue_copy.empty())
-			{
-				log_message(message_queue_copy.front());
-				message_queue_copy.pop();
-			}
+			syscon::Sys_FlushPending();
 
 			fflush(stdout);
 			fflush(stderr);
-		}
-
-		static void log_message(const std::string& message)
-		{
-			//OutputDebugStringA(message.data());
-			syscon::Conbuf_AppendText(message.data());
 		}
 
 		void runner()

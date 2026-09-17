@@ -536,7 +536,8 @@ namespace game_console
 
 		va_list ap;
 		va_start(ap, fmt);
-		vsprintf_s(va_buffer, fmt, ap);
+		// Truncate instead of invoking the CRT invalid parameter handler (fail-fast).
+		vsnprintf_s(va_buffer, sizeof(va_buffer), _TRUNCATE, fmt, ap);
 		va_end(ap);
 
 		const auto formatted = std::string(va_buffer);

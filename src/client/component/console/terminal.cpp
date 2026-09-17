@@ -75,7 +75,8 @@ namespace terminal
 			const auto count = vsnprintf_s(buffer, _TRUNCATE, message, *ap);
 			if (count < 0)
 			{
-				return {};
+				// Truncated, not failed: keep the part that was written.
+				return { buffer, strnlen(buffer, sizeof(buffer) - 1) };
 			}
 
 			return { buffer, static_cast<size_t>(count) };

@@ -15,6 +15,10 @@ Join the S2x community on [Discord](https://discord.gg/wdC8Jpc2cC).
 
 The project is inspired by the work of the former XLabs community, but S2x is an independent project and is not affiliated with XLabs, Activision, Sledgehammer Games, Microsoft, or any related publisher, developer, or trademark holder.
 
+### Headquarters economy
+
+Headquarters balances, inventory, Orders, contracts, Mail and reward receipts are saved in `players2/user/hq_economy.json`; `hqeconomy reload` in the console reloads it. If two game instances share one profile, each sees the other's saved changes only after its own next successful economy change or an `hqeconomy reload`; the file lock prevents lost writes. The receipt ledger holds at most 10,000 entries and is never pruned, so after enough play new claims, purchases and payroll stop saving and the console says so once. Deleting `players2/user/hq_economy.json` with every instance closed resets the Headquarters economy and nothing else.
+
 ## Requirements
 
 You must own a legitimate Steam copy of **Call of Duty®: WWII** to use S2x.
