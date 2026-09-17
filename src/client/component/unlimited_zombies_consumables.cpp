@@ -17,6 +17,9 @@ namespace unlimited_zombies_consumables
 
 		int get_item_quantity_stub(const unsigned int controller_index, const unsigned int item_guid)
 		{
+			// The progression item is not a consumable — it gates access to
+			// Groesten Haus. Check it first so the consumable override below
+			// does not give it 999 and mask the cg_unlock_zm_progression toggle.
 			if (game::zombies_inventory::is_progression_item(item_guid))
 			{
 				const auto quantity = get_item_quantity_hook.invoke<int>(controller_index, item_guid);

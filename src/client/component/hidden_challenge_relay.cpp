@@ -29,9 +29,14 @@ namespace hidden_challenge_relay
 {
 	namespace
 	{
+		// s2x_hc is safe without the tilde because upstream clients hook
+		// CG_DeployServerCommandString and consume it before the engine's
+		// single-byte opcode dispatcher sees the 's'.
 		constexpr std::string_view server_command = "s2x_hc";
-		// CG_DeployServerCommandString (0x431F1D) ignores first bytes above 0x7C.
-		// Tilde keeps stock clients out of the engine's single-byte opcode handlers.
+		// s2x_zp is new to this branch and has no client-side hook on upstream,
+		// so a stock client would route it into the engine's 's' handler.
+		// CG_DeployServerCommandString (0x431F1D) ignores first bytes above 0x7C;
+		// tilde keeps stock clients out of the opcode dispatch.
 		constexpr std::string_view progression_command = "~s2x_zp";
 		constexpr auto maximum_pending_forwards = 128u;
 		// Connected Zombies clients retain forwards from state 3; sends require state 5.
