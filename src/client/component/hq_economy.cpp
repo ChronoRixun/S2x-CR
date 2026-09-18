@@ -157,23 +157,34 @@ namespace hq_economy
 				const auto* definitions = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "dw/dwgamechallenges.csv", false).stringTable;
 				if (!daily || !definitions) return;
 				std::vector<demonware::hq_economy::achievement> catalog;
-				// Six native daily identities. Retail observed win Social Score and rifle 2x drops;
-				// the other rewards/targets are local choices, not a recovered daily rotation.
+				// Daily order pool. The rotation shows 6 per day, cycling through the
+				// full pool. All challenge names have event rules in dwgamechallenges.csv.
 				for (const auto& [name, target, currency, amount] :
 					std::vector<std::tuple<const char*, unsigned, unsigned, unsigned>>{
-					{"daily_ch_1v1_wins", 1, 7, 250}, {"daily_ch_assault_kills", 35, 0, 2},
 					{"daily_ch_kills", 25, 0, 1}, {"daily_ch_headshots", 3, 0, 1},
-					{"daily_ch_commend", 1, 7, 250}, {"daily_ch_shotgun_kills", 100, 0, 2}})
+					{"daily_ch_assault_kills", 35, 0, 1}, {"daily_ch_smg_kills", 30, 0, 1},
+					{"daily_ch_lmg_kills", 25, 0, 1}, {"daily_ch_shotgun_kills", 25, 0, 1},
+					{"daily_ch_sniper_kills", 15, 0, 1}, {"daily_ch_pistol_kills", 10, 0, 1},
+					{"daily_ch_shovel_kills", 5, 1, 500},
+					{"daily_ch_assault_headshots", 5, 0, 1}, {"daily_ch_sniper_headshots", 3, 0, 1},
+					{"daily_ch_lmg_headshots", 5, 0, 1},
+					{"daily_ch_dom_wins", 1, 0, 1}, {"daily_ch_tdm_wins", 1, 0, 1},
+					{"daily_ch_killstreak", 3, 1, 300}, {"daily_ch_dom_caps", 5, 1, 250},
+					{"daily_ch_assists", 10, 1, 250}, {"daily_ch_destroy_scorestreaks", 2, 1, 300},
+					{"daily_ch_equipment_kills", 5, 0, 1}, {"daily_ch_ffa_killer", 15, 0, 1}})
 				{
 					demonware::hq_economy::achievement entry;
 					entry.name = entry.challenge_name = name; entry.target = target;
 					entry.rewards = {{currency ? "GRANT_CURRENCY" : "GRANT_PRODUCT", currency ? currency : 1, amount}};
-					// Existing collection loot GUID (itemscollections.csv row 27), a local item offer.
-					if (std::string_view{name} == "daily_ch_shotgun_kills") entry.rewards = {{"GRANT_PRODUCT", 0x20000D, 1}};
 					catalog.push_back(entry);
 				}
-				for (const auto& [name, target] : std::map<std::string, unsigned>{
-					{"weekly_ch_kills", 500}, {"weekly_ch_wins", 10}, {"weekly_ch_scorestreak_calls", 25}})
+				// Weekly order pool. The rotation shows 3 per week.
+				for (const auto& [name, target] : std::vector<std::pair<const char*, unsigned>>{
+					{"weekly_ch_kills", 500}, {"weekly_ch_wins", 10}, {"weekly_ch_scorestreak_calls", 25},
+					{"weekly_ch_infantry_kills", 100}, {"weekly_ch_airborne_kills", 100},
+					{"weekly_ch_armored_kills", 100}, {"weekly_ch_mountain_kills", 100},
+					{"weekly_ch_expeditionary_kills", 100},
+					{"weekly_ch_long_range_kills", 50}, {"weekly_ch_explosive_kills", 50}})
 				{
 					demonware::hq_economy::achievement entry;
 					entry.name = entry.challenge_name = name; entry.kind = 2; entry.target = target;
