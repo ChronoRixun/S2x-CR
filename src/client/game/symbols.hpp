@@ -349,6 +349,7 @@ namespace game
 		WEAK symbol<void(scr_entref_t entref)> PlayerCmd_Suicide{ 0x549F40 };
 
 		WEAK symbol<mp::gentity_s*(const char* name, int customizationGroup)> SV_AddBot{ 0xF2650 };
+		WEAK symbol<const char*()> SV_BotGetRandomName{ 0x6C3600 };
 
 		WEAK symbol<int(mp::gentity_s* entity)> SV_SpawnTestClient{ 0xF6AA0 };
 		WEAK symbol<bool(char clientNum)> SV_HasAssignedTeam_Internal{ 0x6DF9D0 };

@@ -12,12 +12,110 @@
 
 #include <utils/hook.hpp>
 
+#include <algorithm>
+#include <random>
+
 namespace bots
 {
 	namespace
 	{
 		const game::dvar_t* bot_fill{};
+		const game::dvar_t* bot_names_dvar{};
 		std::atomic<std::uint32_t> level_generation{0};
+
+		constexpr const char* const bot_names_values[] =
+		{
+			"default",
+			"modern",
+			"nostalgia",
+			nullptr
+		};
+
+		constexpr const char* modern_names[] =
+		{
+			"Vex", "Nyx", "Kova", "Raze", "Jinx", "Onyx", "Pyke", "Flak",
+			"Torq", "Drek",
+			"IronWake", "ColdPulse", "StormEdge", "AshenVolt", "HollowPoint",
+			"BrokenClock", "StaticWolf", "DeadChannel", "FrostLatch",
+			"DarkReach", "SilverMaw", "BlindSprint",
+			"Smoke_Trail", "Dead_Freq", "Pale_Nerve", "Grim_Output",
+			"Burnt_Signal", "Cold_Ransom",
+			"Krypt99", "Havoc04", "Sable17", "Reaver22", "Dusty301",
+			"Omen415", "Zenith03", "Harko27", "Dreggs56", "Pyre612",
+			"softlock", "voidrun", "bleakwinter", "quietfang", "novawreck",
+			"lostfreight",
+			"ClutchDeny", "DropShotRex", "HeadGlitch", "OneTapRon",
+			"HardScope",
+			"MikeFromOhio", "TacoTuesday44", "SleepyDave", "RunningLate",
+			"NotGoodAtThis",
+		};
+
+		constexpr const char* nostalgia_names[] =
+		{
+			"xXDarkAngelXx", "XxDeathStrikerxX", "xXBulletStormXx",
+			"xXSilentKillaxX", "XxVenom420xX", "xXPhantomZXx",
+			"XxDemonSlyrXx", "xXxChaosReapxXx",
+			"N00bSl4y3r", "H3adSh0tz", "D3athD34l3r", "Gh0stR1d3r",
+			"Pr0Sn1p3z", "R4g3Qu1t",
+			"CrimsonEagle47", "SilentFalcon82", "BrokenHammer19",
+			"FrozenTiger33", "ArcticBadger61", "ThunderPebble04",
+			"WickedMoose77", "AngryWaffle39",
+			"DarkAssassin99", "ShadowReaper_", "xDemonHunterx",
+			"DeathWish360", "BloodFangz", "NightStalker07",
+			"SoulReaver666", "DarkPhoenix187",
+			"FaZeScopez", "OpTiCPulse", "Predatr", "Clutchh",
+			"sTrIkEz", "QuiKz",
+			"IEatBullets", "ICampInCorners", "IDontMissShots",
+			"ITrickShot", "IRunWithKnives", "INeverReload",
+			"Sniper_Wolf_93", "CoD_K1NG_420", "TrIgGeR_HaPpY",
+			"HeadHunter01", "NoSc0pe360", "KillShot_69",
+			"iAmLegend", "oG_Gunner", "Captain_Lag", "SirLagsALot",
+			"CtrlAltDefeat", "CamperKing2010",
+		};
+
+		std::vector<const char*> name_pool{};
+		std::size_t name_index{0};
+
+		void shuffle_name_pool()
+		{
+			name_pool.clear();
+			name_index = 0;
+
+			if (!bot_names_dvar)
+			{
+				return;
+			}
+
+			const auto mode = bot_names_dvar->current.integer;
+
+			if (mode == 1)
+			{
+				name_pool.assign(std::begin(modern_names), std::end(modern_names));
+			}
+			else if (mode == 2)
+			{
+				name_pool.assign(std::begin(nostalgia_names), std::end(nostalgia_names));
+			}
+			else
+			{
+				return;
+			}
+
+			std::mt19937 rng{std::random_device{}()};
+			std::shuffle(name_pool.begin(), name_pool.end(), rng);
+		}
+
+		utils::hook::detour get_bot_name_hook;
+
+		const char* get_bot_name_stub()
+		{
+			if (name_pool.empty())
+			{
+				return get_bot_name_hook.invoke<const char*>();
+			}
+
+			return name_pool[name_index++ % name_pool.size()];
+		}
 
 		int get_requested_bot_count(const command::params& params)
 		{
@@ -208,6 +306,11 @@ namespace bots
 			bot_fill = game::Dvar_RegisterInt("bot_fill", 0, 0,
 				game::environment::get_online_mode_info().max_players, game::DVAR_FLAG_SAVED);
 
+			bot_names_dvar = game::Dvar_RegisterEnum("bot_names",
+				bot_names_values, 0, game::DVAR_FLAG_SAVED);
+
+			get_bot_name_hook.create(game::mp::SV_BotGetRandomName, get_bot_name_stub);
+
 			command::add("spawnBot", [](const command::params& params)
 			{
 				spawn_bot_command(params);
@@ -216,6 +319,7 @@ namespace bots
 			scripting::on_init([]
 			{
 				++level_generation;
+				shuffle_name_pool();
 				schedule_fill();
 			});
 
