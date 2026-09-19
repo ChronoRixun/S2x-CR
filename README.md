@@ -2,10 +2,7 @@
 
 # S2x ⭐ — ChronoRixun's fork
 
-This is a fork of [Brentdevent/S2x](https://github.com/Brentdevent/S2x), the custom client for **Call of Duty®: WWII**. It carries a set of fixes and features on top of upstream `master`, each on its own branch so it can be offered upstream as a pull request, and an `integration` branch where all of them are merged, built and tested together. If you want everything at once, build `integration`.
-
-> [!NOTE]
-> Everything here is meant for the upstream project, offered one branch at a time. The first attempt, [#61](https://github.com/Brentdevent/S2x/pull/61), was closed: it answered a small issue with too much machinery. It has been replaced by a much smaller fix that removes the cause instead. Until these land, this fork is the place to get them.
+This is a personal fork of [Brentdevent/S2x](https://github.com/Brentdevent/S2x), the custom client for **Call of Duty®: WWII**. It carries fixes and features on top of upstream `master`, merged together on the `integration` branch. If you want everything at once, build `integration`.
 
 > [!WARNING]
 > S2x is actively being developed and is not feature-complete. Expect bugs, crashes, missing features, and general instability. Dedicated servers, modding support, online functionality, and further gameplay stability are still in development.
@@ -59,7 +56,7 @@ You must own a legitimate Steam copy of **Call of Duty®: WWII** to use S2x. S2x
 
 ## How it is tested
 
-Every branch is built into `integration`, installed and exercised in the game before it is offered upstream: dedicated servers through full rotations with bots and a connected client, the console commands with their error paths, the menus in Multiplayer and Zombies, and the persisted files afterwards. Each commit also gets an independent code review before it is pushed. The details of what was run for each change are in the pull request descriptions.
+Every branch is built into `integration`, installed and exercised in the game: dedicated servers through full rotations with bots and a connected client, the console commands with their error paths, the menus in Multiplayer and Zombies, and the persisted files afterwards.
 
 ## Combat Training
 
