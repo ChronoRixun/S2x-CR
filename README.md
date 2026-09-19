@@ -13,7 +13,7 @@ S2x is a custom client project for Call of Duty®: WWII, focused on preserving a
 
 | Branch | What it does | Upstream |
 |---|---|---|
-| `fix/44-rotation-defaults` | Admin gameplay settings survive dedicated map rotations | [#44](https://github.com/Brentdevent/S2x/issues/44) |
+| `fix/44-rotation-defaults` | Admin gameplay settings survive dedicated map rotations | [#44](https://github.com/Brentdevent/S2x/issues/44) | <Merged> 
 | `fix/lobby-party-slot-bound` | Fixes a dedicated-server crash in the lobby party walk | crash found while testing #44 |
 | `fix/console-long-line` | A console line over 4 KB is truncated instead of ending the process | crash found while tracing #44 |
 | `fix/scheduler-drop-throwing-tasks` | A scheduled task that throws is contained and dropped instead of taking the game down | found during the #39 review |
