@@ -13,7 +13,7 @@ S2x is a custom client project for Call of Duty®: WWII, focused on preserving a
 
 | Branch | What it does | Upstream |
 |---|---|---|
-| `fix/44-rotation-defaults` | Admin gameplay settings survive dedicated map rotations | [#44](https://github.com/Brentdevent/S2x/issues/44) | <Merged> 
+| `fix/44-rotation-defaults` | Admin gameplay settings survive dedicated map rotations | [#44](https://github.com/Brentdevent/S2x/issues/44) | 
 | `fix/lobby-party-slot-bound` | Fixes a dedicated-server crash in the lobby party walk | crash found while testing #44 |
 | `fix/console-long-line` | A console line over 4 KB is truncated instead of ending the process | crash found while tracing #44 |
 | `fix/scheduler-drop-throwing-tasks` | A scheduled task that throws is contained and dropped instead of taking the game down | found during the #39 review |
@@ -25,7 +25,7 @@ S2x is a custom client project for Call of Duty®: WWII, focused on preserving a
 | `fix/53-zombies-progression-only` | Tortured Path chapter tracking and main-quest progression recording | [#53](https://github.com/Brentdevent/S2x/issues/53) |
 | `feat/39-hq-economy` | Headquarters economy: Orders, contracts, payroll, supply drops, Quartermaster, Mail | [#39](https://github.com/Brentdevent/S2x/issues/39) |
 
-### Dedicated server settings that stick
+### Dedicated server settings that stick -- Merged
 
 On upstream, `scr_dom_scorelimit` and friends set from the command line or `server.cfg` lasted exactly one map. The cause is that the engine's lobby code runs `default_xboxlive.cfg`, and through it the 497 gameplay defaults in `default_mp_allmodes.cfg`, every time the party is created, a match ends and the lobby returns: seven times per rotation, wiping whatever the admin set. That file exists to be overridden by the playlist rules afterwards, and a dedicated server has no playlist. So this fork executes it once at startup, ahead of the server config, and skips it from then on. Nothing resets the values, so nothing has to restore them.
 
