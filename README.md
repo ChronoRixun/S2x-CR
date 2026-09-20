@@ -75,6 +75,8 @@ The rotation is mode-aware: MP players see MP orders, zombies players see zombie
 powershell -ExecutionPolicy Bypass -File tools\server-launcher.ps1
 ```
 
+The launcher finds the game folder through `-GameDir`, a remembered choice, its own folder or the folder above it, or the Steam registry entry; otherwise it asks for the folder that contains `s2x.exe` and remembers it. On a machine without Steam, run it from the game folder or pass `-GameDir "C:\Games\Call of Duty WWII"`.
+
 ## Requirements
 
 You must own a legitimate Steam copy of **Call of Duty®: WWII** to use S2x. S2x does **not** provide game files, cracked executables, or any method to obtain the game without purchasing it.

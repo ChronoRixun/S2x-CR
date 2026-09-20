@@ -2,9 +2,14 @@
 #
 #   powershell -NoProfile -ExecutionPolicy Bypass -File D:\S2x\tools\server-launcher.ps1
 #   pwsh       -NoProfile -ExecutionPolicy Bypass -File D:\S2x\tools\server-launcher.ps1
+#   ... -File server-launcher.ps1 -GameDir "C:\Games\Call of Duty WWII"
 #
 # Keep ServerLauncher.xaml next to this file.
+# The game folder is taken from -GameDir, a remembered choice, this script's folder or its
+# parent, the Steam registry entry, or a folder picker; the picked folder is remembered.
 # Behaviour matches the WinForms version: same presets, same server.cfg, same launch args.
+
+param([string]$GameDir)
 
 Set-StrictMode -Off
 $ErrorActionPreference = "Stop"
@@ -14,13 +19,31 @@ Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
 
 # ── Game path ──────────────────────────────────────────────────────────────────
-$GameDir = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Steam App 476600" -ErrorAction SilentlyContinue).InstallLocation
-if (-not $GameDir -or -not (Test-Path (Join-Path $GameDir "s2x.exe"))) {
-    $GameDir = "D:\Program Files\Steam\steamapps\common\Call of Duty WWII"
+$rememberedGameDirFile = Join-Path $env:LOCALAPPDATA "s2x\launcher-gamedir.txt"
+function Test-GameDir($dir) { $dir -and (Test-Path (Join-Path $dir "s2x.exe")) }
+
+if (-not (Test-GameDir $GameDir)) {
+    $candidates = @()
+    if (Test-Path $rememberedGameDirFile) { $candidates += (Get-Content $rememberedGameDirFile -Raw).Trim() }
+    $candidates += $PSScriptRoot
+    $candidates += (Split-Path $PSScriptRoot -Parent)
+    $candidates += (Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Steam App 476600" -ErrorAction SilentlyContinue).InstallLocation
+    $candidates += "D:\Program Files\Steam\steamapps\common\Call of Duty WWII"
+    $GameDir = $candidates | Where-Object { Test-GameDir $_ } | Select-Object -First 1
 }
-if (-not (Test-Path (Join-Path $GameDir "s2x.exe"))) {
-    [System.Windows.MessageBox]::Show("Could not find s2x.exe. Place this script in the game folder or install S2x.", "S2x Server Launcher", "OK", "Warning") | Out-Null
-    exit 1
+if (-not (Test-GameDir $GameDir)) {
+    Add-Type -AssemblyName System.Windows.Forms
+    $picker = New-Object System.Windows.Forms.FolderBrowserDialog
+    $picker.Description = "Select the Call of Duty WWII folder that contains s2x.exe"
+    $picker.ShowNewFolderButton = $false
+    if ($picker.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK -and (Test-GameDir $picker.SelectedPath)) {
+        $GameDir = $picker.SelectedPath
+        New-Item -ItemType Directory -Force (Split-Path $rememberedGameDirFile -Parent) | Out-Null
+        [System.IO.File]::WriteAllText($rememberedGameDirFile, $GameDir, [System.Text.UTF8Encoding]::new($false))
+    } else {
+        [System.Windows.MessageBox]::Show("Could not find s2x.exe. Run this script from the game folder, pass -GameDir, or pick the folder that contains s2x.exe.", "S2x Server Launcher", "OK", "Warning") | Out-Null
+        exit 1
+    }
 }
 
 $PresetDir = Join-Path $GameDir "s2x\presets"
