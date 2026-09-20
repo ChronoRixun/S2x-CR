@@ -85,28 +85,19 @@ Every branch is built into `integration`, installed and exercised in the game: d
 
 ## Combat Training
 
-Start Multiplayer, open the console with the tilde/backtick key and load a map with a gametype:
+The easiest way to play with bots is to launch a dedicated server with the server launcher (`tools/server-launcher.ps1`) and connect to it. The launcher handles the map rotation, score limits, bot fill, and bot names — no console commands or config files needed.
+
+Alternatively, set up a dedicated server from the console or `server.cfg`:
 
 ```text
-map mp_shipment_s2 dom
+bot_fill 17
+bot_names nostalgia
 ```
 
-Once the map has loaded, add bots:
+`bot_fill` is the number of bots added automatically on every map start, from 0 (disabled) to 18. `bot_names` selects a name pool (`default`, `modern`, or `nostalgia`). Both are saved dvars and persist across server restarts. Progression works in these matches.
 
-```text
-spawnBot 6
-```
-
-`bot_fill` does that on every map start, so changing map does not mean retyping `spawnBot`. It is saved with your profile:
-
-```text
-bot_fill 6
-map mp_shipment_s2 war
-```
-
-Set `bot_fill 0` to disable it again. The value is a number of bots from 0 to the multiplayer player limit of 18; a value outside that range is rejected and the previous one is kept. Bots count toward the match's player limit, and the console reports how many the engine actually added. Progression works in these matches.
-
-One trap worth knowing: a dedicated server started from this game folder reads the same profile, so `+set bot_fill N` there also changes the value for your own matches. Set it back to `0` afterwards if you do not want bots in them.
+> [!NOTE]
+> `bot_fill` and `spawnBot` work on dedicated servers. In custom (private/listen) matches, the engine accepts the bots but they do not appear in the game. Use a dedicated server for bot matches.
 
 ## Modding: loose file overrides
 
