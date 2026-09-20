@@ -305,12 +305,35 @@ local function cycle_bot_names( direction )
 	end
 end
 
+local bot_fill_current = 0
+local bot_fill_max = 18
+
+local function get_bot_fill()
+	return bot_fill_current
+end
+
+local function set_bot_fill( value )
+	value = math.max( 0, math.min( bot_fill_max, value ) )
+	bot_fill_current = value
+	Engine.Exec( "set bot_fill " .. value )
+end
+
 local function bot_name_options()
 	return {
 		{
-			buttonType = "GenericHeader",
-			buttonText = Engine.Localize( "Bots" ),
-			isHeader = true
+			buttonType = "GenericButtonScrollable",
+			buttonText = Engine.Localize( "Bot Fill" ),
+			buttonDesc = Engine.Localize( "Number of bots added automatically on every map start. Set to 0 to disable." ),
+			buttonDisplayFunc = function ()
+				local count = get_bot_fill()
+				if count == 0 then
+					return "Off"
+				end
+
+				return tostring( count )
+			end,
+			buttonLeftFunc = function () set_bot_fill( get_bot_fill() - 1 ) end,
+			buttonRightFunc = function () set_bot_fill( get_bot_fill() + 1 ) end
 		},
 		{
 			buttonType = "GenericButtonScrollable",
@@ -357,7 +380,7 @@ local function multiplayer_options( controller )
 			buttonLeftFunc = loot_toggle,
 			buttonRightFunc = loot_toggle
 		}
-	}, append_options( progression_options( controller ), bot_name_options() ) )
+	}, append_options( bot_name_options(), progression_options( controller ) ) )
 end
 
 local function zombies_options( controller )
