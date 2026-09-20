@@ -12,7 +12,7 @@ namespace demonware
 	public:
 		using clock = std::chrono::steady_clock;
 
-		void tick(const bool playing, const clock::time_point now)
+		void tick(const bool playing, const clock::time_point now, const int kind = 4)
 		{
 			// Observe play boundaries even when the store cannot be read.
 			for (auto& [name, timer] : timers_)
@@ -24,12 +24,12 @@ namespace demonware
 			std::erase_if(timers_, [&](const auto& pair)
 			{
 				const auto it = data.achievements.find(pair.first);
-				return it == data.achievements.end() || !pair.second.matches(it->second);
+				return it == data.achievements.end() || it->second.kind != kind || !pair.second.matches(it->second);
 			});
 			bool due{};
 			for (const auto& [name, entry] : data.achievements)
 			{
-				if (entry.kind != 4 || entry.status != "inProgress" || !entry.usage_target) continue;
+				if (entry.kind != kind || (kind != 4 && kind != 11) || entry.status != "inProgress" || !entry.usage_target) continue;
 				auto [it, inserted] = timers_.try_emplace(name);
 				auto& timer = it->second;
 				if (inserted)
@@ -66,7 +66,7 @@ namespace demonware
 
 			bool matches(const hq_economy::achievement& entry) const
 			{
-				return entry.kind == 4 && entry.status == "inProgress" && entry.usage_target &&
+				return (entry.kind == 4 || entry.kind == 11) && entry.status == "inProgress" && entry.usage_target &&
 					entry.activation == activation && entry.activation_generation == generation;
 			}
 

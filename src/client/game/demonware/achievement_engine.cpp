@@ -21,9 +21,20 @@ namespace demonware::achievement_engine
 		std::function<void(cache_update)> cache_sink{};
 		std::mutex catalog_mutex{};
 		std::vector<hq_economy::achievement> definitions{};
-		std::vector<std::uint32_t> loot_items{};
+		std::vector<std::uint32_t> loot_items{}, zombies_loot_items{};
 		std::map<std::string, hq_event_predicate::rule> event_rules;
 		using allocator = rapidjson::Document::AllocatorType;
+
+		bool daily(const int kind) { return kind == 1 || kind == 8; }
+		bool weekly(const int kind) { return kind == 2 || kind == 9; }
+		bool contract(const int kind) { return kind == 4 || kind == 11; }
+		bool order(const int kind) { return daily(kind) || weekly(kind); }
+		const char* bonus_name(const int kind)
+		{
+			return kind == 8 ? "zm_above_beyond_daily" : kind == 9 ? "zm_above_beyond_weekly" :
+				kind == 1 ? "above_beyond_daily" : "above_beyond_weekly";
+		}
+
 
 		rapidjson::Value text(const std::string_view value, allocator& alloc)
 		{
@@ -123,7 +134,8 @@ namespace demonware::achievement_engine
 
 		bool above_beyond(const hq_economy::achievement& entry)
 		{
-			return entry.kind == 5 && (entry.name == "above_beyond_daily" || entry.name == "above_beyond_weekly");
+			return entry.kind == 5 && (entry.name == "above_beyond_daily" || entry.name == "above_beyond_weekly" ||
+				entry.name == "zm_above_beyond_daily" || entry.name == "zm_above_beyond_weekly");
 		}
 
 		void publish_cache_update(cache_update update)
@@ -147,7 +159,7 @@ namespace demonware::achievement_engine
 
 		bool redeemed_order(const hq_economy::achievement& entry)
 		{
-			return (entry.kind == 1 || entry.kind == 2 || entry.kind == 4) &&
+			return (order(entry.kind) || contract(entry.kind)) &&
 				entry.status == "finished" && !entry.claim_transaction.empty();
 		}
 
@@ -186,7 +198,7 @@ namespace demonware::achievement_engine
 			// the four-hour countdown never appeared. No shipped consumer reads the key:
 			// 0x13A570 and 0x13EC20 are its only two references in the image.
 			// Zero selects Completion Time / active match time in the retail Contracts UI.
-			const auto expires = entry.kind == 4 ? std::uint64_t{0} : period_end(entry.name == "above_beyond_weekly" ? 2 : entry.kind, day);
+			const auto expires = contract(entry.kind) ? std::uint64_t{0} : period_end((entry.name == "above_beyond_weekly" || entry.name == "zm_above_beyond_weekly") ? 2 : entry.kind, day);
 			value.AddMember("expirationTimestamp", expires, alloc);
 			value.AddMember("usageTimeTarget", entry.usage_target, alloc);
 			value.AddMember("usageTimeRemaining", entry.usage_target - std::min(entry.usage_target, entry.usage), alloc);
@@ -252,15 +264,15 @@ namespace demonware::achievement_engine
 		{
 			std::lock_guard lock{catalog_mutex};
 			std::vector<hq_economy::achievement> result{};
-			for (const auto kind : {1, 2, 4})
+			for (const auto kind : {1, 2, 4, 8, 9, 11})
 			{
 				std::vector<hq_economy::achievement> pool{};
 				for (const auto& entry : definitions) if (entry.kind == kind) pool.push_back(entry);
-				const auto period = kind == 2 ? day / 7 : day;
-				for (std::size_t i = 0; i < std::min<std::size_t>(kind == 4 ? 9 : kind == 1 ? 6 : 3, pool.size()); ++i)
+				const auto period = weekly(kind) ? day / 7 : day;
+				for (std::size_t i = 0; i < std::min<std::size_t>(contract(kind) ? 9 : daily(kind) ? 6 : 3, pool.size()); ++i)
 				{
 					auto entry = pool[(period + i) % pool.size()];
-					entry.offer_day = kind == 2 ? period * 7 : day;
+					entry.offer_day = weekly(kind) ? period * 7 : day;
 					result.push_back(entry);
 				}
 			}
@@ -270,24 +282,26 @@ namespace demonware::achievement_engine
 
 	std::uint64_t period_end(const int kind, const std::uint64_t day)
 	{
-		return (kind == 2 ? (day / 7 + 1) * 7 : day + 1) * 86400;
+		return (weekly(kind) ? (day / 7 + 1) * 7 : day + 1) * 86400;
 	}
 
 	bool contract_eligible(const hq_economy::state& data, const std::string_view name, const std::uint64_t now)
 	{
 		const auto day = now / 86400;
 		const auto scheduled = offers(day);
-		if (std::none_of(scheduled.begin(), scheduled.end(), [&](const auto& e) { return e.kind == 4 && e.name == name; })) return false;
+		const auto offer = std::find_if(scheduled.begin(), scheduled.end(), [&](const auto& e) { return contract(e.kind) && e.name == name; });
+		if (offer == scheduled.end()) return false;
 		const auto prior = data.achievements.find(std::string{name});
 		// No same-day retries after completion or timeout, matching activation policy.
 		if (prior != data.achievements.end() && (prior->second.status == "inProgress" ||
 			prior->second.status == "claimable" || (prior->second.status != "available" && prior->second.offer_day == day))) return false;
 		unsigned occupied{};
 		for (const auto& [key, entry] : data.achievements)
-			if (entry.kind == 4 && (entry.status == "inProgress" || entry.status == "claimable")) ++occupied;
+			if (entry.kind == offer->kind && (entry.status == "inProgress" || entry.status == "claimable")) ++occupied;
 		for (const auto& sku : hq_marketplace::vendor_skus)
 		{
-			if (!*sku.contract || name == sku.contract) continue;
+			if (!*sku.contract || name == sku.contract || std::none_of(scheduled.begin(), scheduled.end(),
+				[&](const auto& e) { return e.kind == offer->kind && e.name == sku.contract; })) continue;
 			const auto active = data.achievements.find(sku.contract);
 			if (active != data.achievements.end() && (active->second.status == "inProgress" || active->second.status == "claimable")) continue;
 			const auto token = data.inventory.find({hq_marketplace::granted_items(sku).front(), 0});
@@ -298,7 +312,7 @@ namespace demonware::achievement_engine
 
 	bool advance_contract_time(hq_economy::achievement& entry, const std::uint32_t seconds)
 	{
-		if (entry.kind != 4 || entry.status != "inProgress" || !entry.usage_target || !seconds) return false;
+		if (!contract(entry.kind) || entry.status != "inProgress" || !entry.usage_target || !seconds) return false;
 		entry.usage += std::min(seconds, entry.usage_target - std::min(entry.usage, entry.usage_target));
 		if (entry.usage >= entry.usage_target)
 		{ entry.status = "expired"; entry.expired_at = static_cast<std::uint64_t>(time(nullptr)); }
@@ -331,20 +345,23 @@ namespace demonware::achievement_engine
 			if (entry.kind == 1 && completed_day == day) daily_claims += daily_claims < 6;
 			if (entry.kind == 2 && completed_day <= day && completed_day / 7 == day / 7) weekly_claims += weekly_claims < 3;
 		}
-		const auto have_contracts = std::any_of(definitions.begin(), definitions.end(), [](const auto& a) { return a.kind == 4; });
-		if (have_contracts)
+		for (const auto kind : {4, 11})
+		{
+			const auto present = std::any_of(definitions.begin(), definitions.end(), [kind](const auto& a) { return a.kind == kind; });
+			if (!present) continue; // Preserve the other mode's contracts and paid progress.
 			changed |= std::erase_if(data.achievements, [&](const auto& pair)
 			{
-				return pair.second.kind == 4 && std::none_of(definitions.begin(), definitions.end(),
-					[&](const auto& d) { return d.kind == 4 && d.name == pair.first && d.target == pair.second.target && d.usage_target == pair.second.usage_target; });
+				return pair.second.kind == kind && std::none_of(definitions.begin(), definitions.end(),
+					[&](const auto& d) { return d.kind == kind && d.name == pair.first && d.target == pair.second.target && d.usage_target == pair.second.usage_target; });
 			}) != 0;
-		for (const auto kind : {1, 2})
+		}
+		for (const auto kind : {1, 2, 8, 9})
 		{
 			std::vector<hq_economy::achievement> pool;
 			for (const auto& entry : definitions) if (entry.kind == kind) pool.push_back(entry);
 			if (pool.empty()) continue; // table loading has not completed
-			const auto limit = kind == 1 ? 6u : 3u;
-			const auto current = [&](const auto& entry) { return kind == 2 ? entry.offer_day / 7 == day / 7 : entry.offer_day == day; };
+			const auto limit = daily(kind) ? 6u : 3u;
+			const auto current = [&](const auto& entry) { return weekly(kind) ? entry.offer_day / 7 == day / 7 : entry.offer_day == day; };
 			std::size_t live{};
 			for (auto& [name, entry] : data.achievements)
 			{
@@ -372,7 +389,7 @@ namespace demonware::achievement_engine
 				++live;
 				if (entry.offer_day != day) { entry.offer_day = day; changed = true; }
 			}
-			const auto period = kind == 2 ? day / 7 : day;
+			const auto period = weekly(kind) ? day / 7 : day;
 			// Prefer unused definitions; if the small local pool is exhausted,
 			// completed definitions may be offered again to maintain three slots.
 			// The old receipt remains until activation, and cannot grant twice.
@@ -394,26 +411,27 @@ namespace demonware::achievement_engine
 					++live; changed = true;
 				}
 		}
-		if (have_counters)
-			for (const auto kind : {1, 2})
+		for (const auto kind : {1, 2, 8, 9})
+		{
+			if (kind < 8 ? !have_counters : std::none_of(definitions.begin(), definitions.end(),
+				[kind](const auto& entry) { return entry.kind == kind; })) continue;
+			const auto name = bonus_name(kind);
+			const auto period = daily(kind) ? day : day / 7 * 7;
+			auto& counter = data.achievements[name];
+			if (counter.name.empty() || counter.offer_day != period)
 			{
-				const auto name = kind == 1 ? "above_beyond_daily" : "above_beyond_weekly";
-				const auto period = kind == 1 ? day : day / 7 * 7;
-				auto& counter = data.achievements[name];
-				if (counter.name.empty() || counter.offer_day != period)
-				{
-					counter = {}; counter.name = counter.challenge_name = name; counter.kind = 5;
-					counter.offer_day = period; counter.target = kind == 1 ? 6 : 3; counter.status = "inProgress";
-					counter.rewards = {{"GRANT_PRODUCT", kind == 1 ? 1u : 2u, 1}}; changed = true;
-				}
-				if (recount)
-				{
-					counter.progress = kind == 1 ? daily_claims : weekly_claims;
-					// Recount is bookkeeping only: never replay an already-paid bonus.
-					if (counter.progress >= counter.target) counter.status = "finished";
-					changed = true;
-				}
+				counter = {}; counter.name = counter.challenge_name = name; counter.kind = 5;
+				counter.offer_day = period; counter.target = daily(kind) ? 6 : 3; counter.status = "inProgress";
+				counter.rewards = {{"GRANT_PRODUCT", kind >= 8 ? 6u : daily(kind) ? 1u : 2u, 1}}; changed = true;
 			}
+			if (recount && kind < 8)
+			{
+				counter.progress = daily(kind) ? daily_claims : weekly_claims;
+				// Recount is bookkeeping only: never replay an already-paid bonus.
+				if (counter.progress >= counter.target) counter.status = "finished";
+				changed = true;
+			}
+		}
 		if (recount) data.transactions[recount_marker] = std::to_string(day);
 		return changed;
 	}
@@ -456,14 +474,14 @@ namespace demonware::achievement_engine
 		definitions = std::move(catalog);
 	}
 
-	void set_loot_catalog(std::vector<std::uint32_t> items)
+	void set_loot_catalog(std::vector<std::uint32_t> items, const bool zombies)
 	{
 		std::erase_if(items, [](const auto id) { return id <= 2 || id > INT32_MAX; });
 		std::sort(items.begin(), items.end());
 		items.erase(std::unique(items.begin(), items.end()), items.end());
 		if (items.size() > 10000) items.clear();
 		std::lock_guard lock{catalog_mutex};
-		loot_items = std::move(items);
+		(zombies ? zombies_loot_items : loot_items) = std::move(items);
 	}
 
 	void retry_event_cache_refresh()
@@ -549,10 +567,10 @@ namespace demonware::achievement_engine
 			}();
 		}
 
-		// Timestamp plus parameters identifies a repeated native event. Zero timestamps
-		// are not deduplicated because multiple genuine kills could otherwise collapse.
-		// Normalize aliases and parameter order so task 11, task 12 and retransmits
-		// share the same receipt even when their serialization order differs.
+		// Native timestamps have second resolution. Normalize aliases and fields
+		// for retries; Zombies kills additionally retain their occurrence within a
+		// batch so two identical kills in the same second both count.
+		// Zero timestamps retain legacy arrival semantics.
 		std::vector<std::pair<unsigned, std::uint64_t>> parameters;
 		for (const auto& parameter : event.parameters)
 		{
@@ -564,6 +582,9 @@ namespace demonware::achievement_engine
 		std::string fingerprint = std::to_string(event_type) + ":" + std::to_string(event.timestamp);
 		for (const auto& [selector, value] : parameters)
 			fingerprint += ":" + std::to_string(selector) + "=" + std::to_string(value);
+		// Occurrence zero preserves existing receipts. The SDK generates a new
+		// transaction ID on retry; that ID must not participate in this key.
+		if (event_type == 34 && event.occurrence) fingerprint += ":occurrence=" + std::to_string(event.occurrence);
 		std::uint64_t hash = 14695981039346656037ULL;
 		for (const auto byte : fingerprint) { hash ^= static_cast<unsigned char>(byte); hash *= 1099511628211ULL; }
 		const auto key = "event:" + std::to_string(hash);
@@ -642,6 +663,7 @@ namespace demonware::achievement_engine
 	bool valid_event(const reward_game_events::event& event, const bool native_payroll)
 	{
 		const auto type = hq_event_predicate::event_id(event.name);
+		if (event.occurrence && (type != 34 || event.occurrence >= 100)) return false;
 		return !type || (event.timestamp >= 0 && hq_event_predicate::evaluate({}, event).valid &&
 			!(native_payroll && type == 18 && event.timestamp == 0));
 	}
@@ -786,10 +808,12 @@ namespace demonware::achievement_engine
 					data = hq_economy::snapshot();
 				}
 			}
-			std::erase_if(scheduled, [](const auto& entry) { return entry.kind == 1 || entry.kind == 2; });
+			unsigned scheduled_kinds{};
+			for (const auto& entry : scheduled) scheduled_kinds |= 1u << entry.kind;
+			std::erase_if(scheduled, [](const auto& entry) { return order(entry.kind); });
 			for (const auto& [name, entry] : data.achievements)
-				if ((entry.kind == 1 || entry.kind == 2) && (entry.status == "available" || entry.status == "inProgress" || entry.status == "claimable" ||
-					(entry.status == "finished" && (entry.kind == 2 ? entry.offer_day / 7 == day / 7 : entry.offer_day == day)))) scheduled.push_back(entry);
+				if (order(entry.kind) && (scheduled_kinds & (1u << entry.kind)) && (entry.status == "available" || entry.status == "inProgress" || entry.status == "claimable" ||
+					(entry.status == "finished" && (weekly(entry.kind) ? entry.offer_day / 7 == day / 7 : entry.offer_day == day)))) scheduled.push_back(entry);
 			std::set<std::string> legacy_names;
 			const auto append_legacy = [&](rapidjson::Value& results)
 			{
@@ -921,14 +945,16 @@ namespace demonware::achievement_engine
 				// Native 0x2B0850 sends column 4; 0x2AEEA0 counts column 5 item IDs.
 				const auto drop = string(request, "SupplyDropID");
 				// Item ids from mp/supplyDropTypes.csv column f5; sd_zombie_rare is the
-				// Quartermaster's "ZM" vendor SKU, opened from the same local loot pool.
+				// Quartermaster's "ZM" vendor SKU; its two-stage reveal needs two regular
+				// items followed by three Zombies consumables.
 				const std::uint32_t drop_id = drop == "sd_mp" ? 1 : drop == "sd_mp_rare" ? 2 :
 					drop == "sd_zombie_rare" ? 6 : 0;
 				if (!drop_id) return fail("unsupported_supply_drop");
-				std::vector<std::uint32_t> pool;
+				std::vector<std::uint32_t> pool, consumables;
 				{
 					std::lock_guard lock{catalog_mutex};
 					pool = loot_items;
+					if (drop_id == 6) consumables = zombies_loot_items;
 				}
 				const auto key = "drop:" + client_tx;
 				const auto ok = hq_economy::transact([&](hq_economy::state& next)
@@ -944,25 +970,33 @@ namespace demonware::achievement_engine
 					}
 					else
 					{
-						if (pool.empty()) return false;
+						if (pool.empty() || (drop_id == 6 && consumables.empty())) return false;
 						auto owned = next.inventory.find({drop_id, 0});
 						if (owned == next.inventory.end() || !owned->second.quantity ||
 							(owned->second.expires && owned->second.expires <= now)) return false;
 						--owned->second.quantity;
 						owned->second.modified = static_cast<std::uint32_t>(now);
-						// Local policy: three uniform collection-item rolls, with replacement.
-						// This is not a reconstruction of retail odds or rare guarantees.
+						// The native ZM reveal partitions rewards, flips two non-consumable
+						// cards, then reveals exactly three consumables. Sending only the
+						// consumables leaves an invalid GUID in the first stage's second slot.
+						// Uniform rolls with replacement remain local policy, not retail odds.
 						std::mt19937_64 random{std::random_device{}()};
-						std::uniform_int_distribution<std::size_t> roll{0, pool.size() - 1};
 						rapidjson::Value items{rapidjson::kArrayType};
-						for (int i = 0; i < 3; ++i)
+						const auto grant_rolls = [&](const auto& candidates, const unsigned count)
 						{
-							const auto id = pool[roll(random)];
-							if (!hq_economy::grant(next, {"GRANT_PRODUCT", id, 1})) return false;
-							rapidjson::Value item{rapidjson::kObjectType};
-							item.AddMember("id", id, alloc);
-							items.PushBack(item, alloc);
-						}
+							std::uniform_int_distribution<std::size_t> roll{0, candidates.size() - 1};
+							for (unsigned i = 0; i < count; ++i)
+							{
+								const auto id = candidates[roll(random)];
+								if (!hq_economy::grant(next, {"GRANT_PRODUCT", id, 1})) return false;
+								rapidjson::Value item{rapidjson::kObjectType};
+								item.AddMember("id", id, alloc);
+								items.PushBack(item, alloc);
+							}
+							return true;
+						};
+						if (!grant_rolls(pool, drop_id == 6 ? 2 : 3) ||
+							(drop_id == 6 && !grant_rolls(consumables, 3))) return false;
 						response.AddMember("SupplyDropID", text(drop, alloc), alloc);
 						response.AddMember("GrantedItems", items, alloc);
 						response.AddMember("GrantedCurrencies", rapidjson::Value{rapidjson::kArrayType}, alloc);
@@ -1041,16 +1075,16 @@ namespace demonware::achievement_engine
 					auto it = next.achievements.find(name);
 					if (action.starts_with("activate_"))
 					{
-						if ((action == "activate_user_contract") != (kind == 4)) return false;
+						if ((action == "activate_user_contract") != contract(kind)) return false;
 						if (it != next.achievements.end() && it->second.kind == kind &&
 							(it->second.status == "inProgress" || it->second.status == "claimable"))
 						{
 							updated = it->second;
 							return true;
 						}
-						if (kind == 4 && !contract_eligible(next, name, now)) return false;
+						if (contract(kind) && !contract_eligible(next, name, now)) return false;
 						if (it != next.achievements.end() && it->second.status != "available" &&
-							(kind == 2 ? it->second.offer_day / 7 == day / 7 : it->second.offer_day == day)) return false;
+							(weekly(kind) ? it->second.offer_day / 7 == day / 7 : it->second.offer_day == day)) return false;
 						const auto offer = std::find_if(scheduled.begin(), scheduled.end(), [&](const auto& e) { return e.name == name && e.kind == kind; });
 						if (offer == scheduled.end()) return false;
 						const auto active = std::count_if(next.achievements.begin(), next.achievements.end(), [&](const auto& pair)
@@ -1058,7 +1092,7 @@ namespace demonware::achievement_engine
 							return pair.second.kind == kind && (pair.second.status == "inProgress" || pair.second.status == "claimable");
 						});
 						if (active >= 3) return false;
-						if (kind == 4)
+						if (contract(kind))
 						{
 							// The menu buys the cost item, then AE_ActivatePlayerChallenge consumes it.
 							// Consume with activation in one transaction; retries above are free.
@@ -1085,7 +1119,7 @@ namespace demonware::achievement_engine
 					if (action == "deactivate_user_achievement")
 					{
 						if (entry.status != "inProgress" && entry.status != "claimable" && entry.status != "inactive") return false;
-						if (entry.kind != 1 && entry.kind != 2 && entry.kind != 4) return false;
+						if (!order(entry.kind) && !contract(entry.kind)) return false;
 						entry.status = "available";
 						entry.offer_day = day;
 						entry.claim_transaction.clear(); entry.completion = 0;
@@ -1109,9 +1143,9 @@ namespace demonware::achievement_engine
 							entry.completion = now;
 							entry.claim_transaction = client_tx;
 							next.transactions[transaction_key] = fingerprint;
-							if (entry.kind == 1 || entry.kind == 2)
+							if (order(entry.kind))
 							{
-								const auto counter = next.achievements.find(entry.kind == 1 ? "above_beyond_daily" : "above_beyond_weekly");
+								const auto counter = next.achievements.find(bonus_name(entry.kind));
 								if (counter != next.achievements.end() && counter->second.status == "inProgress")
 								{
 									auto& bonus = counter->second;
@@ -1130,9 +1164,9 @@ namespace demonware::achievement_engine
 						// Every claim re-reads the native user cache: the counter push goes
 						// through the undocumented 139C10 status mapper and may be dropped.
 						claim_update.fetch_user = true;
-						if (entry.kind == 1 || entry.kind == 2)
+						if (order(entry.kind))
 						{
-							const auto bonus = next.achievements.find(entry.kind == 1 ? "above_beyond_daily" : "above_beyond_weekly");
+							const auto bonus = next.achievements.find(bonus_name(entry.kind));
 							if (bonus != next.achievements.end())
 							{
 								claim_update.counters.push_back(bonus->second);
@@ -1144,14 +1178,14 @@ namespace demonware::achievement_engine
 				});
 				if (!ok) return fail("achievement_transition_rejected_or_save_failed");
 				if (action == "claim_achievement_reward" && !replay &&
-					(updated.kind == 1 || updated.kind == 2 || updated.kind == 4))
+					(order(updated.kind) || contract(updated.kind)))
 					publish_cache_update(std::move(claim_update));
 				rapidjson::Value entries{rapidjson::kArrayType};
 				entries.PushBack(serialize(updated, alloc, day), alloc);
-				if (action == "claim_achievement_reward" && (updated.kind == 1 || updated.kind == 2))
+				if (action == "claim_achievement_reward" && order(updated.kind))
 				{
 					const auto state = hq_economy::snapshot();
-					const auto bonus = state.achievements.find(updated.kind == 1 ? "above_beyond_daily" : "above_beyond_weekly");
+					const auto bonus = state.achievements.find(bonus_name(updated.kind));
 					if (bonus != state.achievements.end()) entries.PushBack(serialize(bonus->second, alloc, day), alloc);
 				}
 				response.AddMember("Achievements", entries, alloc);

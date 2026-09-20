@@ -10,6 +10,8 @@
 #include "game/demonware/hq_marketplace.hpp"
 #include "game/demonware/hq_contract_catalog.hpp"
 #include "game/demonware/hq_contract_clock.hpp"
+#include "game/demonware/hq_zombies_catalog.hpp"
+#include "game/demonware/hq_zombies_contract_catalog.hpp"
 #include <utils/hook.hpp>
 
 namespace hq_economy
@@ -86,6 +88,19 @@ namespace hq_economy
 			static std::atomic_bool warned{};
 			try
 			{
+				const auto* stats = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/StatsTable.csv", false).stringTable;
+				if (stats && stats->values && stats->columnCount > 24)
+				{
+					std::vector<std::uint32_t> zombies_pool;
+					for (int row = 0; row < stats->rowCount; ++row)
+					{
+						std::uint32_t id{};
+						if (std::string_view{cell(stats, row, 0)} == "zombieconsumable" &&
+							std::string_view{cell(stats, row, 20)} != "1" && std::string_view{cell(stats, row, 24)} != "1" &&
+							parse_number(cell(stats, row, 18), id)) zombies_pool.push_back(id);
+					}
+					demonware::achievement_engine::set_loot_catalog(std::move(zombies_pool), true);
+				}
 				const auto* collections = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/collections.csv", false).stringTable;
 				const auto* items = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/itemscollections.csv", false).stringTable;
 				if (!collections || !items) return;
@@ -136,7 +151,7 @@ namespace hq_economy
 				const auto* mode = game::Dvar_FindMalleableVar("g_gametype");
 				const bool current = game::CL_IsLocalClientInGame(0) && !*game::virtualLobby_Loaded &&
 					mode && mode->current.string && std::string_view{mode->current.string} != "hub";
-				timer.tick(current, demonware::hq_contract_clock::clock::now());
+				timer.tick(current, demonware::hq_contract_clock::clock::now(), game::environment::is_zombies() ? 11 : 4);
 			}
 			catch (const std::exception& error)
 			{
@@ -148,11 +163,83 @@ namespace hq_economy
 			}
 		}
 
+		bool zombies_catalog_refresh_pending{}; // main pipeline only
+		void refresh_zombies_catalog()
+		{
+			if (!zombies_catalog_refresh_pending || !game::virtual_lobby_loaded() || !game::AE_GetUserContext(0)) return;
+			const auto* active = reinterpret_cast<const unsigned*>(game::AE_ScheduledAchievementTaskData.get() + 0xC0);
+			if (*active) return;
+			char transaction[32]{};
+			game::AE_GenerateTransactionId(transaction);
+			if (game::AE_FetchScheduledChallenges(0, transaction)) zombies_catalog_refresh_pending = false;
+		}
+
 		void load_catalog()
 		{
 			static std::atomic_bool warned{};
 			try
 			{
+				if (game::environment::is_zombies())
+				{
+					// Use the shipped names so both native name->ID and ID->name lookups
+					// work. Do not invent IDs or bypass the resolver's bounds checks.
+					const auto* definitions = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "dw/dwgamechallenges.csv", false).stringTable;
+					std::vector<demonware::hq_economy::achievement> catalog;
+					std::map<std::string, demonware::hq_event_predicate::rule> rules;
+					if (definitions) for (const auto& entry : demonware::hq_zombies_catalog::entries)
+					{
+						for (int row = 0; row < definitions->rowCount; ++row)
+						{
+							std::uint32_t id{}, kind{};
+							if (std::string_view{cell(definitions, row, 1)} != entry.name ||
+								!parse_number(cell(definitions, row, 0), id) || id != static_cast<unsigned>(entry.id) ||
+								!parse_number(cell(definitions, row, 2), kind) || kind != static_cast<unsigned>(entry.kind)) continue;
+							catalog.push_back(demonware::hq_zombies_catalog::achievement(entry));
+							rules.emplace(entry.name, demonware::hq_event_predicate::rule{34, entry.predicate});
+							break;
+						}
+					}
+					if (catalog.size() != std::size(demonware::hq_zombies_catalog::entries))
+					{
+						demonware::hq_logging::safe_warn_once(warned, "[ZM economy] waiting for native challenge identities (%zu/%zu found)\n",
+							catalog.size(), std::size(demonware::hq_zombies_catalog::entries));
+						return;
+					}
+					// Contract identities are independently validated so a missing contract
+					// asset does not suppress the already working daily/weekly Orders.
+					std::size_t contracts{};
+					for (const auto& entry : demonware::hq_zombies_contract_catalog::entries)
+					{
+						for (int row = 0; row < definitions->rowCount; ++row)
+						{
+							std::uint32_t id{}, kind{}, event{};
+							if (std::string_view{cell(definitions, row, 1)} != entry.name ||
+								!parse_number(cell(definitions, row, 0), id) || id != entry.id ||
+								!parse_number(cell(definitions, row, 2), kind) || kind != 11 ||
+								!parse_number(cell(definitions, row, 3), event) || event != 34) continue;
+							catalog.push_back(demonware::hq_zombies_contract_catalog::achievement(entry));
+							rules.emplace(entry.name, demonware::hq_event_predicate::rule{event, cell(definitions, row, 4)});
+							++contracts;
+							break;
+						}
+					}
+					static std::size_t prior_contracts{};
+					if (contracts != prior_contracts)
+					{
+						zombies_catalog_refresh_pending = true;
+						console::info("[ZM economy] %zu native kind-11 contracts ready\n", contracts);
+						prior_contracts = contracts;
+					}
+					static bool announced{};
+					if (!std::exchange(announced, true))
+					{
+						zombies_catalog_refresh_pending = true;
+						console::info("[ZM economy] catalog ready: 6 daily / 3 weekly orders, native kinds 8/9\n");
+					}
+					demonware::achievement_engine::set_event_rules(std::move(rules));
+					demonware::achievement_engine::set_catalog(std::move(catalog));
+					return;
+				}
 				const auto* daily = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/dailychallengestable.csv", false).stringTable;
 				const auto* definitions = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "dw/dwgamechallenges.csv", false).stringTable;
 				if (!daily || !definitions) return;
@@ -225,13 +312,16 @@ namespace hq_economy
 	public:
 		void post_unpack() override
 		{
-			if (game::environment::is_dedicated() || game::environment::is_zombies()) return;
+			if (game::environment::is_dedicated()) return;
 			command::add("hqeconomy", [](const command::params& params) { print_state(params.size() > 1 && std::string_view{params[1]} == "reload"); });
 			command::add("hqgrant", grant);
 			command::add("aeevent", event_command);
 			scheduler::loop(load_loot_catalog, scheduler::pipeline::main, 5s);
 			scheduler::loop(load_catalog, scheduler::pipeline::main, 5s);
+			if (game::environment::is_zombies()) scheduler::loop(refresh_zombies_catalog, scheduler::pipeline::main, 1s);
+			// Only the current mode's contracts accrue match time.
 			scheduler::loop(tick_contracts, scheduler::pipeline::main, 1s);
+			console::info("[HQ economy] native economy enabled for %s\n", game::environment::is_zombies() ? "Zombies" : "Multiplayer");
 		}
 	};
 }

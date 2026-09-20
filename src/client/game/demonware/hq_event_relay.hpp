@@ -17,6 +17,23 @@ namespace demonware::hq_event_relay
 	inline constexpr std::size_t maximum_command = 1023, chunk_bytes = 400;
 	inline constexpr std::size_t maximum_chunks = (maximum_wire + chunk_bytes - 1) / chunk_bytes;
 
+	inline constexpr std::string_view zombies_command = "~s2x_hqz";
+
+	inline bool tag_fragment(std::string& wire, const bool zombies)
+	{
+		if (!wire.starts_with(std::string{command} + " ")) return false;
+		if (zombies) wire.replace(0, command.size(), zombies_command);
+		return wire.size() <= maximum_command;
+	}
+
+	inline bool untag_fragment(std::string& wire, const bool zombies)
+	{
+		const auto expected = zombies ? zombies_command : command;
+		if (wire.size() > maximum_command || !wire.starts_with(std::string{expected} + " ")) return false;
+		if (zombies) wire.replace(0, expected.size(), command);
+		return true;
+	}
+
 	template <typename T>
 	bool number(const std::string_view text, T& value)
 	{
@@ -38,7 +55,7 @@ namespace demonware::hq_event_relay
 		std::uint64_t user{};
 		unsigned version{}, count{};
 		reward_game_events::event parsed{};
-		if (token() != command || !number(token(), version) || version != 1 ||
+		if (token() != command || !number(token(), version) || (version != 1 && version != 3) ||
 			!number(token(), user) || user != local_user || !number(token(), parsed.timestamp) || parsed.timestamp < 0) return false;
 		const auto name = token();
 		if (name.empty() || name.size() > 99) return false;
@@ -54,6 +71,11 @@ namespace demonware::hq_event_relay
 			for (const auto& prior : parsed.parameters) if (prior.selector == std::to_string(selector)) return false;
 			parsed.parameters.push_back({std::to_string(selector), value});
 		}
+		if (version == 3)
+		{
+			if (!number(token(), parsed.occurrence) || !parsed.occurrence || parsed.occurrence >= 100 ||
+				(name != "34" && name != "zombies_kills")) return false;
+		}
 		if (!wire.empty()) return false;
 		result = std::move(parsed);
 		return true;
@@ -62,13 +84,14 @@ namespace demonware::hq_event_relay
 	inline std::string encode(const std::uint64_t user, const reward_game_events::event& event)
 	{
 		if (event.name.empty() || event.name.size() > 99 || event.parameters.size() > maximum_parameters) return {};
-		std::string wire = std::string{command} + " 1 " + std::to_string(user) + " " +
+		std::string wire = std::string{command} + (!event.occurrence ? " 1 " : " 3 ") + std::to_string(user) + " " +
 			std::to_string(event.timestamp) + " " + event.name + " " + std::to_string(event.parameters.size());
 		for (const auto& parameter : event.parameters)
 		{
 			if (parameter.selector.size() > 3) return {};
 			wire += " " + parameter.selector + " " + std::to_string(parameter.value);
 		}
+		if (event.occurrence) wire += " " + std::to_string(event.occurrence);
 		reward_game_events::event checked{};
 		return decode(wire, user, checked) ? wire : std::string{};
 	}

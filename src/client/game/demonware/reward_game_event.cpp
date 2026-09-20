@@ -5,6 +5,8 @@
 #include "hq_protocol.hpp"
 #include "component/console/console.hpp"
 #include <charconv>
+#include <algorithm>
+#include <map>
 #include <string>
 
 namespace demonware::reward_game_events
@@ -485,6 +487,27 @@ namespace demonware::reward_game_events
 				}
 			}
 
+			// SDK retries rebuild the transaction ID, so it is not an event identity.
+			// Keep multiplicity within this batch while retaining the timestamp/field
+			// identity across retries, aliases and reordered parameters. Other events
+			// keep their existing behavior. Separate batches retain legacy deduplication.
+			std::map<std::string, std::uint32_t> occurrences;
+			for (auto& value : result.events)
+			{
+				if (value.name != "34" && value.name != "zombies_kills") continue;
+				std::vector<std::pair<unsigned, std::uint64_t>> parameters;
+				for (const auto& parameter : value.parameters)
+				{
+					unsigned selector{};
+					std::from_chars(parameter.selector.data(), parameter.selector.data() + parameter.selector.size(), selector);
+					parameters.emplace_back(selector, parameter.value);
+				}
+				std::sort(parameters.begin(), parameters.end());
+				auto key = std::to_string(value.timestamp);
+				for (const auto& [selector, number] : parameters)
+					key += ":" + std::to_string(selector) + "=" + std::to_string(number);
+				value.occurrence = occurrences[key]++;
+			}
 			return has_account;
 		}
 

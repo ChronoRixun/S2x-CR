@@ -773,9 +773,10 @@ namespace hq_native
 				{
 					const auto* record = table + i * user_achievement_size;
 					const auto id = *reinterpret_cast<const std::int32_t*>(record + 0xC);
-					if (id == -1 || *reinterpret_cast<const std::int32_t*>(record + 8) != 4) continue;
-					console::info("[HQ contracts] native kind 4 record id %d status %d progress %u/%d timeLimit %d "
-						"timeLeft %d expires %llu reward %p\n", id,
+					const auto kind = *reinterpret_cast<const std::int32_t*>(record + 8);
+					if (id == -1 || (kind != 4 && kind != 11)) continue;
+					console::info("[HQ contracts] native kind %d record id %d status %d progress %u/%d timeLimit %d "
+						"timeLeft %d expires %llu reward %p\n", kind, id,
 						*reinterpret_cast<const std::int32_t*>(record + 0x38),
 						*reinterpret_cast<const std::uint16_t*>(record + 0x28),
 						*reinterpret_cast<const std::int32_t*>(record + 0x10),
@@ -784,7 +785,7 @@ namespace hq_native
 						*reinterpret_cast<const std::uint64_t*>(record + 0x18),
 						*reinterpret_cast<void* const*>(record + 0x20));
 				}
-				console::info("[HQ contracts] nine retail periodic rows: AEC_CONTRACT, StatsTable contract cost tokens, match-only timers, expiration 0\n");
+				console::info("[HQ contracts] native kinds 4/11: AEC_CONTRACT, StatsTable contract cost tokens, mode-specific match timers, expiration 0\n");
 			}
 			catch (const std::exception& error)
 			{
@@ -859,7 +860,7 @@ namespace hq_native
 	public:
 		void post_unpack() override
 		{
-			if (game::environment::is_dedicated() || game::environment::is_zombies()) return;
+			if (game::environment::is_dedicated()) return;
 			sku_success_hook.create(0x27B700_g, sku_success);
 			purchase_hook.create(0x276580_g, purchase_entry);
 			sku_ids_hook.create(0x120760_g, sku_ids);
