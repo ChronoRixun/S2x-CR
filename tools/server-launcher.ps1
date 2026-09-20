@@ -5,8 +5,9 @@
 #   ... -File server-launcher.ps1 -GameDir "C:\Games\Call of Duty WWII"
 #
 # Keep ServerLauncher.xaml next to this file.
-# The game folder is taken from -GameDir, a remembered choice, this script's folder or its
-# parent, the Steam registry entry, or a folder picker; the picked folder is remembered.
+# The game folder is taken from -GameDir, a remembered choice, the current directory, this
+# script's folder or up to two folders above it (the release ships it as <game>\s2x\tools),
+# the Steam registry entry, or a folder picker; the picked folder is remembered.
 # Behaviour matches the WinForms version: same presets, same server.cfg, same launch args.
 
 param([string]$GameDir)
@@ -25,8 +26,10 @@ function Test-GameDir($dir) { $dir -and (Test-Path (Join-Path $dir "s2x.exe")) }
 if (-not (Test-GameDir $GameDir)) {
     $candidates = @()
     if (Test-Path $rememberedGameDirFile) { $candidates += (Get-Content $rememberedGameDirFile -Raw).Trim() }
+    $candidates += (Get-Location).Path
     $candidates += $PSScriptRoot
     $candidates += (Split-Path $PSScriptRoot -Parent)
+    $candidates += (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent)
     $candidates += (Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Steam App 476600" -ErrorAction SilentlyContinue).InstallLocation
     $candidates += "D:\Program Files\Steam\steamapps\common\Call of Duty WWII"
     $GameDir = $candidates | Where-Object { Test-GameDir $_ } | Select-Object -First 1
