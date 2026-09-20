@@ -24,6 +24,9 @@ S2x is a custom client project for Call of Duty®: WWII, focused on preserving a
 | `feat/53-zombies-unlock-menu` | Groesten Haus toggle and `unlockzmeastereggs` in the UNLOCKS tab | [#53](https://github.com/Brentdevent/S2x/issues/53) |
 | `fix/53-zombies-progression-only` | Tortured Path chapter tracking and main-quest progression recording | [#53](https://github.com/Brentdevent/S2x/issues/53) |
 | `feat/39-hq-economy` | Headquarters economy: Orders, contracts, payroll, supply drops, Quartermaster, Mail | [#39](https://github.com/Brentdevent/S2x/issues/39) |
+| `feat/39a` | Expanded daily and weekly order pools (20 daily, 10 weekly) | extends #39 |
+| `feat/bot-names` | Custom bot name pools: default, modern (2016-2026), nostalgia (2005-2015) | — |
+| `feat/server-launcher` | Dedicated server launcher GUI | — |
 
 ### Dedicated server settings that stick
 
@@ -42,6 +45,28 @@ A saved `cg_unlock_zm_progression` toggle (also an UNLOCKS row) makes the tutori
 Orders, contracts, payroll, supply drops, the Quartermaster and Mail all run over the Achievement Engine protocol that upstream stubs. This fork answers those requests from a local economy store (`players2/user/hq_economy.json`), with retail-shaped Orders, nine contracts priced in Armory Credits, payroll, supply drops that open, and a Quartermaster whose purchases are usable in Create-a-Class. It is the largest branch and is offered upstream as a draft. The Zombies Supplies screens are out of scope for now.
 
 Headquarters balances, inventory, Orders, contracts, Mail and reward receipts are saved in `players2/user/hq_economy.json`; `hqeconomy reload` in the console reloads it. Deleting `players2/user/hq_economy.json` with every instance closed resets the Headquarters economy and nothing else.
+
+### Bot names
+
+Bots can use one of three name pools instead of the engine's stock names. The saved dvar `bot_names` selects the pool:
+
+- `default` — the engine's built-in names (unchanged)
+- `modern` — 54 names in 2016-2026 gamertag style (e.g. ColdPulse, Havoc04, softlock, TacoTuesday44)
+- `nostalgia` — 54 names in 2005-2015 Xbox 360 era style (e.g. xXDarkAngelXx, N00bSl4y3r, CrimsonEagle47, IEatBullets)
+
+The pool is shuffled on each map load, so with 54 names and at most 18 players per match, each game sees a different mix. Set it in the server console or `server.cfg`:
+
+```text
+bot_names nostalgia
+```
+
+### Dedicated server launcher
+
+`tools/server-launcher.ps1` is a GUI for launching a dedicated server without writing configs by hand. It lets you pick a server name, build a map rotation from dropdowns, set per-gametype score limits, single-round domination, bot fill, bot names, and port. It writes `server.cfg` and launches the server with one click.
+
+```text
+powershell -ExecutionPolicy Bypass -File tools\server-launcher.ps1
+```
 
 ## Requirements
 
