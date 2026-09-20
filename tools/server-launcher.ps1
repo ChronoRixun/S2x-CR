@@ -70,7 +70,22 @@ $DefaultScoreLimits = [ordered]@{
     "ctf" = 3;  "gun"  = 18; "ball" = 28
 }
 
+$ZombieMaps = [ordered]@{
+    "nazi_zombie_proto"       = "Groesten Haus"
+    "nazi_zombie_asylum_f"    = "The Final Reich"
+    "nazi_zombie_island"      = "The Darkest Shore"
+    "nazi_zombie_office"      = "The Shadowed Throne"
+    "nazi_zombie_treasure"    = "The Tortured Path"
+    "nazi_zombie_museum"      = "Bodega Cervantes"
+    "nazi_zombie_uss"         = "U.S.S. Mount Olympus"
+    "nazi_zombie_mountaineer" = "The Frozen Dawn"
+}
+$ZombieMapKeys   = @($ZombieMaps.Keys)
+$ZombieMapValues = @($ZombieMaps.Values)
+
 $BotNamePools = @("default", "modern", "nostalgia")
+$script:isZombies = $false
+$script:suppressModeSwitch = $false
 $MiddleDot    = [string][char]0x00B7
 
 # ── Load the XAML, loudly ──────────────────────────────────────────────────────
@@ -256,6 +271,8 @@ $lstRotation.ItemsSource = $script:rotationData
 function Get-MapName($key) {
     $i = [array]::IndexOf($MapKeys, $key)
     if ($i -ge 0) { return $MapValues[$i] }
+    $i = [array]::IndexOf($ZombieMapKeys, $key)
+    if ($i -ge 0) { return $ZombieMapValues[$i] }
     return $key
 }
 function Get-GtName($key) {
@@ -339,10 +356,110 @@ $sldBotFill.Add_ValueChanged({
 })
 $cmbBotNames.Add_SelectionChanged({ Update-Summaries })
 
+# ── Mode toggle (MP / Zombies) ────────────────────────────────────────────────
+$script:cmbMode = New-Object System.Windows.Controls.ComboBox
+$cmbMode = $script:cmbMode
+$cmbMode.Width = 120
+$cmbMode.FontSize = 12
+$cmbMode.Margin = "0,0,12,0"
+$cmbMode.VerticalAlignment = "Center"
+[void]$cmbMode.Items.Add("Multiplayer")
+[void]$cmbMode.Items.Add("Zombies")
+$cmbMode.SelectedIndex = 0
+
+$modeLabel = New-Object System.Windows.Controls.TextBlock
+$modeLabel.Text = "MODE"
+$modeLabel.FontSize = 10
+$modeLabel.FontWeight = "SemiBold"
+$modeLabel.VerticalAlignment = "Center"
+$modeLabel.Margin = "0,0,6,0"
+$modeLabel.Foreground = $Muted
+
+$titleBar = $barTitle
+$titleBarParent = $titleBar.Parent
+if ($titleBarParent -and $titleBarParent -is [System.Windows.Controls.Panel]) {
+    $modePanel = New-Object System.Windows.Controls.StackPanel
+    $modePanel.Orientation = "Horizontal"
+    $modePanel.HorizontalAlignment = "Right"
+    $modePanel.VerticalAlignment = "Center"
+    $modePanel.Margin = "0,0,100,0"
+    [void]$modePanel.Children.Add($modeLabel)
+    [void]$modePanel.Children.Add($cmbMode)
+    [void]$titleBarParent.Children.Add($modePanel)
+}
+
+# Score/gametype panels to show/hide
+$script:scorePanel = $null
+$script:botPanel = $null
+$script:gametypeControl = $cmbGametype
+foreach ($ctrl in @($numWar, $numDom, $numHp, $numDm, $numConf, $numSd, $numCtf, $numGun, $numBall, $chkHalftime, $lblScoreSummary)) {
+    if ($ctrl) {
+        $p = $ctrl.Parent
+        while ($p -and -not ($p -is [System.Windows.Controls.Expander])) { $p = $p.Parent }
+        if ($p) { $script:scorePanel = $p; break }
+    }
+}
+foreach ($ctrl in @($sldBotFill, $lblBotFill, $cmbBotNames, $lblBotSummary)) {
+    if ($ctrl) {
+        $p = $ctrl.Parent
+        while ($p -and -not ($p -is [System.Windows.Controls.Expander])) { $p = $p.Parent }
+        if ($p) { $script:botPanel = $p; break }
+    }
+}
+
+function Switch-Mode {
+    if ($script:suppressModeSwitch) { return }
+
+    # Save current mode's state before switching
+    $oldModeName = if ($script:isZombies) { "_lastused_zombies" } else { "_lastused_mp" }
+    if ($script:rotationData.Count -gt 0) {
+        Save-Preset $oldModeName
+    }
+
+    # Load the new mode
+    $script:isZombies = ($cmbMode.SelectedIndex -eq 1)
+    $newModeName = if ($script:isZombies) { "_lastused_zombies" } else { "_lastused_mp" }
+
+    $cmbMap.Items.Clear()
+    $script:rotationData.Clear()
+
+    if ($script:isZombies) {
+        foreach ($v in $ZombieMapValues) { [void]$cmbMap.Items.Add($v) }
+        $cmbGametype.Visibility = "Collapsed"
+        if ($script:scorePanel) { $script:scorePanel.Visibility = "Collapsed" }
+        if ($script:botPanel) { $script:botPanel.Visibility = "Collapsed" }
+    } else {
+        foreach ($v in $MapValues) { [void]$cmbMap.Items.Add($v) }
+        $cmbGametype.Visibility = "Visible"
+        if ($script:scorePanel) { $script:scorePanel.Visibility = "Visible" }
+        if ($script:botPanel) { $script:botPanel.Visibility = "Visible" }
+    }
+
+    if ($cmbMap.Items.Count -gt 0) { $cmbMap.SelectedIndex = 0 }
+
+    # Restore saved state for the new mode
+    $path = Join-Path $PresetDir "$newModeName.json"
+    if (Test-Path $path) {
+        $script:suppressModeSwitch = $true
+        try { Set-Config (Get-Content $path -Raw | ConvertFrom-Json) }
+        finally { $script:suppressModeSwitch = $false }
+    }
+
+    Update-RotationNumbers
+    Update-Summaries
+}
+
+$cmbMode.Add_SelectionChanged({ Switch-Mode })
+
 # ── Rotation interactions ──────────────────────────────────────────────────────
 $btnAdd.Add_Click({
-    if ($cmbMap.SelectedIndex -lt 0 -or $cmbGametype.SelectedIndex -lt 0) { return }
-    Add-Rotation $MapKeys[$cmbMap.SelectedIndex] $GametypeKeys[$cmbGametype.SelectedIndex]
+    if ($cmbMap.SelectedIndex -lt 0) { return }
+    if ($script:isZombies) {
+        Add-Rotation $ZombieMapKeys[$cmbMap.SelectedIndex] "zombies"
+    } else {
+        if ($cmbGametype.SelectedIndex -lt 0) { return }
+        Add-Rotation $MapKeys[$cmbMap.SelectedIndex] $GametypeKeys[$cmbGametype.SelectedIndex]
+    }
 })
 
 $btnClear.Add_Click({
@@ -376,6 +493,7 @@ function Get-CurrentConfig {
     }
     return @{
         serverName     = $txtName.Text
+        mode           = if ($script:isZombies) { "zombies" } else { "mp" }
         rotation       = @($script:rotationData | ForEach-Object { @{ map = $_.Map; gametype = $_.Gametype } })
         scoreLimits    = $scores
         singleRoundDom = [bool]$chkHalftime.IsChecked
@@ -386,6 +504,7 @@ function Get-CurrentConfig {
 }
 
 function Set-Config($cfg) {
+    if ($cfg.mode -eq "zombies") { $cmbMode.SelectedIndex = 1 } else { $cmbMode.SelectedIndex = 0 }
     if ($cfg.serverName) { $txtName.Text = [string]$cfg.serverName }
     if ($cfg.port)       { $txtPort.Text = [string][math]::Max(1024, [math]::Min(65535, [int]$cfg.port)) }
     if ($null -ne $cfg.botFill) { $sldBotFill.Value = [math]::Max(0, [math]::Min(18, [int]$cfg.botFill)) }
@@ -413,7 +532,7 @@ function Update-PresetList {
     $cmbPreset.Items.Clear()
     [void]$cmbPreset.Items.Add("(last used)")
     Get-ChildItem $PresetDir -Filter "*.json" -ErrorAction SilentlyContinue |
-        Where-Object { $_.BaseName -ne "_lastused" } |
+        Where-Object { $_.BaseName -notlike "_lastused*" } |
         ForEach-Object { [void]$cmbPreset.Items.Add($_.BaseName) }
     $cmbPreset.SelectedIndex = 0
 }
@@ -424,7 +543,33 @@ function Save-Preset($name) {
 
 function Import-Preset($name) {
     $path = Join-Path $PresetDir "$name.json"
-    if (Test-Path $path) { Set-Config (Get-Content $path -Raw | ConvertFrom-Json) }
+    if (-not (Test-Path $path)) { return }
+    $cfg = Get-Content $path -Raw | ConvertFrom-Json
+
+    $script:suppressModeSwitch = $true
+    try {
+        $wantZombies = ($cfg.mode -eq "zombies")
+        $cmbMode.SelectedIndex = if ($wantZombies) { 1 } else { 0 }
+        $script:isZombies = $wantZombies
+
+        $cmbMap.Items.Clear()
+        if ($wantZombies) {
+            foreach ($v in $ZombieMapValues) { [void]$cmbMap.Items.Add($v) }
+            $cmbGametype.Visibility = "Collapsed"
+            if ($script:scorePanel) { $script:scorePanel.Visibility = "Collapsed" }
+            if ($script:botPanel) { $script:botPanel.Visibility = "Collapsed" }
+        } else {
+            foreach ($v in $MapValues) { [void]$cmbMap.Items.Add($v) }
+            $cmbGametype.Visibility = "Visible"
+            if ($script:scorePanel) { $script:scorePanel.Visibility = "Visible" }
+            if ($script:botPanel) { $script:botPanel.Visibility = "Visible" }
+        }
+        if ($cmbMap.Items.Count -gt 0) { $cmbMap.SelectedIndex = 0 }
+
+        Set-Config $cfg
+    } finally {
+        $script:suppressModeSwitch = $false
+    }
 }
 
 $btnSavePreset.Add_Click({
@@ -512,7 +657,9 @@ $btnLaunch.Add_Click({
         return
     }
 
+    $modeName = if ($script:isZombies) { "_lastused_zombies" } else { "_lastused_mp" }
     Save-Preset "_lastused"
+    Save-Preset $modeName
     Stop-S2xServer
     Start-Sleep -Milliseconds 1500
 
@@ -520,7 +667,12 @@ $btnLaunch.Add_Click({
     [System.IO.File]::WriteAllText($CfgPath, (Build-ServerCfg), $utf8NoBom)
 
     $port = [math]::Max(1024, [math]::Min(65535, (Get-BoxInt $txtPort 27016)))
-    $launchArgs = "-noupdate -dedicated +set net_port $port +exec server.cfg +map_rotate"
+    if ($script:isZombies) {
+        $firstMap = $script:rotationData[0].Map
+        $launchArgs = "-noupdate -dedicated -zombies +set net_port $port +exec server.cfg +map $firstMap"
+    } else {
+        $launchArgs = "-noupdate -dedicated +set net_port $port +exec server.cfg +map_rotate"
+    }
 
     try {
         $script:serverProcess = Start-Process -FilePath (Join-Path $GameDir "s2x.exe") `
