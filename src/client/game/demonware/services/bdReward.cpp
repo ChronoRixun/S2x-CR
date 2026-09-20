@@ -39,7 +39,7 @@ namespace demonware
 
 	bool submit_hq_event(const reward_game_events::event& event)
 	{
-		if (game::environment::is_zombies() || game::environment::is_dedicated()) return true;
+		if (game::environment::is_dedicated()) return true;
 		if (utils::flags::has_flag("-demonware_debug"))
 		{
 			// Names from build/research/tables/dwgameevents.csv.
@@ -108,7 +108,7 @@ namespace demonware
 		bool submit_hidden_challenge_events(std::vector<reward_game_events::event>& events)
 		{
 			// Commit the whole economy batch before handing any event to hidden challenges.
-			if (!game::environment::is_zombies() && !game::environment::is_dedicated() &&
+			if (!game::environment::is_dedicated() &&
 				!achievement_engine::submit_events(events, true)) return false;
 			for (auto& event : events)
 				hidden_challenges::submit_reward_game_event(std::move(event));
@@ -164,7 +164,6 @@ namespace demonware
 		auto outcome = reward_delivery::applied;
 		const auto dedicated = game::environment::is_dedicated();
 		const auto local_user_id = dedicated ? 0 : steam::SteamUser()->GetSteamID().bits;
-		if (!game::environment::is_zombies())
 		{
 			static std::mutex observed_mutex;
 			static std::set<std::string> observed;
@@ -219,74 +218,65 @@ namespace demonware
 		bool ok = true;
 		std::vector<reward_game_events::user_event_batch> users{};
 		std::string reason{};
-		if (reward_game_events::parse_report_for_users_request(buffer, users, !game::environment::is_zombies(), reason))
+		if (reward_game_events::parse_report_for_users_request(buffer, users, true, reason))
 		{
-			if (!game::environment::is_zombies())
+			const auto outcome = hidden_challenge_relay::submit_rewards(users);
+			if (outcome == reward_delivery::permanent_failure)
 			{
-				const auto outcome = hidden_challenge_relay::submit_rewards(users);
-				if (outcome == reward_delivery::permanent_failure)
+				server->create_reply(this->task_id(), BD_REWARD_EVENTS_DATA_ERROR).send_struct();
+				return;
+			}
+			ok = outcome != reward_delivery::retryable_failure;
+			// Preserve the hidden-event handoff only after whole-request acceptance.
+			if (ok)
+			{
+				const auto dedicated = game::environment::is_dedicated();
+				const auto local_user = dedicated ? 0 : steam::SteamUser()->GetSteamID().bits;
+				for (auto& user : users)
 				{
-					server->create_reply(this->task_id(), BD_REWARD_EVENTS_DATA_ERROR).send_struct();
-					return;
-				}
-				ok = outcome != reward_delivery::retryable_failure;
-				// Preserve the hidden-event handoff only after whole-request acceptance.
-				if (ok)
-				{
-					const auto dedicated = game::environment::is_dedicated();
-					const auto local_user = dedicated ? 0 : steam::SteamUser()->GetSteamID().bits;
-					for (auto& user : users)
+					if (user.account_type != "steam") continue;
+					for (auto& event : user.events)
 					{
-						if (user.account_type != "steam") continue;
-						for (auto& event : user.events)
+						// The local player's own events (hidden challenges and main quest
+						// progression) are processed here; remote players receive their
+						// hidden challenge completions and their main-quest progression
+						// through the relay.
+						if (!dedicated && user.user_id == local_user)
 						{
-							// The local player's own events (hidden challenges and main quest
-							// progression) are processed here; remote players receive their
-							// hidden challenge completions and their main-quest progression
-							// through the relay.
-							if (!dedicated && user.user_id == local_user)
-							{
-								hidden_challenges::submit_reward_game_event(std::move(event));
-								continue;
-							}
+							hidden_challenges::submit_reward_game_event(std::move(event));
+							continue;
+						}
 
-							std::uint32_t group{}, challenge{};
-							if (hidden_challenges::get_completion(event, group, challenge))
-							{
-								hidden_challenge_relay::submit(user.user_id, group, challenge);
-								continue;
-							}
+						std::uint32_t group{}, challenge{};
+						if (hidden_challenges::get_completion(event, group, challenge))
+						{
+							hidden_challenge_relay::submit(user.user_id, group, challenge);
+							continue;
+						}
 
-							// The chapter is attributed here, where the level being played is
-							// known, and travels with the relay to the player it belongs to. A
-							// report handled with no level active is dropped, as a local one is.
-							std::uint32_t kind{};
-							if (hidden_challenges::get_progression(event, kind))
+						// The chapter is attributed here, where the level being played is
+						// known, and travels with the relay to the player it belongs to. A
+						// report handled with no level active is dropped, as a local one is.
+						std::uint32_t kind{};
+						if (hidden_challenges::get_progression(event, kind))
+						{
+							std::uint64_t chapter{};
+							if (!hidden_challenges::attribute_progression(kind, chapter))
 							{
-								std::uint64_t chapter{};
-								if (!hidden_challenges::attribute_progression(kind, chapter))
-								{
-									console::debug(
-										"[zombies_progression] task11 XUID %llu: kind %u needs a chapter and no level is active; nothing relayed\n",
-										static_cast<unsigned long long>(user.user_id), kind);
-									continue;
-								}
-
 								console::debug(
-									"[zombies_progression] task11 XUID %llu: kind %u, chapter %s\n",
-									static_cast<unsigned long long>(user.user_id), kind,
-									chapter == hidden_challenges::unknown_chapter ? "unknown" : std::to_string(chapter + 1).data());
-								hidden_challenge_relay::submit_progression(user.user_id, kind, chapter);
+									"[zombies_progression] task11 XUID %llu: kind %u needs a chapter and no level is active; nothing relayed\n",
+									static_cast<unsigned long long>(user.user_id), kind);
+								continue;
 							}
+
+							console::debug(
+								"[zombies_progression] task11 XUID %llu: kind %u, chapter %s\n",
+								static_cast<unsigned long long>(user.user_id), kind,
+								chapter == hidden_challenges::unknown_chapter ? "unknown" : std::to_string(chapter + 1).data());
+							hidden_challenge_relay::submit_progression(user.user_id, kind, chapter);
 						}
 					}
 				}
-			}
-			else
-			{
-				for (auto& user : users)
-					if (user.account_type == "steam")
-						for (auto& event : user.events) route_reward_user_event(user.user_id, event);
 			}
 		}
 		else
@@ -322,7 +312,7 @@ namespace demonware
 		bool ok = true;
 		std::vector<reward_game_events::event> events{};
 		std::string reason{};
-		if (reward_game_events::parse_report_request(buffer, events, !game::environment::is_zombies(), reason))
+		if (reward_game_events::parse_report_request(buffer, events, true, reason))
 		{
 			ok = submit_hidden_challenge_events(events);
 		}

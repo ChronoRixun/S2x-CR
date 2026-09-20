@@ -1,8 +1,11 @@
 #include <std_include.hpp>
+#include <sstream>
 #include "loader/component_loader.hpp"
 #include "game/game.hpp"
 #include "game/ui_scripting/execution.hpp"
 #include "ui_scripting.hpp"
+#include "game/demonware/hq_zombies_catalog.hpp"
+#include "game/demonware/hq_zombies_contract_catalog.hpp"
 
 namespace hq_contracts
 {
@@ -85,11 +88,27 @@ local rewards = {
 	[265] = { productID = "0x2", itemID = "0x2" },
 	[266] = { productID = "0x2", itemID = "0x2" },
 }
+if CONDITIONS.IsZombiesMode() then
+	rows, rewards, contractLimits = {}, {}, {}
+	-- The inventory tab groups by periodic type; mode-specific styling uses kind 8/9.
+	for _, entry in ipairs(S2xZombiesOrders) do
+		rows[entry.id] = {tostring(entry.id), entry.kind == 8 and "AEC_DAILY" or "AEC_WEEKLY",
+			entry.name, entry.title, entry.description, "", "1", "", tostring(entry.target), "", "0", "", ""}
+		rewards[entry.id] = entry.kind == 8 and {currencyID = 6, currencyAmount = 250} or {productID = "0x6", itemID = "0x6"}
+	end
+	for _, entry in ipairs(S2xZombiesContracts) do
+		-- The retail periodic rows use AEC_CONTRACT, although AE uses kind 11.
+		rows[entry.id] = {tostring(entry.id), "AEC_CONTRACT", entry.name, entry.title,
+			entry.description, "", "1", "", tostring(entry.target), "", tostring(entry.seconds), entry.token}
+		contractLimits[entry.id] = entry.seconds
+		rewards[entry.id] = {productID = "0x6", itemID = "0x6"}
+	end
+end
 for _, name in ipairs({"AE_GetScheduledChallenges", "AE_GetPlayerActiveChallenges"}) do
 	local original = Engine[name]
 	Engine[name] = function(...)
 		local result = original(...)
-		if type(result) == "table" and not CONDITIONS.IsZombiesMode() then
+		if type(result) == "table" then
 			for _, record in pairs(result) do
 				if type(record) == "table" and rewards[tonumber(record.ID)] then
 					record.reward = rewards[tonumber(record.ID)]
@@ -104,7 +123,7 @@ end
 
 Engine.TableLookup = function(file, key, value, column, ...)
 	if type(file) == "string" and string.lower(file) == "mp/periodicchallengetable.csv"
-		and tonumber(key) == 0 and not (CONDITIONS and CONDITIONS.IsZombiesMode()) then
+		and tonumber(key) == 0 then
 		local row = rows[tonumber(value)]
 		local index = tonumber(column)
 		if row and index and index >= 0 and index < 20 and index == math.floor(index) then
@@ -125,8 +144,34 @@ end
 			if (game::environment::is_dedicated()) return;
 			ui_scripting::on_start([]
 			{
-				if (game::environment::is_zombies()) return;
 				const auto lua = ui_scripting::get_globals();
+				if (game::environment::is_zombies())
+				{
+					ui_scripting::table orders;
+					int index{};
+					for (const auto& definition : demonware::hq_zombies_catalog::entries)
+					{
+						ui_scripting::table entry;
+						entry["id"] = definition.id; entry["kind"] = definition.kind;
+						entry["name"] = definition.name; entry["target"] = definition.target;
+						entry["title"] = definition.title; entry["description"] = definition.description;
+						orders[++index] = entry;
+					}
+					lua["S2xZombiesOrders"] = orders;
+					ui_scripting::table contracts;
+					index = 0;
+					for (const auto& definition : demonware::hq_zombies_contract_catalog::entries)
+					{
+						ui_scripting::table entry;
+						entry["id"] = definition.id; entry["name"] = definition.name;
+						entry["title"] = definition.title; entry["description"] = definition.description;
+						entry["target"] = definition.target; entry["seconds"] = definition.seconds;
+						std::ostringstream token; token << "0x" << std::hex << definition.token;
+						entry["token"] = token.str();
+						contracts[++index] = entry;
+					}
+					lua["S2xZombiesContracts"] = contracts;
+				}
 				(void)lua["loadstring"](policy)[0]();
 			});
 		}

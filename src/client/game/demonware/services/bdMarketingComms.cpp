@@ -20,24 +20,6 @@ namespace demonware
 		reply.send();
 	}
 
-#pragma pack(push, 1)
-	struct bdCommsGetMessagesRequest
-	{
-		char __pad0[23];
-	}; static_assert(sizeof(bdCommsGetMessagesRequest) == 23);
-
-	struct unk_s
-	{
-		char __pad0[17];
-		unsigned char unk;
-	};
-
-	struct bdCommsGetMessagesResponse
-	{
-		unk_s unk[1];
-	}; //static_assert(sizeof(bdCommsGetMessagesResponse) == 180);
-#pragma pack(pop)
-
 	namespace
 	{
 		// The getMessages request body is protobuf; a live capture is
@@ -136,75 +118,43 @@ namespace demonware
 	void bdMarketingComms::getMessages(service_server* server, byte_buffer* buffer) const
 	{
 		hq_protocol::trace("marketing_6", buffer->get_remaining());
-		if (!game::environment::is_zombies())
+		std::string request_body{};
+		if (!buffer->read_struct(&request_body, 65536) || !hq_protocol::padding(buffer))
 		{
-			std::string request_body{};
-			if (!buffer->read_struct(&request_body, 65536) || !hq_protocol::padding(buffer))
-			{
-				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send_struct();
-				return;
-			}
-
-			class bdCommsMessagesResult final : public bdTaskResult
-			{
-			public:
-				std::string payload;
-
-				void serialize(byte_buffer* data) override
-				{
-					data->write_struct(this->payload.data(), static_cast<int>(this->payload.size()));
-				}
-			};
-
-			auto slots = requested_message_slots(request_body);
-			slots = std::max(slots, default_message_slots);
-
-			auto result = std::make_unique<bdCommsMessagesResult>();
-			try { result->payload = hq_mail::messages(hq_economy::snapshot(), slots); }
-			catch (const std::exception& error)
-			{
-				console::warn("[HQ mail] store unavailable: %s\n", error.what());
-				result->payload = hq_mail::empty_slots(slots);
-			}
-			byte_buffer encoded;
-			result->serialize(&encoded);
-			hq_protocol::trace("marketing_6_response", encoded.get_buffer());
-			console::info("[HQ mail] getMessages: %zu allocated delivery slot(s) for %zu advertised slot(s)\n",
-				slots, slots);
-
-			auto reply = server->create_reply(this->task_id());
-			reply.add(result);
-			reply.send_struct();
+			server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send_struct();
 			return;
 		}
-		bdCommsGetMessagesRequest request{};
 
-		class bdCommsGetMessagesResult final : public bdTaskResult
+		class bdCommsMessagesResult final : public bdTaskResult
 		{
 		public:
-			bdCommsGetMessagesResponse response;
+			std::string payload;
 
 			void serialize(byte_buffer* data) override
 			{
-				data->write_struct(&response, sizeof(bdCommsGetMessagesResponse));
+				data->write_struct(this->payload.data(), static_cast<int>(this->payload.size()));
 			}
 		};
 
-		//buffer->read_struct(&request, sizeof(bdCommsGetMessagesRequest));
+		auto slots = requested_message_slots(request_body);
+		slots = std::max(slots, default_message_slots);
+
+		auto result = std::make_unique<bdCommsMessagesResult>();
+		try { result->payload = hq_mail::messages(hq_economy::snapshot(), slots); }
+		catch (const std::exception& error)
+		{
+			console::warn("[HQ mail] store unavailable: %s\n", error.what());
+			result->payload = hq_mail::empty_slots(slots);
+		}
+		byte_buffer encoded;
+		result->serialize(&encoded);
+		hq_protocol::trace("marketing_6_response", encoded.get_buffer());
+		console::info("[HQ mail] getMessages: %zu allocated delivery slot(s) for %zu advertised slot(s)\n",
+			slots, slots);
 
 		auto reply = server->create_reply(this->task_id());
-
-		auto info = std::make_unique<bdCommsGetMessagesResult>();
-
-		unsigned char unk[18]{ 0x0A, 0x10, 0x08, 0x00, 0x12, 0x00, 0x1A, 0x00, 0x22, 0x00, 0x2A, 0x00, 0x32, 0x00, 0x38, 0x00, 0x40, 0x01 };
-		for (auto i = 0; i < 1; i++)
-		{
-			memcpy(info->response.unk[i].__pad0, unk, 17);
-		}
-		info->response.unk[0].unk = 0x01;
-
-		reply.add(info);
-
+		reply.add(result);
 		reply.send_struct();
+		return;
 	}
 }

@@ -138,6 +138,12 @@ namespace achievement_injection
 					in_dispatch = false;
 				});
 				const auto response = demonware::achievement_engine::dispatch(body);
+				if (game::environment::is_zombies() && json.HasMember("Action") && json["Action"].IsString())
+				{
+					const auto action = std::string{json["Action"].GetString(), json["Action"].GetStringLength()};
+					if (demonware::hq_protocol::report_due("zm-native/" + action))
+						console::info("[ZM AE] intercepted type=0x%X action=%s responseBytes=%zu\n", type, action.c_str(), response.size());
+				}
 				demonware::hq_protocol::trace("injected_ae_request", body);
 				demonware::hq_protocol::trace("injected_ae_response", response);
 				auto* bridge = game::AE_UserAchievementTaskData.get() + 0xF8;
@@ -239,7 +245,7 @@ namespace achievement_injection
 				static std::atomic_bool warned{};
 				try
 				{
-					if (game::environment::is_dedicated() || game::environment::is_zombies()) return;
+					if (game::environment::is_dedicated()) return;
 					if (!update.push_counters)
 					{
 						// Rollover: 13C480 compares unsigned progress at record+0x28 and only
@@ -300,7 +306,7 @@ namespace achievement_injection
 	public:
 		void post_unpack() override
 		{
-			if (game::environment::is_dedicated() || game::environment::is_zombies()) return;
+			if (game::environment::is_dedicated()) return;
 			demonware::achievement_engine::set_cache_update_sink(queue_cache_update);
 			submit_hook.create(0x8397E0_g, submit_stub);
 			scheduled_success_hook.create(game::AE_ScheduledTaskSucceeded, scheduled_success_stub);

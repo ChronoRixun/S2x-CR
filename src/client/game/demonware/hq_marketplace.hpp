@@ -59,7 +59,7 @@ namespace demonware::hq_marketplace
 	{
 		// Local AC prices and bundle policy; tags/images and cosmetic GUIDs are shipped LUI data.
 		{2, 1000, 100, "t:MP", "LUA_MENU_RARE_SUPPLY_DROP;3 random items", {}, "", true},
-		{6, 1000, 100, "t:ZM", "LUA_MENU_RARE_ZOMBIE_SUPPLY_DROP;3 random items", {}, "", true},
+		{6, 1000, 100, "t:ZM", "LUA_MENU_RARE_ZOMBIE_SUPPLY_DROP;2 items + 3 consumables", {}, "", true},
 		// SKUType.Quartermaster (100), not SKUType.Contracts (201). The shipped LUI defines
 		// SKUType.Contracts but never fetches it: DwDataUtils._fetchSKUData only calls
 		// Engine.Inventory_FetchAllSKUs(controller, SKUType.Quartermaster) and
@@ -68,6 +68,11 @@ namespace demonware::hq_marketplace
 		// sku_details "VIEW CONTRACT" option (key "C") - walks that one cached list. A record
 		// typed 201 in the native SKU cache (+0x04, written by hq_native::sku_lookup) is not a
 		// Quartermaster SKU. The contract id lives in the SKU data string, not in the type.
+		// Zombies retail cost tokens; native achievement kind 11. Keep these in the
+		// same Quartermaster cache (type 100) used by the shared contract helpers.
+		{0x0800F031, 100, 100, "t:CONTRACT;c:1074;C:1074;i:s2_challenge_contracts_zm", "Zombie Hunter;Timed objective", {0x5000054}, "contract_zm_ch_kills_1"},
+		{0x0800F032, 250, 100, "t:CONTRACT;c:1075;C:1075;i:s2_challenge_contracts_zm", "Zombie Slayer;Timed objective", {0x5000055}, "contract_zm_ch_kills_2"},
+		{0x0800F033, 450, 100, "t:CONTRACT;c:1080;C:1080;i:s2_challenge_contracts_zm", "Zombie Exterminator;Timed objective", {0x500005A}, "contract_zm_ch_kills_3"},
 		{0x0800F021, 100, 100, "t:CONTRACT;c:162;C:162;i:s2_challenge_contracts", "TDM Headshots Contract;Timed objective", {0x5000019}, "contract_4_headshots_tdm"},
 		{0x0800F022, 350, 100, "t:CONTRACT;c:561;C:561;i:s2_challenge_contracts", "SMG Kill Contract;Timed objective", {0x500006c}, "contract_50_kills_smg"},
 		{0x0800F023, 450, 100, "t:CONTRACT;c:146;C:146;i:s2_challenge_contracts", "TDM Kill Contract;Timed objective", {0x5000009}, "contract_55_kills_tdm"},

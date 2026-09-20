@@ -96,7 +96,7 @@ namespace mail_guard
 				static std::atomic_bool warned{};
 				try
 				{
-					if (!game::environment::is_zombies()) ui_scripting::notify("inventory", {
+					ui_scripting::notify("inventory", {
 						{"controller", controller}, {"inventoryEventType", 4}, {"inventoryTaskType", 126}, {"success", ok}});
 				}
 				catch (const std::exception& error)
@@ -136,13 +136,12 @@ namespace mail_guard
 
 		void install_mail_ui()
 		{
-			if (game::environment::is_zombies()) return;
 			const auto lua = ui_scripting::get_globals();
 			ui_scripting::table api;
 			api["List"] = [](int controller)
 			{
 				ui_scripting::table result;
-				if (controller != 0 || game::environment::is_zombies()) return result;
+				if (controller != 0) return result;
 				try
 				{
 					const auto state = demonware::hq_economy::snapshot();
@@ -162,7 +161,7 @@ namespace mail_guard
 				catch (const std::exception& e) { console::warn("[HQ mail] list: %s\n", e.what()); }
 				return result;
 			};
-			api["Redeem"] = [](int controller, int slot) { return !game::environment::is_zombies() && redeem_slot(controller, slot); };
+			api["Redeem"] = [](int controller, int slot) { return redeem_slot(controller, slot); };
 			lua["S2xHQMail"] = api;
 			(void)lua["loadstring"](R"lua(
 local voucherList = Engine.Inventory_GetVoucherItems
@@ -170,23 +169,20 @@ local lootData = InventoryUtils.GetLootData
 local redeem = Engine.Inventory_RedeemVoucherItem
 local pending = {}
 Engine.Inventory_GetVoucherItems = function(controller, ...)
-	if CONDITIONS.IsZombiesMode() then return voucherList(controller, ...) end
 	local result = voucherList(controller, ...) or {}
-	if not CONDITIONS.IsZombiesMode() then
-		pending = {}
-		for _, message in ipairs(S2xHQMail.List(controller)) do
-			pending[message.guid] = message
-			result[#result + 1] = {itemID = message.guid}
-		end
+	pending = {}
+	for _, message in ipairs(S2xHQMail.List(controller)) do
+		pending[message.guid] = message
+		result[#result + 1] = {itemID = message.guid}
 	end
 	return result
 end
 InventoryUtils.GetLootData = function(guid, ...)
-	if not CONDITIONS.IsZombiesMode() and pending[guid] then return pending[guid] end
+	if pending[guid] then return pending[guid] end
 	return lootData(guid, ...)
 end
 Engine.Inventory_RedeemVoucherItem = function(controller, guid, ...)
-	if not CONDITIONS.IsZombiesMode() and pending[guid] then
+	if pending[guid] then
 		return S2xHQMail.Redeem(controller, pending[guid].slot)
 	end
 	return redeem(controller, guid, ...)
@@ -253,7 +249,7 @@ end
 	public:
 		void post_unpack() override
 		{
-			if (game::environment::is_dedicated() || game::environment::is_zombies()) return;
+			if (game::environment::is_dedicated()) return;
 			poll_hook.create(game::MarketingComms_HasUnreadMail, poll_stub);
 			message_hook.create(0x3722F0_g, message_stub);
 			redeem_hook.create(0x3726F0_g, redeem_stub);

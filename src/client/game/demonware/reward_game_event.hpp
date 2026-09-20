@@ -21,6 +21,9 @@ namespace demonware
 			std::string name{};
 			std::int64_t timestamp{};
 			std::vector<parameter> parameters{};
+			// Occurrence among identical Zombies kills in one native user batch.
+			// Timestamp/parameters alone collapse genuine kills within one second.
+			std::uint32_t occurrence{};
 		};
 
 		struct user_event_batch

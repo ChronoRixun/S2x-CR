@@ -38,6 +38,9 @@ namespace hidden_challenge_relay
 		// CG_DeployServerCommandString (0x431F1D) ignores first bytes above 0x7C;
 		// tilde keeps stock clients out of the opcode dispatch.
 		constexpr std::string_view progression_command = "~s2x_zp";
+		// The process mode is fixed at launch. Tag the outer fragment command so
+		// an MP client cannot accept a Zombies economy batch (or vice versa).
+		constexpr auto zombies_reward_command = demonware::hq_event_relay::zombies_command;
 		constexpr auto maximum_pending_forwards = 128u;
 		// Connected Zombies clients retain forwards from state 3; sends require state 5.
 		constexpr auto minimum_command_client_state = 5;
@@ -178,9 +181,10 @@ namespace hidden_challenge_relay
 				return;
 			}
 
-			if (command == demonware::hq_event_relay::command)
+			if (command == demonware::hq_event_relay::command || command == zombies_reward_command)
 			{
-				if (game::environment::is_zombies() || local_client_num != 0 || params.size() != 7) return;
+				if ((command == zombies_reward_command) != game::environment::is_zombies() ||
+					local_client_num != 0 || params.size() != 7) return;
 				try
 				{
 					// Drop before reconstruction/reassembly/decoding when no slot is free.
@@ -197,6 +201,8 @@ namespace hidden_challenge_relay
 						if (i) wire += ' ';
 						wire.append(params[i], length);
 					}
+					// The checked mode tag is an envelope; the bounded codec stays v2.
+					if (!demonware::hq_event_relay::untag_fragment(wire, game::environment::is_zombies())) return;
 					const auto user = steam::SteamUser()->GetSteamID().bits;
 					client_receiver().accept(wire, user, queue_client_event);
 				}
@@ -264,7 +270,6 @@ namespace hidden_challenge_relay
 					}
 				}
 
-				if (!game::environment::is_zombies())
 				{
 					// A missing party member has lost its reliable connection and partial reassembly.
 					// State 3/4 party members during map changes must retain their queued events.
@@ -300,7 +305,10 @@ namespace hidden_challenge_relay
 					});
 					// Preserve selection order through SV_CMD_RELIABLE: no per-client event interleaving.
 					for (auto& [user, part] : parts)
+					{
+						if (!demonware::hq_event_relay::tag_fragment(part, game::environment::is_zombies())) continue;
 						forwards.push_back({user, false, 0, 0, 0, 0, std::move(part)});
+					}
 				}
 
 				for (const auto& forward : forwards)
@@ -558,7 +566,7 @@ namespace hidden_challenge_relay
 		const demonware::reward_game_events::event& event)
 	{
 		using demonware::reward_delivery;
-		if (!accepting_forwards.load() || game::environment::is_zombies()) return reward_delivery::retryable_failure;
+		if (!accepting_forwards.load()) return reward_delivery::retryable_failure;
 		try
 		{
 			// Serialize acceptance against shutdown, just like hidden completions.
@@ -591,7 +599,7 @@ namespace hidden_challenge_relay
 			}
 			// Serialize the request against shutdown; queue locks never cover store I/O.
 			std::lock_guard lock{pending_forward_mutex};
-			if (!accepting_forwards.load() || game::environment::is_zombies()) return reward_delivery::retryable_failure;
+			if (!accepting_forwards.load()) return reward_delivery::retryable_failure;
 			return server_events.push_batch(remote, [&] { return demonware::achievement_engine::submit_events(local, true); });
 		}
 		catch (...) { console::warn("[HQ relay] could not accept reward request\n"); }
@@ -609,10 +617,7 @@ namespace hidden_challenge_relay
 
 			if (!game::environment::is_dedicated())
 			{
-				if (!game::environment::is_zombies())
-				{
-					scheduler::loop(process_client_events, scheduler::pipeline::async, 100ms);
-				}
+				scheduler::loop(process_client_events, scheduler::pipeline::async, 100ms);
 				deploy_server_command_hook.create(game::CG_DeployServerCommandString,
 					deploy_server_command_stub);
 			}

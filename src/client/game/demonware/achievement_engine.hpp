@@ -18,7 +18,7 @@ namespace demonware::achievement_engine
 		bool push_counters{}; // Claims also push; the mapper may ignore it, so the fetch still runs.
 		std::vector<hq_economy::achievement> counters{};
 	};
-	// Only the MP client installs a sink. Called after persistence, never from a preview.
+	// Both MP and Zombies clients install a sink. Called after persistence, never from a preview.
 	void set_cache_update_sink(std::function<void(cache_update)> sink);
 	std::string counter_push(const hq_economy::achievement& counter);
 
@@ -34,7 +34,7 @@ namespace demonware::achievement_engine
 	std::uint64_t period_end(int kind, std::uint64_t day);
 	void set_event_rules(std::map<std::string, hq_event_predicate::rule> rules);
 	void set_catalog(std::vector<hq_economy::achievement> catalog);
-	void set_loot_catalog(std::vector<std::uint32_t> items);
+	void set_loot_catalog(std::vector<std::uint32_t> items, bool zombies = false);
 	bool valid_event(const reward_game_events::event& event, bool native_payroll = false);
 	bool submit_relay_events(std::vector<reward_game_events::event>& events);
 	bool submit_events(const std::vector<reward_game_events::event>& events, bool native_payroll = false);

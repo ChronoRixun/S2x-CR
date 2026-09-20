@@ -135,35 +135,19 @@ namespace demonware
 
 	void bdMarketplace::purchaseSkus(service_server* server, byte_buffer* buffer) const
 	{
-		if (!game::environment::is_zombies())
-		{
-			hq_protocol::trace("marketplace_106_rejected", buffer->get_remaining());
-			server->create_reply(this->task_id(), BD_HANDLE_TASK_FAILED).send();
-			return;
-		}
-		server->create_reply(this->task_id()).send();
+		hq_protocol::trace("marketplace_106_rejected", buffer->get_remaining());
+		server->create_reply(this->task_id(), BD_HANDLE_TASK_FAILED).send();
 	}
 
 	void bdMarketplace::getBalance(service_server* server, byte_buffer* buffer) const
 	{
 
-		if (game::environment::is_zombies())
-		{
-			hq_protocol::trace("marketplace_130", buffer->get_remaining());
-			server->create_reply(this->task_id()).send();
-			return;
-		}
 		// Both SDK balance variants use the same currency reader (A49900).
 		getBalanceV2(server, buffer);
 	}
 
 	void bdMarketplace::getBalanceV2(service_server* server, byte_buffer* buffer) const
 	{
-		if (game::environment::is_zombies())
-		{
-			server->create_reply(this->task_id()).send(); // unchanged upstream fallback
-			return;
-		}
 
 		hq_protocol::trace(this->task_id() == 130 ? "marketplace_130" : "marketplace_132", buffer->get_remaining());		guarded(server, this->task_id(), [&]
 		{
@@ -179,13 +163,12 @@ namespace demonware
 			for (const auto& [id, amount] : data.currencies)
 			{
 				// Currency zero is the native empty-slot sentinel; MP has 13 slots.
-				if (!game::environment::is_zombies() && !id) continue;
-				if (count == limit || (!game::environment::is_zombies() && count == hq_economy::native_wallet_slots)) break;
+				if (!id) continue;
+				if (count == limit || count == hq_economy::native_wallet_slots) break;
 				++count;
 				auto result = std::make_unique<bdMarketplaceCurrency>();
 				result->m_currencyId = id;
 				result->m_value = amount;
-				if (!game::environment::is_zombies())
 				{
 					byte_buffer encoded; result->serialize(&encoded);
 					hq_protocol::trace(this->task_id() == 130 ? "marketplace_130_currency" : "marketplace_132_currency", encoded.get_buffer());
@@ -198,11 +181,6 @@ namespace demonware
 
 	void bdMarketplace::getInventoryPaginated(service_server* server, byte_buffer* buffer) const
 	{
-		if (game::environment::is_zombies())
-		{
-			server->create_reply(this->task_id()).send(); // unchanged upstream fallback
-			return;
-		}
 
 		hq_protocol::trace("marketplace_165", buffer->get_remaining());		guarded(server, this->task_id(), [&]
 		{
@@ -222,11 +200,6 @@ namespace demonware
 
 	void bdMarketplace::putPlayersInventoryItems(service_server* server, byte_buffer* buffer) const
 	{
-		if (game::environment::is_zombies())
-		{
-			server->create_reply(this->task_id()).send(); // unchanged upstream fallback
-			return;
-		}
 
 		hq_protocol::trace("marketplace_193", buffer->get_remaining());		guarded(server, this->task_id(), [&]
 		{
@@ -240,11 +213,6 @@ namespace demonware
 
 	void bdMarketplace::pawnItems(service_server* server, byte_buffer* buffer) const
 	{
-		if (game::environment::is_zombies())
-		{
-			server->create_reply(this->task_id()).send(); // unchanged upstream fallback
-			return;
-		}
 
 		hq_protocol::trace("marketplace_199", buffer->get_remaining());		guarded(server, this->task_id(), [&]
 		{
@@ -288,13 +256,13 @@ namespace demonware
 			}
 			hq_protocol::trace("marketplace_111", buffer->get_remaining());
 			hq_marketplace::sku_request request{};
-			if (!game::environment::is_zombies() && !hq_marketplace::parse_skus(buffer, request))
+			if (!hq_marketplace::parse_skus(buffer, request))
 			{
 				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send();
 				return;
 			}
 			auto reply = server->create_reply(this->task_id());
-			const auto page = game::environment::is_zombies() ? std::vector<hq_marketplace::sku>{} : hq_marketplace::sku_page(request);
+			const auto page = hq_marketplace::sku_page(request);
 			for (const auto& entry : page)
 			{
 				auto result = std::make_unique<hq_vendor::catalog_result>();
@@ -316,11 +284,6 @@ namespace demonware
 
 	void bdMarketplace::putInventoryItemsData(service_server* server, byte_buffer* buffer) const
 	{
-		if (game::environment::is_zombies())
-		{
-			server->create_reply(this->task_id()).send(); // unchanged generic fallback
-			return;
-		}
 		guarded(server, this->task_id(), [&]
 		{
 			hq_protocol::trace("marketplace_168", buffer->get_remaining());
@@ -399,11 +362,6 @@ namespace demonware
 				return;
 			}
 			hq_protocol::trace("marketplace_242", buffer->get_remaining());
-			if (game::environment::is_zombies())
-			{
-				server->create_reply(this->task_id()).send_struct();
-				return;
-			}
 			std::string request{};
 			if (!buffer->read_struct(&request, 65536) || !hq_protocol::padding(buffer))
 			{
