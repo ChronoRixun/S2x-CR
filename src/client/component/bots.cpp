@@ -22,6 +22,7 @@ namespace bots
 		const game::dvar_t* bot_fill{};
 		const game::dvar_t* bot_names_dvar{};
 		std::atomic<std::uint32_t> level_generation{0};
+		unsigned int pending_spawn_thread{};
 
 		constexpr const char* const bot_names_values[] =
 		{
@@ -135,8 +136,53 @@ namespace bots
 				return false;
 			}
 
-			game::mp::SV_SpawnTestClient(ent);
-			return true;
+			return game::mp::SV_SpawnTestClient(ent) != 0;
+		}
+
+		int queue_listen_bots(const int count, const char* origin)
+		{
+			if (pending_spawn_thread)
+			{
+				console::warn("%s: a bot spawn request is still running\n", origin);
+				return 0;
+			}
+
+			// The engine discards Scr_GetFunctionHandle's compiler lookup table
+			// after loading scripts. Use the positions retained by scripting instead.
+			const auto file = scripting::script_function_table.find("maps/mp/bots/_bots");
+			if (file == scripting::script_function_table.end() || !file->second.contains("spawn_bots"))
+			{
+				console::warn("%s: this map has no bot spawning script\n", origin);
+				return 0;
+			}
+			const auto handle = static_cast<int>(file->second.at("spawn_bots") - *game::scr_programBuffer);
+
+			// Local Play connects players as spectators. The stock spawner supplies
+			// the desired team before starting bot think, which then selects team
+			// and class. SV_AddBot + SV_SpawnTestClient alone omits that setup.
+			// Arguments are pushed in reverse order; optional arguments stay undefined.
+			game::Scr_AddString("autoassign");
+			game::Scr_AddInt(count);
+			pending_spawn_thread = game::Scr_ExecThread(handle, 2);
+			const auto generation = level_generation.load();
+			const std::string source = origin;
+			scheduler::schedule([generation, source]
+			{
+				if (generation != level_generation.load())
+				{
+					return scheduler::cond_end;
+				}
+				if (game::GetObjectType(pending_spawn_thread) != game::VAR_DEAD_THREAD)
+				{
+					return scheduler::cond_continue;
+				}
+				game::RemoveRefToObject(pending_spawn_thread);
+				pending_spawn_thread = 0;
+				console::info("%s: spawn request finished; %d bot(s) connected\n",
+					source.data(), party::get_bot_count());
+				return scheduler::cond_end;
+			}, scheduler::server, 500ms);
+			return count;
 		}
 
 		// Returns how many bots the engine actually added.
@@ -155,8 +201,8 @@ namespace bots
 		}
 
 		// Spawns up to the requested number of bots, limited by the free match
-		// slots. Returns how many were actually added and reports a shortfall, so
-		// the caller never announces more bots than the match received.
+		// slots. Returns the number queued on listen servers, or actually added
+		// on dedicated servers. Callers distinguish these in their output.
 		int spawn_bots_capped(const int requested, const char* origin)
 		{
 			const auto planned = std::min(requested, party::get_available_match_slots());
@@ -164,6 +210,11 @@ namespace bots
 			{
 				console::warn("%s: cannot spawn bots, match player limit reached\n", origin);
 				return 0;
+			}
+
+			if (!game::environment::is_dedicated())
+			{
+				return queue_listen_bots(planned, origin);
 			}
 
 			const auto spawned = spawn_bots(planned);
@@ -183,13 +234,19 @@ namespace bots
 			}
 
 			const auto requested = get_requested_bot_count(params);
+			const auto generation = level_generation.load();
 
-			scheduler::once([requested]
+			scheduler::once([requested, generation]
 			{
+				if (generation != level_generation.load() || !game::is_server_running())
+				{
+					return;
+				}
 				const auto spawned = spawn_bots_capped(requested, "spawnBot");
 				if (spawned > 0)
 				{
-					console::info("spawnBot: added %d bot(s)\n", spawned);
+					console::info("spawnBot: %s %d bot(s)\n",
+						game::environment::is_dedicated() ? "added" : "queued", spawned);
 				}
 			}, scheduler::server);
 		}
@@ -222,7 +279,8 @@ namespace bots
 			}
 
 			const auto spawned = spawn_bots_capped(missing, "bot_fill");
-			console::info("bot_fill: spawned %d of %d bot(s) (%d present, target %d)\n",
+			console::info("bot_fill: %s %d of %d bot(s) (%d present, target %d)\n",
+				game::environment::is_dedicated() ? "spawned" : "queued",
 				spawned, missing, present, target);
 
 			return spawned >= missing;
@@ -326,6 +384,11 @@ namespace bots
 			scripting::on_shutdown([](int)
 			{
 				++level_generation;
+				if (pending_spawn_thread)
+				{
+					game::RemoveRefToObject(pending_spawn_thread);
+					pending_spawn_thread = 0;
+				}
 			});
 		}
 	};

@@ -103,8 +103,7 @@ bot_names nostalgia
 
 `bot_fill` is the number of bots added automatically on every map start, from 0 (disabled) to 18. `bot_names` selects a name pool (`default`, `modern`, or `nostalgia`). Both are saved dvars and persist across server restarts. Progression works in these matches.
 
-> [!NOTE]
-> `bot_fill` and `spawnBot` work on dedicated servers. In custom (private/listen) matches, the engine accepts the bots but they do not appear in the game. Use a dedicated server for bot matches.
+For an offline Custom Match, choose **Local Play → Create Match**, set `bot_fill` in the console, and start the match from the lobby. `spawnBot 2` adds two more bots during a match. Listen servers use the game's scripted spawning flow to assign teams and classes; the console reports the request as queued, then reports the connected bot count when it finishes. Requests are limited to available player slots.
 
 ## Modding: loose file overrides
 
