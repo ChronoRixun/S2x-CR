@@ -11,6 +11,9 @@ if (-not (Test-Path (Join-Path $GameDir "s2x.exe"))) {
     exit
 }
 
+$PresetDir = Join-Path $GameDir "s2x\presets"
+if (-not (Test-Path $PresetDir)) { New-Item -ItemType Directory -Force $PresetDir | Out-Null }
+
 # ── Data ───────────────────────────────────────────────────────────────────────
 $Maps = [ordered]@{
     "mp_shipment_s2"    = "Shipment 1944"
@@ -33,6 +36,9 @@ $Maps = [ordered]@{
     "mp_market_garden"  = "Market Garden"
 }
 
+$MapKeys = @($Maps.Keys)
+$MapValues = @($Maps.Values)
+
 $Gametypes = [ordered]@{
     "war"  = "Team Deathmatch"
     "dom"  = "Domination"
@@ -45,6 +51,9 @@ $Gametypes = [ordered]@{
     "ball" = "Gridiron"
 }
 
+$GametypeKeys = @($Gametypes.Keys)
+$GametypeValues = @($Gametypes.Values)
+
 $DefaultScoreLimits = @{
     "war"  = 75;  "dom" = 200; "hp"   = 250
     "dm"   = 30;  "conf"= 65;  "sd"   = 4
@@ -56,7 +65,7 @@ $BotNamePools = @("default", "modern", "nostalgia")
 # ── Form ───────────────────────────────────────────────────────────────────────
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "S2x Dedicated Server Launcher"
-$form.Size = New-Object System.Drawing.Size(720, 660)
+$form.Size = New-Object System.Drawing.Size(860, 700)
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "FixedDialog"
 $form.MaximizeBox = $false
@@ -65,6 +74,46 @@ $form.BackColor = [System.Drawing.Color]::FromArgb(30, 30, 30)
 $form.ForeColor = [System.Drawing.Color]::FromArgb(220, 200, 160)
 
 $y = 12
+
+# ── Presets ────────────────────────────────────────────────────────────────────
+$lblPreset = New-Object System.Windows.Forms.Label
+$lblPreset.Text = "Preset"
+$lblPreset.Location = New-Object System.Drawing.Point(14, ($y + 2))
+$lblPreset.AutoSize = $true
+$form.Controls.Add($lblPreset)
+
+$cmbPreset = New-Object System.Windows.Forms.ComboBox
+$cmbPreset.Location = New-Object System.Drawing.Point(70, $y)
+$cmbPreset.Size = New-Object System.Drawing.Size(200, 24)
+$cmbPreset.DropDownStyle = "DropDownList"
+$cmbPreset.BackColor = [System.Drawing.Color]::FromArgb(50, 50, 50)
+$cmbPreset.ForeColor = [System.Drawing.Color]::FromArgb(220, 200, 160)
+$form.Controls.Add($cmbPreset)
+
+$btnLoadPreset = New-Object System.Windows.Forms.Button
+$btnLoadPreset.Text = "Load"
+$btnLoadPreset.Location = New-Object System.Drawing.Point(278, $y)
+$btnLoadPreset.Size = New-Object System.Drawing.Size(60, 26)
+$btnLoadPreset.FlatStyle = "Flat"
+$btnLoadPreset.BackColor = [System.Drawing.Color]::FromArgb(60, 60, 50)
+$form.Controls.Add($btnLoadPreset)
+
+$btnSavePreset = New-Object System.Windows.Forms.Button
+$btnSavePreset.Text = "Save As..."
+$btnSavePreset.Location = New-Object System.Drawing.Point(346, $y)
+$btnSavePreset.Size = New-Object System.Drawing.Size(80, 26)
+$btnSavePreset.FlatStyle = "Flat"
+$btnSavePreset.BackColor = [System.Drawing.Color]::FromArgb(60, 60, 50)
+$form.Controls.Add($btnSavePreset)
+
+$btnDeletePreset = New-Object System.Windows.Forms.Button
+$btnDeletePreset.Text = "Delete"
+$btnDeletePreset.Location = New-Object System.Drawing.Point(434, $y)
+$btnDeletePreset.Size = New-Object System.Drawing.Size(60, 26)
+$btnDeletePreset.FlatStyle = "Flat"
+$btnDeletePreset.BackColor = [System.Drawing.Color]::FromArgb(70, 50, 50)
+$form.Controls.Add($btnDeletePreset)
+$y += 36
 
 # ── Server Name ────────────────────────────────────────────────────────────────
 $lblName = New-Object System.Windows.Forms.Label
@@ -76,7 +125,7 @@ $form.Controls.Add($lblName)
 $txtName = New-Object System.Windows.Forms.TextBox
 $txtName.Text = "S2x Dedicated Server"
 $txtName.Location = New-Object System.Drawing.Point(140, ($y - 2))
-$txtName.Size = New-Object System.Drawing.Size(550, 24)
+$txtName.Size = New-Object System.Drawing.Size(690, 24)
 $txtName.BackColor = [System.Drawing.Color]::FromArgb(50, 50, 50)
 $txtName.ForeColor = [System.Drawing.Color]::FromArgb(220, 200, 160)
 $form.Controls.Add($txtName)
@@ -90,14 +139,13 @@ $lblRotation.AutoSize = $true
 $form.Controls.Add($lblRotation)
 $y += 22
 
-# Add controls: map dropdown, gametype dropdown, Add button
 $cmbMap = New-Object System.Windows.Forms.ComboBox
 $cmbMap.Location = New-Object System.Drawing.Point(14, $y)
 $cmbMap.Size = New-Object System.Drawing.Size(200, 24)
 $cmbMap.DropDownStyle = "DropDownList"
 $cmbMap.BackColor = [System.Drawing.Color]::FromArgb(50, 50, 50)
 $cmbMap.ForeColor = [System.Drawing.Color]::FromArgb(220, 200, 160)
-foreach ($kv in $Maps.GetEnumerator()) { [void]$cmbMap.Items.Add($kv.Value) }
+foreach ($v in $MapValues) { [void]$cmbMap.Items.Add($v) }
 $cmbMap.SelectedIndex = 0
 $form.Controls.Add($cmbMap)
 
@@ -107,30 +155,46 @@ $cmbGametype.Size = New-Object System.Drawing.Size(160, 24)
 $cmbGametype.DropDownStyle = "DropDownList"
 $cmbGametype.BackColor = [System.Drawing.Color]::FromArgb(50, 50, 50)
 $cmbGametype.ForeColor = [System.Drawing.Color]::FromArgb(220, 200, 160)
-foreach ($kv in $Gametypes.GetEnumerator()) { [void]$cmbGametype.Items.Add($kv.Value) }
+foreach ($v in $GametypeValues) { [void]$cmbGametype.Items.Add($v) }
 $cmbGametype.SelectedIndex = 0
 $form.Controls.Add($cmbGametype)
 
 $btnAdd = New-Object System.Windows.Forms.Button
-$btnAdd.Text = "Add to Rotation"
+$btnAdd.Text = "Add"
 $btnAdd.Location = New-Object System.Drawing.Point(390, $y)
-$btnAdd.Size = New-Object System.Drawing.Size(110, 26)
+$btnAdd.Size = New-Object System.Drawing.Size(55, 26)
 $btnAdd.FlatStyle = "Flat"
 $btnAdd.BackColor = [System.Drawing.Color]::FromArgb(60, 60, 50)
 $form.Controls.Add($btnAdd)
 
 $btnRemove = New-Object System.Windows.Forms.Button
 $btnRemove.Text = "Remove"
-$btnRemove.Location = New-Object System.Drawing.Point(508, $y)
-$btnRemove.Size = New-Object System.Drawing.Size(80, 26)
+$btnRemove.Location = New-Object System.Drawing.Point(453, $y)
+$btnRemove.Size = New-Object System.Drawing.Size(70, 26)
 $btnRemove.FlatStyle = "Flat"
 $btnRemove.BackColor = [System.Drawing.Color]::FromArgb(60, 60, 50)
 $form.Controls.Add($btnRemove)
 
+$btnMoveUp = New-Object System.Windows.Forms.Button
+$btnMoveUp.Text = [char]0x25B2
+$btnMoveUp.Location = New-Object System.Drawing.Point(531, $y)
+$btnMoveUp.Size = New-Object System.Drawing.Size(34, 26)
+$btnMoveUp.FlatStyle = "Flat"
+$btnMoveUp.BackColor = [System.Drawing.Color]::FromArgb(60, 60, 50)
+$form.Controls.Add($btnMoveUp)
+
+$btnMoveDown = New-Object System.Windows.Forms.Button
+$btnMoveDown.Text = [char]0x25BC
+$btnMoveDown.Location = New-Object System.Drawing.Point(573, $y)
+$btnMoveDown.Size = New-Object System.Drawing.Size(34, 26)
+$btnMoveDown.FlatStyle = "Flat"
+$btnMoveDown.BackColor = [System.Drawing.Color]::FromArgb(60, 60, 50)
+$form.Controls.Add($btnMoveDown)
+
 $btnClear = New-Object System.Windows.Forms.Button
 $btnClear.Text = "Clear"
-$btnClear.Location = New-Object System.Drawing.Point(596, $y)
-$btnClear.Size = New-Object System.Drawing.Size(60, 26)
+$btnClear.Location = New-Object System.Drawing.Point(615, $y)
+$btnClear.Size = New-Object System.Drawing.Size(55, 26)
 $btnClear.FlatStyle = "Flat"
 $btnClear.BackColor = [System.Drawing.Color]::FromArgb(60, 60, 50)
 $form.Controls.Add($btnClear)
@@ -138,26 +202,29 @@ $y += 32
 
 $lstRotation = New-Object System.Windows.Forms.ListBox
 $lstRotation.Location = New-Object System.Drawing.Point(14, $y)
-$lstRotation.Size = New-Object System.Drawing.Size(676, 120)
+$lstRotation.Size = New-Object System.Drawing.Size(816, 100)
 $lstRotation.BackColor = [System.Drawing.Color]::FromArgb(40, 40, 40)
 $lstRotation.ForeColor = [System.Drawing.Color]::FromArgb(220, 200, 160)
 $lstRotation.BorderStyle = "FixedSingle"
 $form.Controls.Add($lstRotation)
-$y += 130
+$y += 108
 
-# Track internal rotation data
 $script:rotationData = [System.Collections.ArrayList]::new()
+
+function Get-RotationDisplayName($mapKey, $gtKey) {
+    $mi = [array]::IndexOf($MapKeys, $mapKey)
+    $gi = [array]::IndexOf($GametypeKeys, $gtKey)
+    $mn = if ($mi -ge 0) { $MapValues[$mi] } else { $mapKey }
+    $gn = if ($gi -ge 0) { $GametypeValues[$gi] } else { $gtKey }
+    return "$gn on $mn"
+}
 
 $btnAdd.Add_Click({
     $mapIdx = $cmbMap.SelectedIndex
     $gtIdx = $cmbGametype.SelectedIndex
     if ($mapIdx -lt 0 -or $gtIdx -lt 0) { return }
-    $mapKey = @($Maps.Keys)[$mapIdx]
-    $mapName = @($Maps.Values)[$mapIdx]
-    $gtKey = @($Gametypes.Keys)[$gtIdx]
-    $gtName = @($Gametypes.Values)[$gtIdx]
-    [void]$script:rotationData.Add(@{ map = $mapKey; gametype = $gtKey })
-    [void]$lstRotation.Items.Add("$gtName on $mapName")
+    [void]$script:rotationData.Add(@{ map = $MapKeys[$mapIdx]; gametype = $GametypeKeys[$gtIdx] })
+    [void]$lstRotation.Items.Add((Get-RotationDisplayName $MapKeys[$mapIdx] $GametypeKeys[$gtIdx]))
 })
 
 $btnRemove.Add_Click({
@@ -165,6 +232,32 @@ $btnRemove.Add_Click({
     if ($sel -ge 0) {
         $lstRotation.Items.RemoveAt($sel)
         $script:rotationData.RemoveAt($sel)
+    }
+})
+
+$btnMoveUp.Add_Click({
+    $sel = $lstRotation.SelectedIndex
+    if ($sel -gt 0) {
+        $item = $lstRotation.Items[$sel]
+        $data = $script:rotationData[$sel]
+        $lstRotation.Items.RemoveAt($sel)
+        $script:rotationData.RemoveAt($sel)
+        $lstRotation.Items.Insert(($sel - 1), $item)
+        $script:rotationData.Insert(($sel - 1), $data)
+        $lstRotation.SelectedIndex = $sel - 1
+    }
+})
+
+$btnMoveDown.Add_Click({
+    $sel = $lstRotation.SelectedIndex
+    if ($sel -ge 0 -and $sel -lt ($lstRotation.Items.Count - 1)) {
+        $item = $lstRotation.Items[$sel]
+        $data = $script:rotationData[$sel]
+        $lstRotation.Items.RemoveAt($sel)
+        $script:rotationData.RemoveAt($sel)
+        $lstRotation.Items.Insert(($sel + 1), $item)
+        $script:rotationData.Insert(($sel + 1), $data)
+        $lstRotation.SelectedIndex = $sel + 1
     }
 })
 
@@ -177,7 +270,7 @@ $btnClear.Add_Click({
 $grpScore = New-Object System.Windows.Forms.GroupBox
 $grpScore.Text = "Score Limits"
 $grpScore.Location = New-Object System.Drawing.Point(14, $y)
-$grpScore.Size = New-Object System.Drawing.Size(676, 118)
+$grpScore.Size = New-Object System.Drawing.Size(816, 118)
 $grpScore.ForeColor = [System.Drawing.Color]::FromArgb(220, 200, 160)
 $form.Controls.Add($grpScore)
 
@@ -204,10 +297,9 @@ foreach ($kv in $Gametypes.GetEnumerator()) {
     $scoreControls[$kv.Key] = $nud
 
     $col++
-    if ($col % 4 -eq 0) { $sx = 12; $sy += 28 } else { $sx += 184 }
+    if ($col % 4 -eq 0) { $sx = 12; $sy += 28 } else { $sx += 164 }
 }
 
-# Domination halftime checkbox
 $chkHalftime = New-Object System.Windows.Forms.CheckBox
 $chkHalftime.Text = "Single Round Dom (no halftime)"
 $chkHalftime.Location = New-Object System.Drawing.Point(($grpScore.Width - 220), 90)
@@ -303,14 +395,111 @@ $lblStatus.Size = New-Object System.Drawing.Size(170, 20)
 $lblStatus.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Italic)
 $form.Controls.Add($lblStatus)
 
-# ── Logic ──────────────────────────────────────────────────────────────────────
+# ── Preset Logic ───────────────────────────────────────────────────────────────
+function Get-CurrentConfig {
+    $scores = @{}
+    foreach ($kv in $scoreControls.GetEnumerator()) {
+        $scores[$kv.Key] = [int]$kv.Value.Value
+    }
+    return @{
+        serverName    = $txtName.Text
+        rotation      = @($script:rotationData | ForEach-Object { @{ map = $_.map; gametype = $_.gametype } })
+        scoreLimits   = $scores
+        singleRoundDom = $chkHalftime.Checked
+        botFill       = [int]$nudBotFill.Value
+        botNames      = $cmbBotNames.SelectedItem.ToString()
+        port          = [int]$nudPort.Value
+    }
+}
+
+function Apply-Config($cfg) {
+    if ($cfg.serverName) { $txtName.Text = $cfg.serverName }
+    if ($cfg.port) { $nudPort.Value = [math]::Max(1024, [math]::Min(65535, [int]$cfg.port)) }
+    if ($cfg.botFill -ne $null) { $nudBotFill.Value = [math]::Max(0, [math]::Min(18, [int]$cfg.botFill)) }
+    if ($cfg.botNames) {
+        $bi = $BotNamePools.IndexOf($cfg.botNames)
+        if ($bi -ge 0) { $cmbBotNames.SelectedIndex = $bi }
+    }
+    if ($cfg.singleRoundDom -ne $null) { $chkHalftime.Checked = $cfg.singleRoundDom }
+    if ($cfg.scoreLimits) {
+        $cfg.scoreLimits.PSObject.Properties | ForEach-Object {
+            if ($scoreControls.ContainsKey($_.Name)) {
+                $scoreControls[$_.Name].Value = [math]::Max(1, [math]::Min(999, [int]$_.Value))
+            }
+        }
+    }
+    $lstRotation.Items.Clear()
+    $script:rotationData.Clear()
+    if ($cfg.rotation) {
+        foreach ($entry in $cfg.rotation) {
+            [void]$script:rotationData.Add(@{ map = $entry.map; gametype = $entry.gametype })
+            [void]$lstRotation.Items.Add((Get-RotationDisplayName $entry.map $entry.gametype))
+        }
+    }
+}
+
+function Refresh-PresetList {
+    $cmbPreset.Items.Clear()
+    [void]$cmbPreset.Items.Add("(last used)")
+    Get-ChildItem $PresetDir -Filter "*.json" -ErrorAction SilentlyContinue | ForEach-Object {
+        [void]$cmbPreset.Items.Add($_.BaseName)
+    }
+    $cmbPreset.SelectedIndex = 0
+}
+
+function Save-Preset($name) {
+    $cfg = Get-CurrentConfig
+    $cfg | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $PresetDir "$name.json") -Encoding UTF8
+}
+
+function Load-Preset($name) {
+    $path = Join-Path $PresetDir "$name.json"
+    if (Test-Path $path) {
+        $cfg = Get-Content $path -Raw | ConvertFrom-Json
+        Apply-Config $cfg
+    }
+}
+
+$btnSavePreset.Add_Click({
+    $input = [Microsoft.VisualBasic.Interaction]::InputBox("Preset name:", "Save Preset", "My Server")
+    if ($input -and $input.Trim()) {
+        $safeName = $input.Trim() -replace '[\\/:*?"<>|]', '_'
+        Save-Preset $safeName
+        Refresh-PresetList
+        for ($i = 0; $i -lt $cmbPreset.Items.Count; $i++) {
+            if ($cmbPreset.Items[$i] -eq $safeName) { $cmbPreset.SelectedIndex = $i; break }
+        }
+    }
+})
+
+$btnLoadPreset.Add_Click({
+    $sel = $cmbPreset.SelectedItem
+    if ($sel -and $sel -ne "") {
+        if ($sel -eq "(last used)") { $sel = "_lastused" }
+        Load-Preset $sel
+    }
+})
+
+$btnDeletePreset.Add_Click({
+    $sel = $cmbPreset.SelectedItem
+    if (-not $sel -or $sel -eq "(last used)") { return }
+    $path = Join-Path $PresetDir "$sel.json"
+    if (Test-Path $path) {
+        $confirm = [System.Windows.Forms.MessageBox]::Show("Delete preset '$sel'?", "S2x Server Launcher", 4, 32)
+        if ($confirm -eq "Yes") {
+            Remove-Item $path -Force
+            Refresh-PresetList
+        }
+    }
+})
+
+# ── Server Logic ───────────────────────────────────────────────────────────────
 $script:serverProcess = $null
 
 function Build-ServerCfg {
     $lines = @()
     $lines += "set sv_hostname `"$($txtName.Text)`""
 
-    # Score limits for gametypes present in the rotation
     $usedGametypes = @{}
     foreach ($entry in $script:rotationData) {
         $usedGametypes[$entry.gametype] = $true
@@ -329,7 +518,6 @@ function Build-ServerCfg {
     $lines += "set bot_fill $([int]$nudBotFill.Value)"
     $lines += "set bot_names $($cmbBotNames.SelectedItem)"
 
-    # Build rotation string
     if ($script:rotationData.Count -gt 0) {
         $parts = @()
         foreach ($entry in $script:rotationData) {
@@ -347,15 +535,15 @@ $btnLaunch.Add_Click({
         return
     }
 
-    # Kill existing server
+    Save-Preset "_lastused"
+
     Get-Process s2x -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -match "Dedicated|Console" } | Stop-Process -Force
     Start-Sleep -Milliseconds 1500
 
-    # Write server.cfg
     $cfgPath = Join-Path $GameDir "s2x\server.cfg"
-    Build-ServerCfg | Set-Content $cfgPath -Encoding UTF8
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($cfgPath, (Build-ServerCfg), $utf8NoBom)
 
-    # Launch
     $port = [int]$nudPort.Value
     $args = "-noupdate -dedicated +set net_port $port +exec server.cfg +map_rotate"
     $script:serverProcess = Start-Process -FilePath (Join-Path $GameDir "s2x.exe") -ArgumentList $args -WorkingDirectory $GameDir -PassThru
@@ -365,11 +553,7 @@ $btnLaunch.Add_Click({
 
     if ($chkConnect.Checked) {
         Start-Sleep -Seconds 12
-        $clientProc = Get-Process s2x -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -match "Multiplayer" }
-        if ($clientProc) {
-            # Cannot send console commands to client from here — user connects manually
-            [System.Windows.Forms.MessageBox]::Show("Server is ready. Connect with:`nconnect 127.0.0.1:$port", "S2x Server Launcher", 0, 64)
-        }
+        [System.Windows.Forms.MessageBox]::Show("Server is ready. Connect with:`nconnect 127.0.0.1:$port", "S2x Server Launcher", 0, 64)
     }
 })
 
@@ -380,9 +564,11 @@ $btnStop.Add_Click({
     $lblStatus.ForeColor = [System.Drawing.Color]::FromArgb(200, 100, 100)
 })
 
-$form.Add_FormClosing({
-    # Don't kill the server on close — let it keep running
-})
+$form.Add_FormClosing({ })
 
-# ── Show ───────────────────────────────────────────────────────────────────────
+# ── Init ───────────────────────────────────────────────────────────────────────
+Add-Type -AssemblyName Microsoft.VisualBasic
+Refresh-PresetList
+Load-Preset "_lastused"
+
 [void]$form.ShowDialog()
