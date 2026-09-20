@@ -26,7 +26,8 @@ S2x is a custom client project for Call of Duty®: WWII, focused on preserving a
 | `feat/39-hq-economy` | Headquarters economy: Orders, contracts, payroll, supply drops, Quartermaster, Mail | [#39](https://github.com/Brentdevent/S2x/issues/39) |
 | `feat/39a` | Expanded daily and weekly order pools (20 daily, 10 weekly) | extends #39 |
 | `feat/bot-names` | Custom bot name pools: default, modern (2016-2026), nostalgia (2005-2015) | — |
-| `feat/server-launcher` | Dedicated server launcher GUI | — |
+| `feat/server-launcher` | Dedicated server launcher GUI with MP/Zombies mode toggle | — |
+| `codex/zombies-economy` | Zombies economy: orders, contracts, supply drops in zombies mode | [#3](https://github.com/ChronoRixun/S2x/issues/3) |
 
 ### Dedicated server settings that stick -- Merged
 
@@ -60,9 +61,15 @@ The pool is shuffled on each map load, so with 54 names and at most 18 players p
 bot_names nostalgia
 ```
 
+### Zombies economy
+
+The HQ economy extends into Nazi Zombies. Daily and weekly zombies orders track kills, headshots, waves survived, jolts earned, multikills, and map completions using the game's own event IDs (34-45). Zombies contracts are priced in Armory Credits and reward Rare Zombie Supply Drops that open with the full card-flip animation — consumables like Self-Revives, weapon guarantees, and Elektromagnet (Double Jolts) drop alongside cosmetic items.
+
+The rotation is mode-aware: MP players see MP orders, zombies players see zombies orders. The Quartermaster shows the Rare Zombie Supply Drop for purchase at 1000 AC.
+
 ### Dedicated server launcher
 
-`tools/server-launcher.ps1` is a GUI for launching a dedicated server without writing configs by hand. It lets you pick a server name, build a map rotation from dropdowns, set per-gametype score limits, single-round domination, bot fill, bot names, and port. It writes `server.cfg` and launches the server with one click.
+`tools/server-launcher.ps1` is a WPF GUI for launching a dedicated server without writing configs by hand. A mode toggle switches between Multiplayer and Zombies — each with its own map list, settings, and saved presets. It handles server name, map rotation, per-gametype score limits, single-round domination, bot fill, bot names, and port. Presets save and load independently per mode.
 
 ```text
 powershell -ExecutionPolicy Bypass -File tools\server-launcher.ps1
