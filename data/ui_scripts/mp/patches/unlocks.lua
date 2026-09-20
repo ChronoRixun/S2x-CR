@@ -263,91 +263,6 @@ local function append_options( options, extra )
 	return options
 end
 
-local bot_names_labels = { "Default", "Modern", "Nostalgia" }
-local bot_names_count = #bot_names_labels
-local bot_names_current = nil
-
-local function read_bot_names_index()
-	local ok, val = pcall( Engine.GetDvarString, "bot_names" )
-	if ok and val then
-		for i, label in ipairs( bot_names_labels ) do
-			if val:lower() == label:lower() then
-				return i
-			end
-		end
-
-		local num = tonumber( val )
-		if num and num >= 0 and num < bot_names_count then
-			return num + 1
-		end
-	end
-
-	return 1
-end
-
-local function get_bot_names_index()
-	if not bot_names_current then
-		bot_names_current = read_bot_names_index()
-	end
-
-	return bot_names_current
-end
-
-local function set_bot_names( index )
-	index = ( ( index - 1 ) % bot_names_count ) + 1
-	bot_names_current = index
-	Engine.Exec( "set bot_names " .. ( index - 1 ) )
-end
-
-local function cycle_bot_names( direction )
-	return function ()
-		set_bot_names( get_bot_names_index() + direction )
-	end
-end
-
-local bot_fill_current = 0
-local bot_fill_max = 18
-
-local function get_bot_fill()
-	return bot_fill_current
-end
-
-local function set_bot_fill( value )
-	value = math.max( 0, math.min( bot_fill_max, value ) )
-	bot_fill_current = value
-	Engine.Exec( "set bot_fill " .. value )
-end
-
-local function bot_name_options()
-	return {
-		{
-			buttonType = "GenericButtonScrollable",
-			buttonText = Engine.Localize( "Bot Fill" ),
-			buttonDesc = Engine.Localize( "Number of bots added automatically on every map start. Set to 0 to disable." ),
-			buttonDisplayFunc = function ()
-				local count = get_bot_fill()
-				if count == 0 then
-					return "Off"
-				end
-
-				return tostring( count )
-			end,
-			buttonLeftFunc = function () set_bot_fill( get_bot_fill() - 1 ) end,
-			buttonRightFunc = function () set_bot_fill( get_bot_fill() + 1 ) end
-		},
-		{
-			buttonType = "GenericButtonScrollable",
-			buttonText = Engine.Localize( "Bot Names" ),
-			buttonDesc = Engine.Localize( "Choose a name style for bots. Takes effect on the next map." ),
-			buttonDisplayFunc = function ()
-				return bot_names_labels[get_bot_names_index()]
-			end,
-			buttonLeftFunc = cycle_bot_names( -1 ),
-			buttonRightFunc = cycle_bot_names( 1 )
-		}
-	}
-end
-
 local function multiplayer_options( controller )
 	local items_toggle = toggle_dvar( "cg_unlockall_items" )
 	local loot_toggle = toggle_dvar( "cg_unlockall_loot" )
@@ -380,7 +295,7 @@ local function multiplayer_options( controller )
 			buttonLeftFunc = loot_toggle,
 			buttonRightFunc = loot_toggle
 		}
-	}, append_options( bot_name_options(), progression_options( controller ) ) )
+	}, progression_options( controller ) )
 end
 
 local function zombies_options( controller )
