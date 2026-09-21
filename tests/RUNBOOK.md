@@ -92,6 +92,12 @@ cd /d "D:\Program Files\Steam\steamapps\common\Call of Duty WWII"
 start "" s2x.exe -noupdate -dedicated +set net_port 27017 +set party_maxplayers 18 +set party_matchStartDelay 15 +set bot_fill 8 +set bot_names nostalgia +set sv_hostname "rc test" +set sv_maprotation "gametype gun map mp_shipment_s2 gametype dom map mp_shipment_s2" +exec server.cfg +map_rotate
 ```
 
+The same launch from PowerShell, where `cd /d` and `start ""` do not work:
+
+```powershell
+Set-Location 'D:\Program Files\Steam\steamapps\common\Call of Duty WWII'; Start-Process -FilePath '.\s2x.exe' -WorkingDirectory (Get-Location) -ArgumentList '-noupdate -dedicated +set net_port 27017 +set party_maxplayers 18 +set party_matchStartDelay 15 +set bot_fill 8 +set bot_names nostalgia +set sv_hostname "rc test" +set sv_maprotation "gametype gun map mp_shipment_s2 gametype dom map mp_shipment_s2" +exec server.cfg +map_rotate'
+```
+
 `server.cfg` runs after the command line and wins; the one in the game folder today sets the box 4 hostname and rotation, so expect its name in the browser and edit it if you want the rotation above. Things that look wrong and aren't: `Dedicated party: failed to select match-rules gametype 'dom'` prints on a working server; `status` answers `Server is not running.` until the first match starts; a map load takes 40–50 seconds; the first `bot_fill` line often reads `the engine added 16 of 17` and a second line tops it up.
 
 Reading the console: `<game>\s2x\logs\console.log` is shared by every instance and only ever appended to, so note the line count before a test and read the tail.
