@@ -32,4 +32,5 @@ namespace gsc
 	void scr_error(const char* error);
 	void override_function(const std::string& name, game::BuiltinFunction func);
 	void add_function(const std::string& name, game::BuiltinFunction function);
+	void notify_chat(int client_num, const std::string& text, bool team);
 }

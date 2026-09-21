@@ -12,9 +12,12 @@
 #include "script_error.hpp"
 #include "script_extension.hpp"
 #include "script_loading.hpp"
+#include "script_storage.hpp"
 
 #include <utils/hook.hpp>
 #include <utils/string.hpp>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 
 namespace gsc
 {
@@ -318,6 +321,65 @@ namespace gsc
 			console::info("\n");
 		}
 
+		void scr_file_read()
+		{
+			if (game::Scr_GetNumParam() != 1) throw std::runtime_error("fileread(filename) expects one argument");
+			const auto text = script_storage::read(game::get_appdata_path() / "scriptdata", game::Scr_GetString(0));
+			if (text) game::Scr_AddString(text->c_str()); // Missing files return undefined; empty files return "".
+		}
+
+		void scr_file_write()
+		{
+			if (game::Scr_GetNumParam() != 2) throw std::runtime_error("filewrite(filename, text) expects two arguments");
+			const std::string name{game::Scr_GetString(0)};
+			const std::string text{game::Scr_GetString(1)};
+			script_storage::write(game::get_appdata_path() / "scriptdata", name, text);
+			game::Scr_AddInt(1);
+		}
+
+		void scr_get_ip()
+		{
+			if (game::Scr_GetNumParam() != 1 || game::Scr_GetType(0) != game::VAR_POINTER ||
+				game::Scr_GetPointerType(0) != game::VAR_ENTITY)
+				throw std::runtime_error("getip(player) expects a player entity");
+			const auto ref = game::Scr_GetEntityIdRef(game::Scr_GetObject(0));
+			const auto* clients = *game::mp::svs_clients;
+			if (ref.classnum || !game::SV_Loaded() || !clients || ref.entnum >= *game::sv_maxclients ||
+				clients[ref.entnum].state < 3 || !clients[ref.entnum].gentity || !clients[ref.entnum].gentity->client)
+				throw std::runtime_error("getip(player) requires a connected player");
+			const auto& address = clients[ref.entnum].remoteAddress;
+			if (address.type == game::NA_LOOPBACK) game::Scr_AddString("127.0.0.1");
+			else if (address.type == game::NA_IP)
+				game::Scr_AddString(utils::string::va("%u.%u.%u.%u", address.ip[0], address.ip[1], address.ip[2], address.ip[3]));
+			else game::Scr_AddString(""); // Bots and unavailable addresses have no public IP.
+		}
+
+		void scr_get_player_roster()
+		{
+			if (game::Scr_GetNumParam()) throw std::runtime_error("getplayerroster() expects no arguments");
+			rapidjson::StringBuffer buffer;
+			rapidjson::Writer<rapidjson::StringBuffer> json{buffer};
+			json.StartObject();
+			json.Key("generated_utc"); json.Int64(std::time(nullptr));
+			json.Key("mapname"); json.String(game::Dvar_GetString("mapname"));
+			json.Key("players"); json.StartArray();
+			const auto* clients = *game::mp::svs_clients;
+			if (game::SV_Loaded() && clients)
+			{
+				for (auto index = 0; index < *game::sv_maxclients; ++index)
+				{
+					const auto& client = clients[index];
+					if (client.state < 3 || client.testClient || client.remoteAddress.type == game::NA_BOT || !client.guid[0]) continue;
+					json.StartObject();
+					json.Key("id"); json.String(client.guid, static_cast<rapidjson::SizeType>(strnlen(client.guid, sizeof(client.guid))));
+					json.Key("name"); json.String(client.name, static_cast<rapidjson::SizeType>(strnlen(client.name, sizeof(client.name))));
+					json.EndObject();
+				}
+			}
+			json.EndArray(); json.EndObject();
+			game::Scr_AddString(buffer.GetString());
+		}
+
 	}
 
 	void add_devmap_entry(std::uint8_t* codepos, std::size_t size, const std::string& name, xsk::gsc::buffer devmap_buf)
@@ -370,6 +432,21 @@ namespace gsc
 		gsc_ctx->func_add(name, id);
 	}
 
+	void notify_chat(const int client_num, const std::string& text, const bool team)
+	{
+		if (text.empty() || !game::SV_Loaded() || game::virtual_lobby_loaded() ||
+			client_num < 0 || client_num >= *game::sv_maxclients) return;
+		auto* entities = game::mp::g_entities.get();
+		if (!entities || !entities[client_num].client) return;
+		// Intern only for this notification: map unload may release all script strings.
+		// These MP helpers are SL_GetString and RemoveRefToValue (VAR_STRING).
+		const auto event = utils::hook::invoke<unsigned>(0x6891F0_g, "s2x_chat", 0u);
+		game::Scr_AddInt(team ? 1 : 0);
+		game::Scr_AddString(text.c_str());
+		game::Scr_Notify(&entities[client_num], event, 2);
+		utils::hook::invoke<void>(0x68B4A0_g, static_cast<int>(game::VAR_STRING), static_cast<std::uint64_t>(event));
+	}
+
 	class extension final : public generic_component
 	{
 	public:
@@ -377,6 +454,13 @@ namespace gsc
 		{
 			override_function("print", &scr_print);
 			override_function("println", &scr_print_ln);
+			if (game::environment::uses_multiplayer_binary())
+			{
+				add_function("fileread", &scr_file_read);
+				add_function("filewrite", &scr_file_write);
+				add_function("getip", &scr_get_ip);
+				add_function("getplayerroster", &scr_get_player_roster);
+			}
 
 			scr_error_hook.create(game::Scr_Error, scr_error_stub);
 			scr_error2_hook.create(game::Scr_Error2, scr_error2_stub);
