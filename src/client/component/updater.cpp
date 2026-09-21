@@ -118,9 +118,16 @@ namespace updater
 
 			cleanup_previous_binary();
 
-			if (!utils::flags::has_flag("-noupdate"))
+			// Upstream's update server only serves upstream's files: its UI scripts would
+			// load on top of ours and its executable would replace this one. This fork
+			// takes releases from GitHub instead, so the download is opt-in.
+			if (utils::flags::has_flag("-update"))
 			{
 				perform_update();
+			}
+			else
+			{
+				console::info("[Updater] Automatic updates are off in this fork; new builds are at https://github.com/ChronoRixun/S2x/releases\n");
 			}
 
 			if (binary_was_replaced)
