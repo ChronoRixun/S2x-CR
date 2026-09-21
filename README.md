@@ -1,141 +1,91 @@
 <img width="1200" height="350" alt="s2x-readme-banner" src="https://github.com/user-attachments/assets/733e21a4-2703-4ba7-ab07-151b0f17e94a" />
 
-# S2x ⭐ — ChronoRixun's fork
+# S2x-CR
 
-This is a personal fork of [Brentdevent/S2x](https://github.com/Brentdevent/S2x), the custom client for **Call of Duty®: WWII**. It carries fixes and features on top of upstream `master`, merged together on the `integration` branch. If you want everything at once, build `integration`.
+A fork of [Brentdevent/S2x](https://github.com/Brentdevent/S2x), the custom client for **Call of Duty®: WWII**, kept by [ChronoRixun](https://github.com/ChronoRixun). It exists so a small community can run dedicated servers that stay up, fill with bots until people arrive, and keep progression working. Everything here is merged on the `integration` branch and shipped as releases.
 
 > [!WARNING]
 > S2x is actively being developed and is not feature-complete. Expect bugs, crashes, missing features, and general instability. Dedicated servers, modding support, online functionality, and further gameplay stability are still in development.
 
 S2x is a custom client project for Call of Duty®: WWII, focused on preserving and extending functionality for campaign, multiplayer, and zombies. The project is inspired by the work of the former XLabs community, but S2x is an independent project and is not affiliated with XLabs, Activision, Sledgehammer Games, Microsoft, or any related publisher, developer, or trademark holder.
 
+## Get it
+
+1. Own **Call of Duty®: WWII** on Steam. S2x does not include game files.
+2. Download the latest zip from [Releases](https://github.com/ChronoRixun/S2x/releases).
+3. Extract it into your game folder, next to `s2_mp64_ship.exe`.
+4. Start Steam, then run `s2x.exe`.
+
+| In the zip | What it is |
+|---|---|
+| `s2x.exe`, `s2x.pdb` | The client, and symbols for readable crash reports |
+| `s2x\ui_scripts\` | Menu patches: server browser, dedicated lobby, rank and Zombies unlocks |
+| `s2x\scripts\mp\` | Server-side scripts: Gun Game bot costumes, chat events for server scripting |
+| `s2x\tools\` | The dedicated server launcher and the Discord status card script |
+
+## Community
+
+- **CoD WWII Community** on Discord: <https://discord.gg/yMPWMTyPPZ>. Our servers, looking-for-game, and the place to report anything that's wrong with them.
+- **S2x** on Discord: <https://discord.gg/wdC8Jpc2cC>. The upstream project's server, run by Brentdevent.
+- Bugs and ideas for this fork go in [Issues](https://github.com/ChronoRixun/S2x/issues).
+
 ## What this fork adds
 
-| Branch | What it does | Upstream |
-|---|---|---|
-| `fix/44-rotation-defaults` | Admin gameplay settings survive dedicated map rotations | [#44](https://github.com/Brentdevent/S2x/issues/44) | 
-| `fix/lobby-party-slot-bound` | Fixes a dedicated-server crash in the lobby party walk | crash found while testing #44 |
-| `fix/console-long-line` | A console line over 4 KB is truncated instead of ending the process | crash found while tracing #44 |
-| `fix/scheduler-drop-throwing-tasks` | A scheduled task that throws is contained and dropped instead of taking the game down | found during the #39 review |
-| `feat/22-bot-fill` | `bot_fill`: bots added automatically on every map start | [#22](https://github.com/Brentdevent/S2x/issues/22) |
-| `feat/52-stringtable-override` | Loose `.csv` string-table overrides, `dumpstringtable`, `reloadstringtables` | [#52](https://github.com/Brentdevent/S2x/issues/52) |
-| `feat/48-rank-commands` | `setrank` / `setprestige` console commands | [#48](https://github.com/Brentdevent/S2x/issues/48) |
-| `feat/48-rank-menu` | Prestige and Rank chooser in the UNLOCKS tab (stacked on the commands) | [#48](https://github.com/Brentdevent/S2x/issues/48) |
-| `feat/53-zombies-unlock-menu` | Groesten Haus toggle and `unlockzmeastereggs` in the UNLOCKS tab | [#53](https://github.com/Brentdevent/S2x/issues/53) |
-| `fix/53-zombies-progression-only` | Tortured Path chapter tracking and main-quest progression recording | [#53](https://github.com/Brentdevent/S2x/issues/53) |
-| `feat/39-hq-economy` | Headquarters economy: Orders, contracts, payroll, supply drops, Quartermaster, Mail | [#39](https://github.com/Brentdevent/S2x/issues/39) |
-| `feat/39a` | Expanded daily and weekly order pools (20 daily, 10 weekly) | extends #39 |
-| `feat/bot-names` | Custom bot name pools: default, modern (2016-2026), nostalgia (2005-2015) | — |
-| `feat/server-launcher` | Dedicated server launcher GUI with MP/Zombies mode toggle | — |
-| `codex/zombies-economy` | Zombies economy: orders, contracts, supply drops in zombies mode | [#3](https://github.com/ChronoRixun/S2x/issues/3) |
+### Dedicated servers
 
-### Dedicated server settings that stick -- Merged
+- **Startup crash fixed.** Upstream dedicated servers died on roughly one launch in ten with `0xC0000409`. An Arxan repair guard that the client did not patch was restoring three regions the client relies on; it is now filtered like the others. ([#2](https://github.com/ChronoRixun/S2x/issues/2))
+- **Settings that stick.** Score limits and other gameplay settings from `server.cfg` used to last one map, because the engine re-ran its 497 gameplay defaults every time the lobby came back. The defaults now run once at startup, ahead of the server config.
+- **Bots that fill the server.** `bot_fill 17` adds bots on every map start; they make room as people join. `bot_names` picks a name pool: `default`, `modern` (2016-2026 gamertags) or `nostalgia` (2005-2015 Xbox 360 era). Both are saved dvars.
+- **Gun Game bots keep their bodies.** Gun Game rebuilt bot outfits from profile data bots don't have, leaving them legless. A server-side script restores the generated uniform after each weapon change. ([#4](https://github.com/ChronoRixun/S2x/issues/4))
+- **Server scripting.** Scripts on the server can watch chat (`level waittill("say", player, message, team_chat)`), keep small text files, read a player's address and take a roster snapshot. See [tools/server-scripts](tools/server-scripts/README.md). ([#9](https://github.com/ChronoRixun/S2x/issues/9))
 
-On upstream, `scr_dom_scorelimit` and friends set from the command line or `server.cfg` lasted exactly one map. The cause is that the engine's lobby code runs `default_xboxlive.cfg`, and through it the 497 gameplay defaults in `default_mp_allmodes.cfg`, every time the party is created, a match ends and the lobby returns: seven times per rotation, wiping whatever the admin set. That file exists to be overridden by the playlist rules afterwards, and a dedicated server has no playlist. So this fork executes it once at startup, ahead of the server config, and skips it from then on. Nothing resets the values, so nothing has to restore them.
+### Progression
 
-### Rank and prestige
-
-`setrank <level> [prestige]` and `setprestige <prestige>` write the prestige and the rank's minimum XP from the game's own rank tables, in Multiplayer and in Zombies. The UNLOCKS tab of the Soldier menu gains a Prestige and Rank group with steppers and an Apply action behind a confirmation. The stats are written the same way `unlockstatsmp` writes them; the engine uploads them a few seconds later or at the next map load, so load any map before quitting if you want the rank to stick. The prestige is a stat write rather than a call into the game's own prestige routine, which advances by exactly one prestige in Multiplayer only and whose reward call is an empty function in this build. The command says so after a successful write.
-
-### Zombies progression
-
-A saved `cg_unlock_zm_progression` toggle (also an UNLOCKS row) makes the tutorial map Groesten Haus available. Tortured Path chapters, the DLC3 survival unlock, the Easter eggs and the red skull are recorded into the persisted achievements from the game's own reward events, including for remote players on a listen or dedicated server. `unlockzmeastereggs confirm` marks the main-quest achievements complete outright.
+- **Rank and prestige.** `setrank <level> [prestige]` and `setprestige <prestige>` in Multiplayer and Zombies, plus a Prestige and Rank chooser in the UNLOCKS tab. Past reward XP is rebaselined so the requested level is the level you get. ([#7](https://github.com/ChronoRixun/S2x/issues/7))
+- **Zombies progression.** A saved toggle unlocks Groesten Haus; Tortured Path chapters, the DLC3 survival unlock, the Easter eggs and the red skull are recorded from the game's own reward events, including for remote players. `unlockzmeastereggs confirm` completes the main quest outright.
+- **Custom Match bots.** `bot_fill` works in offline Custom Matches too, and `spawnBot 2` adds more mid-match. ([#1](https://github.com/ChronoRixun/S2x/issues/1))
 
 ### Headquarters economy
 
-Orders, contracts, payroll, supply drops, the Quartermaster and Mail all run over the Achievement Engine protocol that upstream stubs. This fork answers those requests from a local economy store (`players2/user/hq_economy.json`), with retail-shaped Orders, nine contracts priced in Armory Credits, payroll, supply drops that open, and a Quartermaster whose purchases are usable in Create-a-Class. It is the largest branch and is offered upstream as a draft. The Zombies Supplies screens are out of scope for now.
+Upstream stubs the Achievement Engine, so Orders, contracts, payroll, supply drops, the Quartermaster and Mail did nothing. This fork answers those requests from a local store (`players2/user/hq_economy.json`):
 
-Every soldier level-up awards a Rare Supply Drop, the way the end-of-match screen promises; the store credits it from the game's own rank-up event, so it works on dedicated servers and in Local Play alike.
+- Retail-shaped Orders and contracts priced in Armory Credits, payroll, and supply drops that open with the full card flip. Every soldier level-up awards a Rare Supply Drop, as the end-of-match screen promises.
+- Duplicate cards convert to Armory Credits at the game's own pawn values, in Multiplayer and Zombies. ([#6](https://github.com/ChronoRixun/S2x/issues/6))
+- Zombies has its own rotation: 20 daily and 7 weekly orders (six and three offered at a time) and eight timed contracts, tracked from the game's kill events. Rare Zombie Supply Drops reward consumables like Self-Revives and Elektromagnet alongside cosmetics.
+- `hqeconomy reload` reloads the store; deleting the file with every instance closed resets the economy and nothing else.
 
-Headquarters balances, inventory, Orders, contracts, Mail and reward receipts are saved in `players2/user/hq_economy.json`; `hqeconomy reload` in the console reloads it. Deleting `players2/user/hq_economy.json` with every instance closed resets the Headquarters economy and nothing else.
+### Modding
 
-### Bot names
+Loose files load from `%LOCALAPPDATA%\s2x\data\` and `<game folder>\s2x\` ahead of the packaged assets: GSC under `scripts\mp\` and `scripts\sp\`, UI scripts under `ui_scripts\`, and string tables at their asset path (`mp\botDivisionTable.csv` replaces `mp/botDivisionTable.csv`). `dumpstringtable <name>` exports a loaded table to `s2x\dump\`, `reloadstringtables` drops the cache, and `listassetpool 59 <filter>` lists what is loaded. Loose tables follow RFC 4180 quoting and are capped at 8 MiB, 65,535 rows and 1,024 columns; anything outside that is reported and the packaged table is used. The search paths print once at startup as an `[FS]` line.
 
-Bots can use one of three name pools instead of the engine's stock names. The saved dvar `bot_names` selects the pool:
+## Hosting a server
 
-- `default` — the engine's built-in names (unchanged)
-- `modern` — 54 names in 2016-2026 gamertag style (e.g. ColdPulse, Havoc04, softlock, TacoTuesday44)
-- `nostalgia` — 54 names in 2005-2015 Xbox 360 era style (e.g. xXDarkAngelXx, N00bSl4y3r, CrimsonEagle47, IEatBullets)
-
-The pool is shuffled on each map load, so with 54 names and at most 18 players per match, each game sees a different mix. Set it in the server console or `server.cfg`:
-
-```text
-bot_names nostalgia
-```
-
-### Zombies economy
-
-The HQ economy extends into Nazi Zombies. Daily and weekly zombies orders track kills, headshots, waves survived, jolts earned, multikills, and map completions using the game's own event IDs (34-45). Zombies contracts are priced in Armory Credits and reward Rare Zombie Supply Drops that open with the full card-flip animation — consumables like Self-Revives, weapon guarantees, and Elektromagnet (Double Jolts) drop alongside cosmetic items.
-
-The rotation is mode-aware: MP players see MP orders, zombies players see zombies orders. The Quartermaster shows the Rare Zombie Supply Drop for purchase at 1000 AC.
-
-### Dedicated server launcher
-
-`tools/server-launcher.ps1` is a WPF GUI for launching a dedicated server without writing configs by hand. A mode toggle switches between Multiplayer and Zombies — each with its own map list, settings, and saved presets. It handles server name, map rotation, per-gametype score limits, single-round domination, bot fill, bot names, and port. Presets save and load independently per mode. The server name accepts the engine's `^0`–`^7` colour codes (yellow is `^3`, white `^7`); the swatches under the name field insert them at the cursor and the preview shows how the browser will render the name. Both map pickers label the maps that need a DLC pack (Season Pass, DLC 1–4) so a rotation can be kept to maps every player has.
+`tools\server-launcher.ps1` is a GUI for running a dedicated server without writing configs. A mode toggle switches between Multiplayer and Zombies, each with its own maps, settings and saved presets. It handles the server name (with `^0`–`^7` colour codes and a live preview), the rotation, per-gametype score limits, bot fill and names, and the port. Maps that need a DLC pack are labelled so a rotation can stick to what everyone owns.
 
 ```text
-powershell -ExecutionPolicy Bypass -File tools\server-launcher.ps1
+powershell -ExecutionPolicy Bypass -File s2x\tools\server-launcher.ps1
 ```
 
-The launcher finds the game folder through `-GameDir`, a remembered choice, the current directory, its own folder or up to two folders above it, or the Steam registry entry; otherwise it asks for the folder that contains `s2x.exe` and remembers it. On a machine without Steam, run it from the game folder or pass `-GameDir "C:\Games\Call of Duty WWII"`.
+It finds the game folder on its own (Steam registry, its own location, or a remembered choice) and works on a box without Steam if it is run from the game folder or given `-GameDir`. Forward the server's UDP port (the launcher defaults to 27016) and the server appears in everyone's browser through the master list; nothing else needs registering.
 
-### Server status card
+`tools\server-status.ps1` keeps a Discord embed current with what the server is doing: online or not, map and mode, players, and whether the master list has it. It queries the server the way the client does and edits four fields on an existing bot message, leaving the rest of the card alone. `-Install` registers a scheduled task that runs every two minutes with no window; `-DryRun` shows what it would write; `-Uninstall` removes the task.
 
-`tools/server-status.ps1` keeps a Discord embed current with what a dedicated server is doing. It queries the server the way the game client does (`s2x_getInfo` with the S2 packet trailer), asks the master server whether the address is listed, and edits the "Status", "Now playing", "Players" and "Server browser" fields on an existing bot embed, leaving every other field and the card's text alone. Run it on the server box; `-Install` registers a scheduled task that updates the card every two minutes with no console window (it runs through `conhost.exe --headless`):
-
-```
-powershell -ExecutionPolicy Bypass -File tools\server-status.ps1 -ChannelId <channel id> -MessageId <message id> -PublicAddress <public ip>:<port> -TokenFile C:\s2x-status\token.txt -Install
+```text
+powershell -ExecutionPolicy Bypass -File s2x\tools\server-status.ps1 -ChannelId <channel> -MessageId <message> -PublicAddress <ip>:<port> -TokenFile C:\s2x-status\token.txt -Install
 ```
 
-`-DryRun` prints the fields instead of editing anything, and `-Uninstall` removes the task. The token file holds the Discord bot token and is read only from that path or the `DISCORD_TOKEN` environment variable.
+For server-side scripting, drop `.gsc` files into `s2x\scripts\mp\` on the server. Players need nothing. The [server scripting guide](tools/server-scripts/README.md) covers the chat event, persistence, addresses and the optional Discord arrivals feed.
 
-## Requirements
+## Compile from source
 
-You must own a legitimate Steam copy of **Call of Duty®: WWII** to use S2x. S2x does **not** provide game files, cracked executables, or any method to obtain the game without purchasing it.
-
-## Compile from source code
-
-- Clone the repository with [Git](https://git-scm.com/install/windows) or [GitHub Desktop](https://desktop.github.com/download/). **Do not download it as a ZIP**, as that will not include the required submodules.
-- Check out the branch you want: `integration` for everything, or one of the branches above for a single change.
-- Run `generate.bat` to generate the project solution, then build `build\s2x.sln` (Release, x64).
-- Copy `build\bin\x64\Release\s2x.exe` (and the `.pdb` if you want readable crash reports) into the game folder, and the Lua patches from `data\ui_scripts\` into `<game folder>\s2x\ui_scripts\`.
+- Clone with [Git](https://git-scm.com/install/windows) or [GitHub Desktop](https://desktop.github.com/download/). **Do not download it as a ZIP**; the submodules would be missing.
+- Check out `integration`.
+- Run `generate.bat`, then build `build\s2x.sln` (Release, x64).
+- Copy `build\bin\x64\Release\s2x.exe` into the game folder, and the loose files from `data\` into `<game folder>\s2x\` (`ui_scripts`, `scripts`).
 
 ## How it is tested
 
-Every branch is built into `integration`, installed and exercised in the game: dedicated servers through full rotations with bots and a connected client, the console commands with their error paths, the menus in Multiplayer and Zombies, and the persisted files afterwards.
-
-## Combat Training
-
-The easiest way to play with bots is to launch a dedicated server with the server launcher (`tools/server-launcher.ps1`) and connect to it. The launcher handles the map rotation, score limits, bot fill, and bot names — no console commands or config files needed.
-
-Alternatively, set up a dedicated server from the console or `server.cfg`:
-
-```text
-bot_fill 17
-bot_names nostalgia
-```
-
-`bot_fill` is the number of bots added automatically on every map start, from 0 (disabled) to 18. `bot_names` selects a name pool (`default`, `modern`, or `nostalgia`). Both are saved dvars and persist across server restarts. Progression works in these matches.
-
-For an offline Custom Match, choose **Local Play → Create Match**, set `bot_fill` in the console, and start the match from the lobby. `spawnBot 2` adds two more bots during a match. Listen servers use the game's scripted spawning flow to assign teams and classes; the console reports the request as queued, then reports the connected bot count when it finishes. Requests are limited to available player slots.
-
-## Modding: loose file overrides
-
-S2x loads loose files from `%LOCALAPPDATA%\s2x\data\` and `<game folder>\s2x\` before the packaged game assets.
-
-- **GSC scripts**: `scripts\mp\*.gsc` (multiplayer and zombies) or `scripts\sp\*.gsc` (campaign), plus `scripts\mp\<mapname>\` and `scripts\mp\<gametype>\` subfolders.
-- **UI scripts**: `ui_scripts\mp\<folder>\__init__.lua` or `ui_scripts\sp\<folder>\__init__.lua`.
-- **String tables (`.csv`)**: place the file at the asset path under either search root — `%LOCALAPPDATA%\s2x\data\mp\botDivisionTable.csv` or `<game folder>\s2x\mp\botDivisionTable.csv` replaces `mp/botDivisionTable.csv`. Tables that do not exist in the game can be added the same way and read from GSC with `tablelookup`.
-
-Console commands for string tables:
-
-- `dumpstringtable mp/botDivisionTable.csv` exports the loaded table to `<game folder>\s2x\dump\mp\botDivisionTable.csv`. Edit the copy and move it into one of the loose file folders above.
-- `listassetpool 59 <filter>` lists the names of loaded string tables.
-- `reloadstringtables` drops the cached loose tables; edited files are also picked up automatically when the next map loads.
-
-Loose tables are plain CSV: a newline ends a row, a comma ends a cell, and a cell that starts with a double quote is read RFC 4180 style (`""` for a literal quote), which is how `dumpstringtable` writes them. A loose table is used only when it is at most 8 MiB, has at most 65,535 rows and 1,024 columns, and pads to at most 1,048,576 cells; an empty file, a file with an unclosed quote, or one outside those limits is reported in the console and the packaged table is used instead.
-
-The search paths in use are printed once at startup as an `[FS]` line.
+Everything on `integration` is built and exercised in play before a release: dedicated servers through full rotations with bots and a connected client, the console commands with their error paths, the menus in Multiplayer and Zombies, and the persisted files afterwards. The economy, rank, scripting and storage code also have offline harnesses under `tests\`, and [tests/MORNING-RUNBOOK.md](tests/MORNING-RUNBOOK.md) lists the live checks for the current build.
 
 ## Credits
 
