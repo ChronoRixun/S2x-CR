@@ -323,7 +323,7 @@ void duplicate_drop_checks()
 	achievement_engine::set_zombies_loot_catalog({{0x4A0003F, {0x4A0003B, 4}}});
 	{
 		const auto result = open("sd_zombie_rare", "stock-row");
-		require(ok(result) && result["GrantedItems"].Size() == 5, "stock-row drop opens");
+		require(ok(result) && result["GrantedItems"].Size() == 5 && !result.HasMember("StockRows"), "stock-row drop opens without exposing its stock note");
 		for (unsigned i = 2; i < 5; ++i)
 			require(result["GrantedItems"][i]["id"].GetUint() == 0x4A0003Fu, "reveal names the rated card");
 		const auto state = hq_economy::snapshot();
@@ -336,6 +336,16 @@ void duplicate_drop_checks()
 			if (item["item_id"].GetUint() == 0x4A0003Fu) card_reported = item["item_quantity"].GetUint() == 0;
 		}
 		require(stock_reported && card_reported, "DetailedInventory carries the stock row and the empty card");
+		// A retry after the catalog is gone must still answer from the receipt.
+		achievement_engine::set_zombies_loot_catalog({});
+		const auto replay = open("sd_zombie_rare", "stock-row");
+		require(ok(replay) && replay["GrantedItems"] == result["GrantedItems"] && !replay.HasMember("StockRows"),
+			"a retry without the catalog replays the receipt and keeps its stock note private");
+		bool replay_stock{};
+		for (const auto& item : replay["DetailedInventory"].GetArray())
+			if (item["item_id"].GetUint() == 0x4A0003Bu) replay_stock = item["item_quantity"].GetUint() == 12;
+		require(replay_stock && hq_economy::snapshot().inventory.at({0x4A0003B, 0}).quantity == 12,
+			"the retry reports the stock row and grants nothing again");
 	}
 	achievement_engine::set_zombies_loot_catalog({{consumable, {consumable, 1}}});
 	achievement_engine::set_loot_catalog({cosmetic}, {{cosmetic, 25}});

@@ -1011,6 +1011,9 @@ namespace demonware::achievement_engine
 						// Uniform rolls with replacement remain local policy, not retail odds.
 						std::mt19937_64 random{std::random_device{}()};
 						rapidjson::Value items{rapidjson::kArrayType};
+						// The stored receipt keeps the stock row each card changed, so a retry
+						// does not depend on the catalog being loaded. The client never sees it.
+						rapidjson::Value stock_rows{rapidjson::kArrayType};
 						std::uint32_t credits{};
 						const auto balance = next.currencies.find(hq_economy::armory_credits);
 						const auto balance_before = balance == next.currencies.end() ? 0u : balance->second;
@@ -1041,6 +1044,13 @@ namespace demonware::achievement_engine
 									const auto stock = card == consumable_grants.end() ? id : card->second.stock;
 									const auto units = card == consumable_grants.end() ? 1u : card->second.units;
 									if (!hq_economy::grant(next, {"GRANT_PRODUCT", stock, units})) return false;
+									if (stock != id)
+									{
+										rapidjson::Value row{rapidjson::kObjectType};
+										row.AddMember("card", id, alloc);
+										row.AddMember("stock", stock, alloc);
+										stock_rows.PushBack(row, alloc);
+									}
 								}
 								rapidjson::Value item{rapidjson::kObjectType};
 								item.AddMember("id", id, alloc);
@@ -1063,19 +1073,28 @@ namespace demonware::achievement_engine
 						response.AddMember("SupplyDropID", text(drop, alloc), alloc);
 						response.AddMember("GrantedItems", items, alloc);
 						response.AddMember("GrantedCurrencies", currencies, alloc);
+						response.AddMember("StockRows", stock_rows, alloc);
 						next.transactions[key] = encode(response);
 					}
 					// Absolute quantities, including zero for the consumed drop. On replay,
 					// use today's quantities so an old receipt cannot rewind the UI cache.
+					// A card that stacks elsewhere changed its stock row, so report that too:
+					// the receipt says which, and the catalog fills in for older receipts.
+					std::map<std::uint32_t, std::uint32_t> stock_of;
+					for (const auto& [card, grant] : consumable_grants)
+						if (grant.stock != card) stock_of[card] = grant.stock;
+					if (response.HasMember("StockRows") && response["StockRows"].IsArray())
+						for (const auto& row : response["StockRows"].GetArray())
+							if (row.IsObject() && row.HasMember("card") && row["card"].IsUint() && row.HasMember("stock") && row["stock"].IsUint())
+								stock_of[row["card"].GetUint()] = row["stock"].GetUint();
 					std::vector<std::uint32_t> ids{drop_id};
 					for (const auto& item : response["GrantedItems"].GetArray())
 					{
 						if (!item.IsObject() || !item.HasMember("id") || !item["id"].IsUint()) return false;
 						const auto id = item["id"].GetUint();
 						ids.push_back(id);
-						// A card that stacks elsewhere changed its stock row, so report that too.
-						const auto card = consumable_grants.find(id);
-						if (card != consumable_grants.end()) ids.push_back(card->second.stock);
+						const auto stock = stock_of.find(id);
+						if (stock != stock_of.end()) ids.push_back(stock->second);
 					}
 					std::sort(ids.begin(), ids.end());
 					ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
@@ -1084,7 +1103,7 @@ namespace demonware::achievement_engine
 					{
 						const auto found = next.inventory.find({id, 0});
 						// A card that stacks elsewhere never gets a row of its own; report it empty.
-						if (found == next.inventory.end() && !consumable_grants.contains(id)) return false;
+						if (found == next.inventory.end() && !stock_of.contains(id)) return false;
 						const auto quantity = found == next.inventory.end() ? 0u : found->second.quantity;
 						const auto collision = found == next.inventory.end() ? 0u : found->second.collision;
 						const auto modified = found == next.inventory.end() ? static_cast<std::uint32_t>(now) : found->second.modified;
@@ -1097,6 +1116,7 @@ namespace demonware::achievement_engine
 						inventory.PushBack(item, alloc);
 					}
 					response.AddMember("DetailedInventory", inventory, alloc);
+					response.RemoveMember("StockRows");
 					return true;
 				});
 				if (!ok) return fail("drop_unavailable_transaction_conflict_or_save_failed");
