@@ -1,7 +1,7 @@
 # S2x-CR release runbook — v1.3.0 candidate
 
 **Written:** 2026-09-21 (from Astra's morning runbook, reordered by risk and extended with the install, box 4 and release steps)
-**Build under test:** `integration` at `d8268d3` (everything since `v1.2.0`)
+**Build under test:** `integration` at `8a50b18` (everything since `v1.2.0`; rc2 adds the updater change on top of `d8268d3`)
 **Repo:** `D:\S2x` — **Game:** `D:\Program Files\Steam\steamapps\common\Call of Duty WWII` — **Box 4:** runs v1.1.2 today, plus a hand-copied `server-status.ps1`
 **Budget:** about 90 minutes for sections 1–6 on this PC, then 20 minutes for box 4 and the release
 
@@ -22,6 +22,7 @@ Where I know the exact console wording it is quoted verbatim from real runs. Whe
 | `4335186` | Drops still open when an item has no pawn value (my fix on top of #6) | section 1 |
 | `a46e3c8` | Launcher labels DLC maps, Zombies zone names corrected | section 6 |
 | `57424a2` | Discord status card script | already live on box 4; section 7 regression |
+| `8a50b18` | Upstream update download is opt-in (`-update`); a plain launch no longer pulls upstream's UI scripts into AppData | section 0.3 |
 | `86b712d`–`d8268d3` | README, contributing files, CI, the showcase site | nothing to play |
 
 Automated coverage before you start: the economy, rank, scripting and storage harnesses pass offline; the fork's CI run is green; the chat bridge's argument order and the two engine addresses it calls were verified against the decompiled engine. What none of that proves is anything rendered on screen or anything a human types in chat. That is what this runbook is for.
@@ -39,7 +40,7 @@ cd D:\S2x
 git checkout integration; git pull --ff-only
 .\tools\premake5.exe vs2022
 & 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe' build\s2x.sln /t:client /p:Configuration=Release /p:Platform=x64 /m /v:minimal
-powershell -File build\diagnostics\package-release.ps1 -Version v1.3.0-rc1
+powershell -File build\diagnostics\package-release.ps1 -Version v1.3.0-rc2
 ```
 
 The packager prints every file it staged. Expect exactly this shape, and stop if anything is missing:
@@ -56,7 +57,7 @@ Install by copying the stage over the game folder:
 
 ```powershell
 $game = 'D:\Program Files\Steam\steamapps\common\Call of Duty WWII'
-Copy-Item D:\S2x\build\release\v1.3.0-rc1\stage\* $game -Recurse -Force
+Copy-Item D:\S2x\build\release\v1.3.0-rc2\stage\* $game -Recurse -Force
 ```
 
 Two things that have bitten before: `%LOCALAPPDATA%\s2x\data\ui_scripts_off` must stay renamed off (it outranks the game folder), and the `patches` folder must hold all seven files, not just the changed one.
@@ -78,6 +79,13 @@ Copy-Item "$game\players2" "D:\S2x\build\backups\players2-$stamp" -Recurse
 `players2\user\hq_economy.json` rides along in that copy. Do **not** delete it for this pass; the point of section 1 is what happens to an existing inventory.
 
 - [ ] `players2` backed up to `build\backups\players2-<stamp>`
+
+## 0.3 The updater stays quiet
+
+Until rc2, every launch without `-noupdate` ran upstream's updater, which downloaded upstream's UI scripts into `%LOCALAPPDATA%\s2x\data\ui_scripts`; the loader runs every `ui_scripts` folder it finds, so those loaded after ours and replaced the fork's `unlocks.lua`. It happened at 09:11 on 2026-09-21. rc2 makes the download opt-in. Launch `s2x.exe` directly for this check, without any flags, because the desktop shortcuts still pass `-noupdate` and that flag is now ignored.
+
+- [ ] Console prints `[Updater] Automatic updates are off in this fork; new builds are at https://github.com/ChronoRixun/S2x/releases`
+- [ ] No `ui_scripts` folder under `%LOCALAPPDATA%\s2x\data` after the launch (only the renamed `ui_scripts_off-*` folders)
 
 ## 0.3 Launching
 
@@ -317,7 +325,7 @@ The catalog with every target, price and time limit is `tests\economy\zombies-ca
 
 Only after sections 1–6 are ticked. Box 4 has no Steam and runs the launcher from the game folder; the status task keeps running through the upgrade.
 
-1. Copy `D:\S2x\build\release\v1.3.0-rc1\s2x-cr-v1.3.0-rc1.zip` to box 4.
+1. Copy `D:\S2x\build\release\v1.3.0-rc2\s2x-cr-v1.3.0-rc2.zip` to box 4.
 2. Stop the server (close its console window). Extract the zip over the game folder, replacing what is there. `s2x\scripts\mp` now exists with the two scripts.
 3. Start the server from the launcher with the "My Server" preset.
 4. From this PC: the server appears in the browser within a minute, `connect` works, chat works on the public server (say something; nothing dies), and the Discord card updates within two minutes with the current map.
