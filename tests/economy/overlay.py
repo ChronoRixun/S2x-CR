@@ -21,10 +21,15 @@ source = (root / 'src/client/component/hq_contracts.cpp').read_text()
 policy = source.split('R"lua(', 1)[1].split(')lua"', 1)[0]
 header = (root / 'src/client/game/demonware/hq_zombies_catalog.hpp').read_text()
 entries = re.findall(r'\{(\d+), (\d+), "([^"]+)", (\d+), "([^"]+)", "([^"]+)", "([^"]+)"\}', header)
-assert len(entries) == 9
+assert len(entries) == 27
+assert sum(entry[1] == '8' for entry in entries) == 20
+assert sum(entry[1] == '9' for entry in entries) == 7
 contract_header = (root / 'src/client/game/demonware/hq_zombies_contract_catalog.hpp').read_text()
-contracts = re.findall(r'\{(\d+), "([^"]+)", "([^"]+)", "([^"]+)", (\d+), (\d+), (0x[0-9A-Fa-f]+), (0x[0-9A-Fa-f]+), (\d+)\}', contract_header)
-assert len(contracts) == 3
+contracts = re.findall(r'\{(\d+), "([^"]+)", "([^"]+)", "([^"]+)", (\d+), (\d+), (0x[0-9A-Fa-f]+), (0x[0-9A-Fa-f]+), (\d+), "([^"]*)"\}', contract_header)
+assert len(contracts) == 8
+assert len({entry[0] for entry in entries + contracts}) == len(entries) + len(contracts)
+assert len({entry[6] for entry in contracts}) == len(contracts)
+assert len({entry[7] for entry in contracts}) == len(contracts)
 
 if a.research_root:
     with (a.research_root / 'tables/dwgamechallenges.csv').open() as f:
@@ -37,8 +42,8 @@ if a.research_root:
         assert periodic[id][1] == ('AEC_DAILY' if kind == '8' else 'AEC_WEEKLY')
     with (a.research_root / 'tables/StatsTable.csv').open() as f:
         tokens = {int(r[18], 16): r for r in csv.reader(f) if len(r) > 18 and r[18].startswith('0x')}
-    for id, name, title, description, target, seconds, token, sku, price in contracts:
-        assert retail[id][1:5] == [name, '11', '34', ''], id
+    for id, name, title, description, target, seconds, token, sku, price, predicate in contracts:
+        assert retail[id][1:5] == [name, '11', '34', predicate], id
         assert periodic[id][1] == 'AEC_CONTRACT' and periodic[id][8] == target
         assert periodic[id][10] == seconds and int(periodic[id][11], 16) == int(token, 16)
         assert tokens[int(token, 16)][0] == 'contract' and tokens[int(token, 16)][2] == name
@@ -65,11 +70,11 @@ records = {{ ID = 10 }, { ID = 999999, reward = "untouched" }}
             id=int(id), kind=int(kind), name=name, target=int(target),
             title=title, description=description))
         lua.globals().records[index + 2] = lua.table_from(dict(ID=int(id)))
-    for index, (id, name, title, description, target, seconds, token, sku, price) in enumerate(contracts, 1):
+    for index, (id, name, title, description, target, seconds, token, sku, price, predicate) in enumerate(contracts, 1):
         lua.globals().S2xZombiesContracts[index] = lua.table_from(dict(
             id=int(id), name=name, title=title, description=description,
             target=int(target), seconds=int(seconds), token=token.lower()))
-        lua.globals().records[index + 11] = lua.table_from(dict(ID=int(id)))
+        lua.globals().records[index + len(entries) + 2] = lua.table_from(dict(ID=int(id)))
     lua.execute(policy)
     lookup = lua.globals().Engine.TableLookup
     file = 'mp/periodicChallengeTable.csv'
@@ -83,7 +88,7 @@ records = {{ ID = 10 }, { ID = 999999, reward = "untouched" }}
         assert lookup(file, 0, int(id), 1.5) == 'stock'
         assert lookup('other.csv', 0, int(id), 2) == 'stock'
     assert lookup(file, 0, 10, 2) == ('stock' if zombies else 'daily_ch_kills')
-    for id, name, title, description, target, seconds, token, sku, price in contracts:
+    for id, name, title, description, target, seconds, token, sku, price, predicate in contracts:
         assert lookup(file, 0, int(id), 2) == (name if zombies else 'stock')
         if zombies:
             assert lookup(file, 0, int(id), 1) == 'AEC_CONTRACT'
@@ -103,7 +108,7 @@ records = {{ ID = 10 }, { ID = 999999, reward = "untouched" }}
                 assert reward.productID == '0x6' and reward.itemID == '0x6'
             else:
                 assert reward is None
-        for index, entry in enumerate(contracts, 12):
+        for index, entry in enumerate(contracts, len(entries) + 3):
             if zombies:
                 assert records[index].reward.productID == '0x6'
                 assert records[index].timeLimit == int(entry[5])
@@ -134,8 +139,8 @@ inventoryScope = { OrderTabMenu = { [0] = { playerActiveDailies={}, playerActive
         for entry in entries + contracts:
             group(lua.globals().inventoryScope, 0, lua.table_from(dict(ID=int(entry[0]))))
         grouped = lua.globals().inventoryScope.OrderTabMenu[0]
-        assert len(grouped.playerActiveDailies) == 6 and len(grouped.playerActiveWeeklies) == 3
-        assert len(grouped.playerActiveContracts) == 3
+        assert len(grouped.playerActiveDailies) == 20 and len(grouped.playerActiveWeeklies) == 7
+        assert len(grouped.playerActiveContracts) == 8
         # Exercise the extracted shared contract cache and price/token helpers.
         # This is not a claim that the unavailable ZM menu body was executed.
         lua.execute("""

@@ -120,6 +120,8 @@ namespace hq_economy
 				}
 				std::map<std::uint32_t, unsigned> rarities;
 				std::map<std::uint32_t, std::string> types;
+				std::map<std::uint32_t, std::uint32_t> duplicate_credits;
+				const auto* pawn = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/pawnValues.csv", false).stringTable;
 				for (const auto id : pool)
 				{
 					const auto rarity = utils::hook::invoke<int>(0x652330_g, id);
@@ -127,10 +129,25 @@ namespace hq_economy
 					// 0x652330 calls this same GUID-column reader for rarity (29).
 					const auto* type = utils::hook::invoke<const char*>(0xD1BA0_g, id, 0);
 					if (type) types[id] = type;
+					// Inventory_GetItemPawnValue (0x11E9E0) calls 0x274CF0. It checks
+					// StatsTable pawnability (30), category/subtype, then pawnValues.csv
+					// column rarity + 2. The packed return is currency low / amount high.
+					// Resolve on the game thread; never call asset code from DW dispatch.
+					if (pawn && pawn->values && pawn->rowCount > 0 && pawn->columnCount > 2)
+					{
+						const auto value = utils::hook::invoke<std::uint64_t>(0x274CF0_g, id);
+						if (static_cast<std::uint32_t>(value) == demonware::hq_economy::armory_credits)
+							duplicate_credits[id] = static_cast<std::uint32_t>(value >> 32);
+					}
 				}
 				demonware::hq_marketplace::set_rarities(rarities);
 				demonware::hq_marketplace::set_item_types(types);
-				demonware::achievement_engine::set_loot_catalog(std::move(pool));
+				if (duplicate_credits.size() < pool.size())
+				{
+					console::warn("[HQ economy] %zu of %zu loot items have no Armory Credit pawn value; their duplicates grant nothing extra\n",
+						pool.size() - duplicate_credits.size(), pool.size());
+				}
+				demonware::achievement_engine::set_loot_catalog(std::move(pool), false, std::move(duplicate_credits));
 			}
 			catch (const std::exception& error)
 			{
@@ -190,10 +207,12 @@ namespace hq_economy
 					{
 						for (int row = 0; row < definitions->rowCount; ++row)
 						{
-							std::uint32_t id{}, kind{};
+							std::uint32_t id{}, kind{}, event{};
 							if (std::string_view{cell(definitions, row, 1)} != entry.name ||
 								!parse_number(cell(definitions, row, 0), id) || id != static_cast<unsigned>(entry.id) ||
-								!parse_number(cell(definitions, row, 2), kind) || kind != static_cast<unsigned>(entry.kind)) continue;
+								!parse_number(cell(definitions, row, 2), kind) || kind != static_cast<unsigned>(entry.kind) ||
+								!parse_number(cell(definitions, row, 3), event) || event != 34 ||
+								std::string_view{cell(definitions, row, 4)} != entry.predicate) continue;
 							catalog.push_back(demonware::hq_zombies_catalog::achievement(entry));
 							rules.emplace(entry.name, demonware::hq_event_predicate::rule{34, entry.predicate});
 							break;
@@ -216,7 +235,8 @@ namespace hq_economy
 							if (std::string_view{cell(definitions, row, 1)} != entry.name ||
 								!parse_number(cell(definitions, row, 0), id) || id != entry.id ||
 								!parse_number(cell(definitions, row, 2), kind) || kind != 11 ||
-								!parse_number(cell(definitions, row, 3), event) || event != 34) continue;
+								!parse_number(cell(definitions, row, 3), event) || event != 34 ||
+								std::string_view{cell(definitions, row, 4)} != entry.predicate) continue;
 							catalog.push_back(demonware::hq_zombies_contract_catalog::achievement(entry));
 							rules.emplace(entry.name, demonware::hq_event_predicate::rule{event, cell(definitions, row, 4)});
 							++contracts;
@@ -234,7 +254,10 @@ namespace hq_economy
 					if (!std::exchange(announced, true))
 					{
 						zombies_catalog_refresh_pending = true;
-						console::info("[ZM economy] catalog ready: 6 daily / 3 weekly orders, native kinds 8/9\n");
+						const auto daily_count = std::count_if(std::begin(demonware::hq_zombies_catalog::entries),
+							std::end(demonware::hq_zombies_catalog::entries), [](const auto& entry) { return entry.kind == 8; });
+						console::info("[ZM economy] catalog ready: %zu daily / %zu weekly pool, offering 6/3, native kinds 8/9\n",
+							static_cast<std::size_t>(daily_count), std::size(demonware::hq_zombies_catalog::entries) - daily_count);
 					}
 					demonware::achievement_engine::set_event_rules(std::move(rules));
 					demonware::achievement_engine::set_catalog(std::move(catalog));

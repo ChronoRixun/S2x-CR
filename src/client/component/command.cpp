@@ -5,6 +5,7 @@
 #include "console/console.hpp"
 
 #include <game/game.hpp>
+#include "gsc/script_extension.hpp"
 
 #include <utils/hook.hpp>
 #include <utils/string.hpp>
@@ -687,11 +688,18 @@ namespace command
 		void client_command_mp_stub(const int client_num)
 		{
 			const params_sv params{};
+			const std::string_view verb{params[0]};
+			const auto chat = verb == "say" || verb == "say_team";
+			// Own the payload before native handlers or script callbacks can tokenize
+			// another command. Notifications observe chat and do not suppress delivery.
+			const auto text = chat ? params.join(1).substr(0, 256) : std::string{};
+			const auto team = verb == "say_team";
 
 			const auto handled = execute_custom_sv_command_internal(client_num, params);
 			if (!handled)
 			{
 				client_command_mp_hook.invoke<void>(client_num);
+				if (chat) gsc::notify_chat(client_num, text, team);
 			}
 		}
 

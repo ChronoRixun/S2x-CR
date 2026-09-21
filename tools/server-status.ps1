@@ -35,6 +35,9 @@ param(
     [int]$MasterPort = 20810,
     [int]$IntervalMinutes = 2,
     [string]$LogFile = (Join-Path $env:LOCALAPPDATA 's2x\server-status.log'),
+    # Optional local snapshot from s2x_server_events.gsc (no player addresses).
+    [string]$RosterFile = '',
+    [string]$PresenceStateFile = '',
     [switch]$DryRun,
     [switch]$Install,
     [switch]$Uninstall
@@ -168,6 +171,78 @@ function New-StatusFields($Info, $Listed) {
     return $fields
 }
 
+# Optional roster comparison. Only fresh, running-match snapshots advance the
+# baseline: an outage or map-loading gap must not announce that everyone left.
+function Get-PresenceUpdate($Info) {
+    if (-not $RosterFile -or $null -eq $Info -or $Info['sv_running'] -ne '1') { return $null }
+    if ([StringComparer]::OrdinalIgnoreCase.Equals([IO.Path]::GetFullPath($RosterFile), [IO.Path]::GetFullPath($PresenceStateFile))) {
+        throw 'Presence state must be a different file from the roster'
+    }
+    if (-not (Test-Path -LiteralPath $RosterFile)) { return $null }
+    if ((Get-Item -LiteralPath $RosterFile).Length -gt 64KB) { throw 'Roster file exceeds 64 KiB' }
+    $roster = Get-Content -LiteralPath $RosterFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+    $age = $now - [long]$roster.generated_utc
+    if ($age -lt -30 -or $age -gt 90) { return $null }
+    if ([string]$roster.mapname -ne [string]$Info['mapname']) { return $null }
+    if ($null -eq $roster.players -or @($roster.players).Count -gt 64) { throw 'Invalid player roster' }
+    $current = @{}
+    foreach ($player in $roster.players) {
+        $id = [string]$player.id
+        if ($id -notmatch '^[0-9a-fA-F]{1,32}$' -or $current.ContainsKey($id)) { throw 'Invalid roster player ID' }
+        $name = ([string]$player.name -replace '\^[0-9]', '' -replace '[\x00-\x1f\x7f]', '').Trim()
+        if ($name.Length -gt 36) { $name = $name.Substring(0, 36) }
+        if (-not $name) { $name = 'Player' }
+        $current[$id] = $name
+    }
+    $previous = $null
+    if (Test-Path -LiteralPath $PresenceStateFile) {
+        if ((Get-Item -LiteralPath $PresenceStateFile).Length -gt 64KB) { throw 'Presence state exceeds 64 KiB' }
+        $previous = Get-Content -LiteralPath $PresenceStateFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($null -eq $previous.players) { throw 'Invalid presence state' }
+    }
+    $events = @()
+    if ($previous) {
+        $old = @{}
+        foreach ($player in $previous.players) { $old[[string]$player.id] = [string]$player.name }
+        foreach ($id in @($current.Keys | Sort-Object)) {
+            if (-not $old.ContainsKey($id)) { $events += @{ name = $current[$id]; kind = 'joined'; at = $now } }
+        }
+        foreach ($id in @($old.Keys | Sort-Object)) {
+            if (-not $current.ContainsKey($id)) { $events += @{ name = $old[$id]; kind = 'left'; at = $now } }
+        }
+        $events += @($previous.events | Where-Object { $null -ne $_ })
+    }
+    $events = @($events | Select-Object -First 8)
+    $lines = @($events | ForEach-Object {
+        # Names are text, not Discord formatting or mentions.
+        $name = [string]$_.name -replace '[\\*_~`<>|]', '\$0'
+        '{0} {1} · <t:{2}:R>' -f $name, $_.kind, [long]$_.at
+    })
+    $value = if ($lines.Count) { $lines -join "`n" } else { 'Tracking joins and leaves from the next update.' }
+    return @{
+        field = @{ name = 'Recent arrivals / departures'; value = $value; inline = $false }
+        state = @{
+            players = @($current.Keys | Sort-Object | ForEach-Object { @{ id = $_; name = $current[$_] } })
+            events = $events
+        }
+    }
+}
+
+function Save-PresenceState($State) {
+    $path = [IO.Path]::GetFullPath($PresenceStateFile)
+    $dir = Split-Path $path -Parent
+    [void][IO.Directory]::CreateDirectory($dir)
+    $temporary = Join-Path $dir ('.presence-' + [Guid]::NewGuid().ToString('N') + '.tmp')
+    try {
+        [IO.File]::WriteAllText($temporary, ($State | ConvertTo-Json -Depth 8 -Compress), [Text.UTF8Encoding]::new($false))
+        if ([IO.File]::Exists($path)) { [IO.File]::Replace($temporary, $path, [NullString]::Value) }
+        else { [IO.File]::Move($temporary, $path) }
+    } finally {
+        if ([IO.File]::Exists($temporary)) { [IO.File]::Delete($temporary) }
+    }
+}
+
 # --- Discord --------------------------------------------------------------------------------
 function Get-Token {
     if ($env:DISCORD_TOKEN) { return $env:DISCORD_TOKEN }
@@ -202,7 +277,8 @@ function Merge-Embed($Existing, $StatusFields) {
     }
     $kept = @()
     if ($Existing.fields) {
-        $kept = @($Existing.fields | Where-Object { $ManagedFields -notcontains $_.name } |
+        $updatedNames = @($StatusFields | ForEach-Object { $_.name })
+        $kept = @($Existing.fields | Where-Object { $ManagedFields -notcontains $_.name -and $updatedNames -notcontains $_.name } |
             ForEach-Object { @{ name = $_.name; value = $_.value; inline = [bool]$_.inline } })
     }
     $embed['fields'] = @($StatusFields) + $kept
@@ -215,6 +291,12 @@ function Update-Card {
     $listed = $null
     try { $listed = Test-MasterListing } catch { Write-Log "master check failed: $($_.Exception.Message)" }
     $statusFields = New-StatusFields $info $listed
+    $presence = $null
+    if ($RosterFile) {
+        if (-not $PresenceStateFile) { $script:PresenceStateFile = "$RosterFile.presence.json" }
+        try { $presence = Get-PresenceUpdate $info } catch { Write-Log "presence: $($_.Exception.Message)" }
+        if ($presence) { $statusFields += $presence.field }
+    }
     $summary = if ($info) { '{0} on {1}, {2}/{3}, {4} ms' -f $info['gametype'], $info['mapname'], $info['clients'], $info['sv_maxclients'], $info['_rtt_ms'] } else { 'no reply' }
     Write-Log ("server: {0}; listed: {1}" -f $summary, ($(if ($null -eq $listed) { 'unknown' } else { $listed })))
 
@@ -229,7 +311,8 @@ function Update-Card {
     $message = Invoke-Discord GET "/channels/$ChannelId/messages/$MessageId"
     if (-not $message.embeds -or $message.embeds.Count -eq 0) { throw 'Target message has no embed to update' }
     $embed = Merge-Embed $message.embeds[0] $statusFields
-    [void](Invoke-Discord PATCH "/channels/$ChannelId/messages/$MessageId" @{ embeds = @($embed) })
+    [void](Invoke-Discord PATCH "/channels/$ChannelId/messages/$MessageId" @{ embeds = @($embed); allowed_mentions = @{ parse = @() } })
+    if ($presence) { Save-PresenceState $presence.state }
     Write-Log 'card updated'
 }
 
@@ -248,6 +331,8 @@ function Install-Task {
     )
     if ($PublicAddress) { $arguments += @('-PublicAddress', $PublicAddress) }
     if ($TokenFile) { $arguments += @('-TokenFile', "`"$TokenFile`"") }
+    if ($RosterFile) { $arguments += @('-RosterFile', "`"$RosterFile`"") }
+    if ($PresenceStateFile) { $arguments += @('-PresenceStateFile', "`"$PresenceStateFile`"") }
     $action = New-ScheduledTaskAction -Execute 'conhost.exe' -Argument ($arguments -join ' ')
     $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes $IntervalMinutes)
     $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 1) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -MultipleInstances IgnoreNew
