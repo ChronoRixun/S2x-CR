@@ -637,7 +637,12 @@ function Set-Config($cfg) {
     }
     $script:rotationData.Clear()
     if ($cfg.rotation) {
-        foreach ($entry in $cfg.rotation) { Add-Rotation $entry.map $entry.gametype }
+        foreach ($entry in $cfg.rotation) {
+            # Every restore path (preset load, mode switch) comes through here.
+            $map = $entry.map
+            if ($map -and $LegacyZombieZones.ContainsKey($map)) { $map = $LegacyZombieZones[$map] }
+            Add-Rotation $map $entry.gametype
+        }
     }
     Update-RotationNumbers
     Update-Summaries
@@ -681,9 +686,6 @@ function Import-Preset($name) {
         }
         if ($cmbMap.Items.Count -gt 0) { $cmbMap.SelectedIndex = 0 }
 
-        foreach ($entry in $cfg.rotation) {
-            if ($entry.map -and $LegacyZombieZones.ContainsKey($entry.map)) { $entry.map = $LegacyZombieZones[$entry.map] }
-        }
         Set-Config $cfg
     } finally {
         $script:suppressModeSwitch = $false
