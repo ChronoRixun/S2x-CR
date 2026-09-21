@@ -1,4 +1,4 @@
-# S2x-CR release runbook — v1.3.0 candidate
+# S2x-CR release runbook — v1.3.0 (passed 2026-09-21)
 
 **Written:** 2026-09-21 (from Astra's morning runbook, reordered by risk and extended with the install, box 4 and release steps)
 **Build under test:** `integration` at `7a06aa1` (everything since `v1.2.0`; rc7 adds the updater change, the consumable stock fix, the chat marker fix, the Zombies level-up drop, the launcher preset rewrite and the launcher Zombies start on top of `d8268d3`; the exe is rc5's, only the launcher script changed since)
@@ -374,14 +374,14 @@ Only after sections 1–6 are ticked. Box 4 has no Steam and runs the launcher f
 
 | Check | Pass / fail / skipped | Notes |
 |---|---|---|
-| 0 Build, package, install, baseline | | |
-| 1 Drops and duplicate credits | | |
-| 2 Chat bridge and scripting | | |
-| 3 Gun Game bot bodies | | |
-| 4 Rank and prestige | | |
-| 5 Zombies orders and contracts | | |
-| 6 Launcher labels and names | | |
-| 7 Box 4 upgrade | | |
-| 8 Release | | |
+| 0 Build, package, install, baseline | pass | rc1 to rc7 over the day; the updater check (0.4) was added after rc1 found upstream scripts in AppData |
+| 1 Drops and duplicate credits | pass | 202 AC over four commons matched the receipts; Zombies rare 2+3; Self-Revive stock and charge counts fixed in rc3 |
+| 2 Chat bridge and scripting | pass | prompt chat carried a 0x1F marker, fixed in rc4; both chat paths answer; count survived a restart |
+| 3 Gun Game bot bodies | pass | legs on spawn and through promotions with 17 bots; Dom-after-Gun-Game not replayed |
+| 4 Rank and prestige | pass | both modes, chooser, prestige emblem, persistence; custom-lobby card lags, setrank up = one rank-up drop |
+| 5 Zombies orders and contracts | pass | contract claimed and paid, timer held; Zombies level-up drop was missing, fixed in rc5; consumables not consumed (v1.3.1) |
+| 6 Launcher labels and names | pass | labels right; v1.2.0 presets rewritten (rc6); Zombies servers now start (rc7) |
+| 7 Box 4 upgrade | pass | up after 21 h on v1.1.2; card green, listed, joined, chat and team chat worked |
+| 8 Release | pass | tag v1.3.0 at 76790e0; s2x-cr-v1.3.0.zip; notes in build/research/release-notes-v1.3.0.md |
 
-Not tested in this pass: (fill in before tagging)
+Not tested in this pass: co-op and specialist Zombies objectives, a remote player's `getip`, the roster file for the Discord card, Gun Game after rotating back from Domination.
