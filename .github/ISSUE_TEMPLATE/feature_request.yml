@@ -1,0 +1,36 @@
+name: Feature request
+description: Something the fork should do, or do differently.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What is wrong or missing today, from a player's or a server host's point of view.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you'd change
+      description: Keep it to the behaviour. If you have an idea of where in the code it lives, say so.
+    validations:
+      required: true
+  - type: textarea
+    id: simpler
+    attributes:
+      label: Simpler options
+      description: Anything smaller that would also solve it, and why it is not enough. This is the first question a review asks.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Dedicated servers
+        - Bots
+        - Headquarters economy (MP)
+        - Zombies
+        - Rank and progression
+        - Launcher or tools
+        - Modding and scripting
+        - Other

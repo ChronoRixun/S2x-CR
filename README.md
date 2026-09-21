@@ -87,6 +87,10 @@ For server-side scripting, drop `.gsc` files into `s2x\scripts\mp\` on the serve
 
 Everything on `integration` is built and exercised in play before a release: dedicated servers through full rotations with bots and a connected client, the console commands with their error paths, the menus in Multiplayer and Zombies, and the persisted files afterwards. The economy, rank, scripting and storage code also have offline harnesses under `tests\`, and [tests/MORNING-RUNBOOK.md](tests/MORNING-RUNBOOK.md) lists the live checks for the current build.
 
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) first: it is short, and it is the standard every change here is held to. Security reports go through [SECURITY.md](SECURITY.md), not the issue tracker. Longer guides live in the [wiki](https://github.com/ChronoRixun/S2x/wiki).
+
 ## Credits
 
 - [Brentdevent](https://github.com/Brentdevent) and the S2x contributors - the upstream project this fork builds on.

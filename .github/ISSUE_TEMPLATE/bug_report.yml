@@ -1,0 +1,56 @@
+name: Bug report
+description: Something is broken in the client, a dedicated server, the launcher or the status script.
+labels: ["bug"]
+body:
+  - type: input
+    id: build
+    attributes:
+      label: Build
+      description: The release tag from the zip name, or the commit if you built it yourself.
+      placeholder: v1.2.0
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - Client, Multiplayer
+        - Client, Zombies
+        - Dedicated server
+        - Server launcher (tools/server-launcher.ps1)
+        - Status script (tools/server-status.ps1)
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps
+      description: The shortest path that makes it happen. Console commands and server.cfg lines are welcome.
+      placeholder: |
+        1. Start a dedicated server with bot_fill 17
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Console log and crash details
+      description: Attach `s2x\logs\console.log` from the game folder. For a crash, add the `0x` code from the Windows event log and the symbolized stack if `s2x.pdb` was installed.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: I am running a legitimate Steam copy of the game.
+          required: true
+        - label: I checked that this is not already reported.
+          required: true
