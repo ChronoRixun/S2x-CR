@@ -247,8 +247,11 @@ $Danger = $brush.ConvertFromString("#FFC7524A")
 $Muted  = $brush.ConvertFromString("#FF8A9299")
 $Off    = $brush.ConvertFromString("#FF4A5157")
 
-$CfgPath = Join-Path $GameDir "s2x\server.cfg"
-$lblCfgPath.Text = $CfgPath
+# One config and one pid file per port, so several servers can run from this
+# folder, each owned by the launcher window that started it.
+function Get-PortCfgPath($port) { Join-Path $GameDir "s2x\server-$port.cfg" }
+function Get-PortPidPath($port) { Join-Path $GameDir "s2x\server-$port.pid" }
+$lblCfgPath.Text = Get-PortCfgPath 27016
 
 # ── Themed dialogs ─────────────────────────────────────────────────────────────
 function New-Dialog($title, $bodyPanel, $okText) {
@@ -764,10 +767,25 @@ function Build-ServerCfg {
     return ($lines -join "`n")
 }
 
+function Get-LaunchPort { [math]::Max(1024, [math]::Min(65535, (Get-BoxInt $txtPort 27016))) }
+function Update-CfgPathLabel { $lblCfgPath.Text = Get-PortCfgPath (Get-LaunchPort) }
 function Stop-S2xServer {
-    Get-Process s2x -ErrorAction SilentlyContinue |
-        Where-Object { $_.MainWindowTitle -match "Dedicated|Console" } |
-        Stop-Process -Force -ErrorAction SilentlyContinue
+    # Stop only the server on this window's port: the one it started, or the one a
+    # previous window left behind (its pid file). Servers on other ports stay up,
+    # and so does a game client.
+    $port = Get-LaunchPort
+    $pidPath = Get-PortPidPath $port
+    $ids = @()
+    if ($script:serverProcess) { $ids += $script:serverProcess.Id }
+    if (Test-Path $pidPath) {
+        $raw = Get-Content $pidPath -Raw -ErrorAction SilentlyContinue
+        if ($raw -match '^\s*(\d+)') { $ids += [int]$Matches[1] }
+    }
+    foreach ($id in ($ids | Select-Object -Unique)) {
+        $proc = Get-Process -Id $id -ErrorAction SilentlyContinue
+        if ($proc -and $proc.ProcessName -eq "s2x") { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }
+    }
+    Remove-Item $pidPath -Force -ErrorAction SilentlyContinue
     $script:serverProcess = $null
 }
 
@@ -780,22 +798,25 @@ $btnLaunch.Add_Click({
     $modeName = if ($script:isZombies) { "_lastused_zombies" } else { "_lastused_mp" }
     Save-Preset "_lastused"
     Save-Preset $modeName
+    $port = Get-LaunchPort
     Stop-S2xServer
     Start-Sleep -Milliseconds 1500
 
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-    [System.IO.File]::WriteAllText($CfgPath, (Build-ServerCfg), $utf8NoBom)
+    $cfgPath = Get-PortCfgPath $port
+    [System.IO.File]::WriteAllText($cfgPath, (Build-ServerCfg), $utf8NoBom)
+    Update-CfgPathLabel
 
-    $port = [math]::Max(1024, [math]::Min(65535, (Get-BoxInt $txtPort 27016)))
-    # Both modes start from the rotation server.cfg carries; a command-line +map
+    # Both modes start from the rotation the port's cfg carries; a command-line +map
     # runs before the dedicated party exists and is dropped, so Zombies never left
     # the virtual lobby.
     $modeFlag = if ($script:isZombies) { " -zombies" } else { "" }
-    $launchArgs = "-noupdate -dedicated$modeFlag +set net_port $port +exec server.cfg +map_rotate"
+    $launchArgs = "-noupdate -dedicated$modeFlag +set net_port $port +exec $(Split-Path $cfgPath -Leaf) +map_rotate"
 
     try {
         $script:serverProcess = Start-Process -FilePath (Join-Path $GameDir "s2x.exe") `
             -ArgumentList $launchArgs -WorkingDirectory $GameDir -PassThru -ErrorAction Stop
+        Set-Content -Path (Get-PortPidPath $port) -Value $script:serverProcess.Id
         Set-Status "running" "PID $($script:serverProcess.Id) $MiddleDot connect 127.0.0.1:$port"
     }
     catch {
@@ -831,6 +852,8 @@ Set-Status "stopped" "no process"
 $lblBotFill.Text = [string][int]$sldBotFill.Value
 Update-PresetList
 Import-Preset "_lastused"
+Update-CfgPathLabel
+$txtPort.Add_TextChanged({ Update-CfgPathLabel })
 Update-RotationNumbers
 Update-Summaries
 
