@@ -1,7 +1,7 @@
 # S2x-CR release runbook — v1.3.0 candidate
 
 **Written:** 2026-09-21 (from Astra's morning runbook, reordered by risk and extended with the install, box 4 and release steps)
-**Build under test:** `integration` at `7cdc566` (everything since `v1.2.0`; rc3 adds the updater change and the consumable stock fix on top of `d8268d3`)
+**Build under test:** `integration` at `7fb6d64` (everything since `v1.2.0`; rc4 adds the updater change, the consumable stock fix and the chat marker fix on top of `d8268d3`)
 **Repo:** `D:\S2x` — **Game:** `D:\Program Files\Steam\steamapps\common\Call of Duty WWII` — **Box 4:** runs v1.1.2 today, plus a hand-copied `server-status.ps1`
 **Budget:** about 90 minutes for sections 1–6 on this PC, then 20 minutes for box 4 and the release
 
@@ -24,6 +24,7 @@ Where I know the exact console wording it is quoted verbatim from real runs. Whe
 | `57424a2` | Discord status card script | already live on box 4; section 7 regression |
 | `8a50b18` | Upstream update download is opt-in (`-update`); a plain launch no longer pulls upstream's UI scripts into AppData | section 0.4 |
 | `f27228e`, `7cdc566` | Zombies consumable cards stack their charge count on the family stock row, so a Self-Revive card raises "In Stock" | section 1 step 5 |
+| `7fb6d64` | Chat from the in-game prompt reaches scripts without the 0x1F marker the engine prefixes, so `!visits` matches | section 2 |
 | `86b712d`–`d8268d3` | README, contributing files, CI, the showcase site | nothing to play |
 
 Automated coverage before you start: the economy, rank, scripting and storage harnesses pass offline; the fork's CI run is green; the chat bridge's argument order and the two engine addresses it calls were verified against the decompiled engine. What none of that proves is anything rendered on screen or anything a human types in chat. That is what this runbook is for.
@@ -41,7 +42,7 @@ cd D:\S2x
 git checkout integration; git pull --ff-only
 .\tools\premake5.exe vs2022
 & 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe' build\s2x.sln /t:client /p:Configuration=Release /p:Platform=x64 /m /v:minimal
-powershell -File build\diagnostics\package-release.ps1 -Version v1.3.0-rc3
+powershell -File build\diagnostics\package-release.ps1 -Version v1.3.0-rc4
 ```
 
 The packager prints every file it staged. Expect exactly this shape, and stop if anything is missing:
@@ -58,7 +59,7 @@ Install by copying the stage over the game folder:
 
 ```powershell
 $game = 'D:\Program Files\Steam\steamapps\common\Call of Duty WWII'
-Copy-Item D:\S2x\build\release\v1.3.0-rc3\stage\* $game -Recurse -Force
+Copy-Item D:\S2x\build\release\v1.3.0-rc4\stage\* $game -Recurse -Force
 ```
 
 Two things that have bitten before: `%LOCALAPPDATA%\s2x\data\ui_scripts_off` must stay renamed off (it outranks the game folder), and the `patches` folder must hold all seven files, not just the changed one.
@@ -182,7 +183,7 @@ One launch of each mode before testing anything specific, so a broken menu is fo
    ```
 
 2. Launch the client, `connect 127.0.0.1:27017`, spawn. Expect the HUD line `Welcome! Type !visits to see your saved map visits.`
-3. Type `!visits` in global chat. Your own chat line still appears as normal, and the HUD answers `Server: Saved map visits: 1`.
+3. Press T (a `Say:` prompt opens), type `!visits`, Enter. Your own line shows as `Chrono: !visits` in the chat area and the HUD answers `Server: Saved map visits: 1`. Before rc4 the prompt path never matched: the engine prefixes prompt chat with byte 0x1F and the bridge passed it through, while `say !visits` typed in the S2x console (no marker) matched. Both paths must answer now.
 4. Say something in team chat. Nothing crashes; the server console keeps printing normally.
 5. On the server console: `map_restart`. Spawn again and `!visits` says `2`.
 6. Optional, address lookup: nothing to type; if you want to see it, drop a one-line script that prints `getip(self)` on spawn and confirm it prints `127.0.0.1` for you and nothing for bots. Skip if short on time; the bot side of this was exercised in Astra's run.
@@ -202,7 +203,8 @@ One launch of each mode before testing anything specific, so a broken menu is fo
 ## Checklist
 
 - [ ] Welcome HUD line on spawn
-- [ ] `!visits` in global chat answered on the HUD; chat itself unaffected
+- [ ] `!visits` from the T prompt answered on the HUD; chat itself unaffected
+- [ ] `say !visits` from the S2x console answered too
 - [ ] Team chat does nothing odd
 - [ ] Count survives `map_restart` and reads `2`
 - [ ] Optional: `getip` prints `127.0.0.1` for you, empty for bots
@@ -333,7 +335,7 @@ The catalog with every target, price and time limit is `tests\economy\zombies-ca
 
 Only after sections 1–6 are ticked. Box 4 has no Steam and runs the launcher from the game folder; the status task keeps running through the upgrade.
 
-1. Copy `D:\S2x\build\release\v1.3.0-rc3\s2x-cr-v1.3.0-rc3.zip` to box 4.
+1. Copy `D:\S2x\build\release\v1.3.0-rc4\s2x-cr-v1.3.0-rc4.zip` to box 4.
 2. Stop the server (close its console window). Extract the zip over the game folder, replacing what is there. `s2x\scripts\mp` now exists with the two scripts.
 3. Start the server from the launcher with the "My Server" preset.
 4. From this PC: the server appears in the browser within a minute, `connect` works, chat works on the public server (say something; nothing dies), and the Discord card updates within two minutes with the current map.
