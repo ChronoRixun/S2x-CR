@@ -300,14 +300,25 @@ void duplicate_drop_checks()
 				require(!ok(open(drop == 6 ? "sd_mp" : "sd_zombie_rare", "duplicate-roll")), "drop-type transaction conflict refused");
 			}
 
+	// An owned item without a pawn value still opens the drop: the duplicate card is
+	// shown, nothing is credited and nothing is stacked. An unowned one is granted.
 	seed(6, 1, 0, 100);
 	achievement_engine::set_loot_catalog({cosmetic});
 	achievement_engine::set_loot_catalog({consumable}, true);
-	auto revision = hq_economy::snapshot().revision;
-	require(!ok(open("sd_zombie_rare", "missing-value")) && hq_economy::snapshot().revision == revision,
-		"missing pawn data leaves drop, wallet and inventory untouched");
+	{
+		const auto result = open("sd_zombie_rare", "missing-value");
+		require(ok(result) && result["GrantedItems"].Size() == 5 && result["GrantedCurrencies"].Size() == 0,
+			"missing pawn value opens the drop and converts nothing");
+		const auto state = hq_economy::snapshot();
+		require(state.currencies.at(6) == 100 && state.inventory.at({cosmetic, 0}).quantity == 1 &&
+			state.inventory.at({6, 0}).quantity == 1 && state.inventory.at({consumable, 0}).quantity == 7,
+			"unconvertible duplicate keeps wallet and cosmetic, consumes the drop, stacks consumables");
+	}
+	seed(6, 0, 0, 100);
+	require(ok(open("sd_zombie_rare", "missing-value-unowned")) && hq_economy::snapshot().inventory.at({cosmetic, 0}).quantity == 1,
+		"an unowned item without a pawn value is still granted once");
 	achievement_engine::set_loot_catalog({cosmetic}, false, {{cosmetic, 25}});
-	require(ok(open("sd_zombie_rare", "missing-value")), "retry succeeds once native values are ready");
+	auto revision = hq_economy::snapshot().revision;
 
 	seed(6, 1, 0, UINT32_MAX - 1);
 	revision = hq_economy::snapshot().revision;

@@ -34,8 +34,8 @@ namespace demonware::achievement_engine
 	std::uint64_t period_end(int kind, std::uint64_t day);
 	void set_event_rules(std::map<std::string, hq_event_predicate::rule> rules);
 	void set_catalog(std::vector<hq_economy::achievement> catalog);
-	// Non-consumable rolls require the native pawnValues.csv lookup for every ID.
-	// Zombies consumables deliberately stack and do not use duplicate conversion.
+	// Non-consumable duplicates convert to Armory Credits when the ID has a pawn
+	// value; the rest roll as plain grants. Zombies consumables stack instead.
 	void set_loot_catalog(std::vector<std::uint32_t> items, bool zombies = false,
 		std::map<std::uint32_t, std::uint32_t> duplicate_credits = {});
 	bool valid_event(const reward_game_events::event& event, bool native_payroll = false);

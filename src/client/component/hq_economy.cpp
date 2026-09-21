@@ -142,6 +142,11 @@ namespace hq_economy
 				}
 				demonware::hq_marketplace::set_rarities(rarities);
 				demonware::hq_marketplace::set_item_types(types);
+				if (duplicate_credits.size() < pool.size())
+				{
+					console::warn("[HQ economy] %zu of %zu loot items have no Armory Credit pawn value; their duplicates grant nothing extra\n",
+						pool.size() - duplicate_credits.size(), pool.size());
+				}
 				demonware::achievement_engine::set_loot_catalog(std::move(pool), false, std::move(duplicate_credits));
 			}
 			catch (const std::exception& error)

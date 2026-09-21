@@ -986,9 +986,6 @@ namespace demonware::achievement_engine
 					else
 					{
 						if (pool.empty() || (drop_id == 6 && consumables.empty())) return false;
-						// Do not consume a drop before the main-thread asset lookup is ready.
-						// Missing values are not permission to guess a payout or lose a duplicate.
-						for (const auto id : pool) if (!duplicate_credits.contains(id)) return false;
 						auto owned = next.inventory.find({drop_id, 0});
 						if (owned == next.inventory.end() || !owned->second.quantity ||
 							(owned->second.expires && owned->second.expires <= now)) return false;
@@ -1012,10 +1009,15 @@ namespace demonware::achievement_engine
 								const auto prior = next.inventory.find({id, 0});
 								if (!stackable && prior != next.inventory.end() && hq_economy::live(prior->second, now))
 								{
-									const auto amount = duplicate_credits.at(id);
-									// The native GrantedCurrencies decoder reads a signed delta.
-									if (amount > INT32_MAX - credits) return false;
-									credits += amount;
+									// Only items with an Armory Credit pawn value convert. A duplicate without
+									// one changes nothing; refusing the whole drop for it would block every drop.
+									const auto value = duplicate_credits.find(id);
+									if (value != duplicate_credits.end())
+									{
+										// The native GrantedCurrencies decoder reads a signed delta.
+										if (value->second > INT32_MAX - credits) return false;
+										credits += value->second;
+									}
 								}
 								else
 								{
