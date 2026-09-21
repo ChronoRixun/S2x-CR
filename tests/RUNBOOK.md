@@ -57,6 +57,7 @@ The packager prints every file it staged. Expect exactly this shape, and stop if
 | `s2x\ui_scripts\mp\find_match\*.lua` | 6 |
 | `s2x\ui_scripts\mp\patches\*.lua` (`__init__`, `cwl_currency`, `dedicated_gametype`, `dedicated_lobby`, `dedicated_members`, `dedicated_party`, `unlocks`) | 7 |
 | `s2x\scripts\mp\`: `s2x_gungame_bots.gsc`, `s2x_server_events.gsc` | 2 |
+| `s2x\tools\presets\*.json` (starter presets, since the multi-server launcher) | 4 |
 
 Install by copying the stage over the game folder:
 
@@ -68,7 +69,7 @@ Copy-Item D:\S2x\build\release\v1.3.0-rc7\stage\* $game -Recurse -Force
 Two things that have bitten before: `%LOCALAPPDATA%\s2x\data\ui_scripts_off` must stay renamed off (it outranks the game folder), and the `patches` folder must hold all seven files, not just the changed one.
 
 - [ ] Release build succeeded (`client.vcxproj -> ...\s2x.exe`, no errors)
-- [ ] Packager listed 20 files in the shape above, including the two `.gsc` files and `server-status.ps1`
+- [ ] Packager listed 24 files in the shape above (20 before the starter presets), including the two `.gsc` files and `server-status.ps1`
 - [ ] Stage copied over the game folder; `s2x.exe` timestamp is today's
 
 ## 0.2 Back up the profile and the economy store
