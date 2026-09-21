@@ -54,24 +54,49 @@ if (-not (Test-Path $PresetDir)) { New-Item -ItemType Directory -Force $PresetDi
 
 # ── Data ───────────────────────────────────────────────────────────────────────
 $Maps = [ordered]@{
-    "mp_shipment_s2"    = "Shipment 1944"
-    "mp_d_day"          = "Pointe du Hoc"
-    "mp_aachen_v2"      = "Aachen"
-    "mp_carentan_s2"    = "Carentan"
-    "mp_canon_farm"     = "Gustav Cannon"
-    "mp_flak_tower"     = "Flak Tower"
-    "mp_forest_01"      = "Ardennes Forest"
-    "mp_london"         = "London Docks"
-    "mp_france_village" = "Sainte Marie du Mont"
-    "mp_battleship_2"   = "USS Texas"
-    "mp_gibraltar_02"   = "Gibraltar"
-    "mp_dunkirk"        = "Dunkirk"
-    "mp_egypt_02"       = "Egypt"
-    "mp_paris_s2"       = "Occupation"
-    "mp_v2_rocket_02"   = "V2"
-    "mp_stalingrad"     = "Stalingrad"
-    "mp_prague"         = "Anthropoid"
-    "mp_market_garden"  = "Market Garden"
+    "mp_shipment_s2"       = "Shipment 1944"
+    "mp_d_day"             = "Pointe du Hoc"
+    "mp_aachen_v2"         = "Aachen"
+    "mp_carentan_s2"       = "Carentan"
+    "mp_carentan_s2_winter" = "Winter Carentan"
+    "mp_canon_farm"        = "Gustav Cannon"
+    "mp_flak_tower"        = "Flak Tower"
+    "mp_forest_01"         = "Ardennes Forest"
+    "mp_london"            = "London Docks"
+    "mp_france_village"    = "Sainte Marie du Mont"
+    "mp_battleship_2"      = "USS Texas"
+    "mp_gibraltar_02"      = "Gibraltar"
+    "mp_sandbox_01"        = "Sandbox"
+    "mp_house"             = "Groesten Haus"
+    "mp_paris_s2"          = "Occupation"
+    "mp_prague"            = "Anthropoid"
+    "mp_wolfslair"         = "Valkyrie"
+    "mp_dunkirk"           = "Dunkirk"
+    "mp_egypt_02"          = "Egypt"
+    "mp_v2_rocket_02"      = "V2"
+    "mp_stalingrad"        = "Stalingrad"
+    "mp_market_garden"     = "Market Garden"
+    "mp_monte_cassino_v2"  = "Monte Cassino"
+    "mp_tank_graveyard_2"  = "Excavation"
+    "mp_airship"           = "Airship"
+    "mp_fuhrerbunker"      = "Chancellery"
+}
+# Maps that need a DLC pack on every player's client. Keyed by zone name.
+$MapPacks = @{
+    "mp_carentan_s2"        = "Season Pass"
+    "mp_carentan_s2_winter" = "Season Pass"
+    "mp_paris_s2"           = "DLC 1"
+    "mp_prague"             = "DLC 1"
+    "mp_wolfslair"          = "DLC 1"
+    "mp_dunkirk"            = "DLC 2"
+    "mp_egypt_02"           = "DLC 2"
+    "mp_v2_rocket_02"       = "DLC 2"
+    "mp_stalingrad"         = "DLC 3"
+    "mp_market_garden"      = "DLC 3"
+    "mp_monte_cassino_v2"   = "DLC 3"
+    "mp_tank_graveyard_2"   = "DLC 4"
+    "mp_airship"            = "DLC 4"
+    "mp_fuhrerbunker"       = "DLC 4"
 }
 $MapKeys   = @($Maps.Keys)
 $MapValues = @($Maps.Values)
@@ -97,14 +122,22 @@ $DefaultScoreLimits = [ordered]@{
 }
 
 $ZombieMaps = [ordered]@{
-    "nazi_zombie_proto"       = "Groesten Haus"
-    "nazi_zombie_asylum_f"    = "The Final Reich"
-    "nazi_zombie_island"      = "The Darkest Shore"
-    "nazi_zombie_office"      = "The Shadowed Throne"
-    "nazi_zombie_treasure"    = "The Tortured Path"
-    "nazi_zombie_museum"      = "Bodega Cervantes"
-    "nazi_zombie_uss"         = "U.S.S. Mount Olympus"
-    "nazi_zombie_mountaineer" = "The Frozen Dawn"
+    "mp_zombie_house"    = "Groesten Haus"
+    "mp_zombie_descent"  = "The Final Reich"
+    "mp_zombie_island"   = "The Darkest Shore"
+    "mp_zombie_berlin"   = "The Shadowed Throne"
+    "mp_zombie_windmill" = "The Tortured Path: Into the Storm"
+    "mp_zombie_dnk"      = "The Tortured Path: Across the Depths"
+    "mp_zombie_dig_02"   = "The Tortured Path: Beyond the Veil"
+    "mp_zombie_nest_01"  = "The Frozen Dawn"
+}
+$ZombieMapPacks = @{
+    "mp_zombie_island"   = "DLC 1"
+    "mp_zombie_berlin"   = "DLC 2"
+    "mp_zombie_windmill" = "DLC 3"
+    "mp_zombie_dnk"      = "DLC 3"
+    "mp_zombie_dig_02"   = "DLC 3"
+    "mp_zombie_nest_01"  = "DLC 4"
 }
 $ZombieMapKeys   = @($ZombieMaps.Keys)
 $ZombieMapValues = @($ZombieMaps.Values)
@@ -113,6 +146,14 @@ $BotNamePools = @("default", "modern", "nostalgia")
 $script:isZombies = $false
 $script:suppressModeSwitch = $false
 $MiddleDot    = [string][char]0x00B7
+
+# Picker labels: the map name, plus the pack it needs when it is not in the base game.
+function Get-MapDisplay($key, $name, $packs) {
+    if ($packs.ContainsKey($key)) { return "$name  $MiddleDot  $($packs[$key])" }
+    return $name
+}
+$MapDisplay       = @($MapKeys       | ForEach-Object { Get-MapDisplay $_ $Maps[$_]       $MapPacks })
+$ZombieMapDisplay = @($ZombieMapKeys | ForEach-Object { Get-MapDisplay $_ $ZombieMaps[$_] $ZombieMapPacks })
 
 # ── Load the XAML, loudly ──────────────────────────────────────────────────────
 function Write-LoadFailure($message, $detail) {
@@ -344,7 +385,7 @@ function Move-Rotation($index, $delta) {
 }
 
 # ── Populate ───────────────────────────────────────────────────────────────────
-foreach ($v in $MapValues)      { [void]$cmbMap.Items.Add($v) }
+foreach ($v in $MapDisplay)     { [void]$cmbMap.Items.Add($v) }
 foreach ($v in $GametypeValues) { [void]$cmbGametype.Items.Add($v) }
 foreach ($p in $BotNamePools)   { [void]$cmbBotNames.Items.Add($p) }
 $cmbMap.SelectedIndex      = 0
@@ -484,12 +525,12 @@ function Switch-Mode {
     $script:rotationData.Clear()
 
     if ($script:isZombies) {
-        foreach ($v in $ZombieMapValues) { [void]$cmbMap.Items.Add($v) }
+        foreach ($v in $ZombieMapDisplay) { [void]$cmbMap.Items.Add($v) }
         $cmbGametype.Visibility = "Collapsed"
         if ($script:scorePanel) { $script:scorePanel.Visibility = "Collapsed" }
         if ($script:botPanel) { $script:botPanel.Visibility = "Collapsed" }
     } else {
-        foreach ($v in $MapValues) { [void]$cmbMap.Items.Add($v) }
+        foreach ($v in $MapDisplay) { [void]$cmbMap.Items.Add($v) }
         $cmbGametype.Visibility = "Visible"
         if ($script:scorePanel) { $script:scorePanel.Visibility = "Visible" }
         if ($script:botPanel) { $script:botPanel.Visibility = "Visible" }
@@ -614,12 +655,12 @@ function Import-Preset($name) {
 
         $cmbMap.Items.Clear()
         if ($wantZombies) {
-            foreach ($v in $ZombieMapValues) { [void]$cmbMap.Items.Add($v) }
+            foreach ($v in $ZombieMapDisplay) { [void]$cmbMap.Items.Add($v) }
             $cmbGametype.Visibility = "Collapsed"
             if ($script:scorePanel) { $script:scorePanel.Visibility = "Collapsed" }
             if ($script:botPanel) { $script:botPanel.Visibility = "Collapsed" }
         } else {
-            foreach ($v in $MapValues) { [void]$cmbMap.Items.Add($v) }
+            foreach ($v in $MapDisplay) { [void]$cmbMap.Items.Add($v) }
             $cmbGametype.Visibility = "Visible"
             if ($script:scorePanel) { $script:scorePanel.Visibility = "Visible" }
             if ($script:botPanel) { $script:botPanel.Visibility = "Visible" }
