@@ -1,4 +1,6 @@
 #include <std_include.hpp>
+#include <span>
+#include <set>
 #include "game/demonware/achievement_engine.hpp"
 #include "game/demonware/hq_marketplace.hpp"
 #include "game/demonware/hq_contract_catalog.hpp"
@@ -21,6 +23,10 @@ using namespace game::demonware;
 namespace utils::flags
 {
 	bool has_flag(const std::string&) { return false; }
+}
+namespace game::environment
+{
+	bool is_zombies() { return true; }
 }
 
 namespace demonware
@@ -105,6 +111,236 @@ std::vector<reward_game_events::event> collision_batch(std::int64_t timestamp, c
     return users[0].events;
 }
 
+void expanded_catalog_checks(std::int64_t& timestamp)
+{
+	// Hand-authored native kill samples, keyed by retail identity. These are not
+	// generated from the predicates: dropping a condition must fail a negative case.
+	using parameters = std::vector<reward_game_events::parameter>;
+	const std::map<unsigned, parameters> samples{
+		{1025, {{"6", 1}}}, {1028, {{"1", 4}}}, {1031, {{"1", 6}}},
+		{1034, {{"1", 3}}}, {1016, {{"7", 1}}}, {1039, {{"3", 3}}},
+		{1072, {{"6", 1}}}, {1068, {{"1", 8}}}, {1105, {{"1", 11}}},
+		{1001, {{"2", 2}, {"3", 2}}}, {1014, {{"1", 5}, {"6", 1}}},
+		{1010, {{"1", 11}}}, {1053, {{"1", 6}, {"7", 1}}},
+		{1011, {{"2", 4}, {"128", 128}}}, {1040, {{"128", 4096}}},
+		{1102, {{"128", 1073741824}}}, {1004, {{"2", 3}, {"128", 512}}},
+		{1037, {{"128", 256}}}, {1005, {{"128", 64}}},
+		{1047, {{"128", 134217728}}}, {1024, {{"2", 4}, {"128", 256}}},
+		{1049, {{"128", 8192}}}, {1023, {{"2", 6}, {"128", 4194304}}},
+		{1060, {{"128", 32}}}, {1063, {{"2", 5}}},
+		{1067, {{"128", 8388608}}}, {1071, {{"5", 3}}},
+		{1074, {}}, {1075, {}}, {1080, {}},
+		{1077, {{"128", 4096 | 16777216}}}, {1081, {{"128", 33554432}}},
+		{1082, {{"128", 134217728}}}, {1084, {{"128", 2}}}, {1088, {{"2", 9}}},
+	};
+	std::vector<hq_economy::achievement> full;
+	std::map<std::string, hq_event_predicate::rule> rules;
+	for (const auto& row : hq_zombies_catalog::entries)
+	{
+		full.push_back(hq_zombies_catalog::achievement(row));
+		rules.emplace(row.name, hq_event_predicate::rule{34, row.predicate});
+	}
+	for (const auto& row : hq_zombies_contract_catalog::entries)
+	{
+		full.push_back(hq_zombies_contract_catalog::achievement(row));
+		rules.emplace(row.name, hq_event_predicate::rule{34, row.predicate});
+	}
+	require(full.size() == 35 && samples.size() == full.size(), "27 orders and eight contract samples");
+	achievement_engine::set_catalog(full);
+	achievement_engine::set_event_rules(rules);
+	std::set<std::string> seen_daily, seen_weekly;
+	for (unsigned period = 0; period < 20; ++period)
+	{
+		hq_economy::state rotated;
+		require(achievement_engine::reconcile_offers(rotated, 20000 + period), "fresh daily rotation");
+		unsigned dailies{}, weeklies{};
+		for (const auto& [name, entry] : rotated.achievements)
+		{
+			if (entry.kind == 8) { ++dailies; seen_daily.insert(name); }
+			if (entry.kind == 9) ++weeklies;
+		}
+		require(dailies == 6 && weeklies == 3, "expanded pool retains six/three offer limits");
+		rotated = {};
+		require(achievement_engine::reconcile_offers(rotated, 20000 + period * 7), "fresh weekly rotation");
+		for (const auto& [name, entry] : rotated.achievements)
+			if (entry.kind == 9) seen_weekly.insert(name);
+	}
+	require(seen_daily.size() == 20 && seen_weekly.size() == 7, "rotation reaches every daily and weekly");
+	// An accepted order survives pool expansion and rollover with its progress.
+	hq_economy::state carried;
+	auto old = hq_zombies_catalog::achievement(hq_zombies_catalog::entries[0]);
+	old.status = "inProgress"; old.progress = 12; old.activation = 1234; old.offer_day = 19999;
+	carried.achievements[old.name] = old;
+	require(achievement_engine::reconcile_offers(carried, 20000), "carry legacy order into expanded pool");
+	require(carried.achievements.at(old.name).progress == 12 &&
+		carried.achievements.at(old.name).activation == 1234, "expansion preserves accepted progress");
+
+	const auto check = [&](unsigned id, const hq_economy::achievement& entry, unsigned sku, unsigned price)
+	{
+		// Each fixture uses a fresh Zombies offer set inside the disposable test
+		// profile. MP records, wallet and inventory remain in place.
+		require(hq_economy::transact([](auto& next) {
+			std::erase_if(next.achievements, [](const auto& pair) {
+				return pair.second.kind == 8 || pair.second.kind == 9 || pair.second.kind == 11 || pair.first.starts_with("zm_above_beyond");
+			});
+			return hq_economy::grant(next, {"GRANT_CURRENCY", 6, 1000});
+		}), "reset isolated Zombies offers");
+		achievement_engine::set_catalog({entry});
+		const auto before = hq_economy::snapshot();
+		const auto tx = "expanded-" + std::to_string(id);
+		if (sku)
+		{
+			require(!ok(transition("activate_user_contract", entry, tx)), "expanded contract requires payment");
+			require(hq_marketplace::purchase(tx, sku, 1) == 0 && hq_marketplace::purchase(tx, sku, 1) == 0, "expanded purchase and replay");
+		}
+		require(ok(transition(sku ? "activate_user_contract" : "activate_scheduled_user_achievement", entry, tx)), "expanded option activates");
+		timestamp = std::max(timestamp, static_cast<std::int64_t>(time(nullptr)) * 1000000 + 1);
+		const auto& fields = samples.at(id);
+		std::vector<reward_game_events::event> misses{{"1", timestamp++, fields}, {"37", timestamp++, fields}};
+		for (std::size_t i = 0; i < fields.size(); ++i)
+		{
+			auto missing = fields; missing.erase(missing.begin() + i);
+			misses.push_back({"34", timestamp++, missing});
+			if (fields[i].selector == "128")
+			{
+				for (std::uint64_t bit = 1; bit <= fields[i].value; bit <<= 1)
+					if (fields[i].value & bit)
+					{
+						auto wrong = fields; wrong[i].value &= ~bit;
+						misses.push_back({"34", timestamp++, wrong});
+					}
+			}
+			else
+			{
+				auto wrong = fields; ++wrong[i].value;
+				misses.push_back({"34", timestamp++, wrong});
+			}
+		}
+		require(achievement_engine::submit_events(misses), "nonmatching fixture accepted");
+		require(hq_economy::snapshot().achievements.at(entry.name).progress == 0, "wrong type, missing fields and partial conditions do not progress");
+		reward_game_events::event hit{"zombies_kills", timestamp++, fields};
+		// Native flag words can include unrelated flags alongside the required bits.
+		for (auto& field : hit.parameters) if (field.selector == "128") field.value |= 1;
+		require(achievement_engine::submit_event(hit) && achievement_engine::submit_event(hit), "matching kill and retry accepted");
+		hq_economy::invalidate();
+		require(hq_economy::snapshot().achievements.at(entry.name).progress == 1, "matching kill persists exactly once");
+		std::vector<reward_game_events::event> kills;
+		for (unsigned count = 1; count < entry.target; ++count) kills.push_back({"34", timestamp++, fields});
+		require(achievement_engine::submit_events(kills), "complete expanded objective");
+		require(hq_economy::snapshot().achievements.at(entry.name).status == "claimable", "expanded option becomes claimable");
+		require(ok(transition("claim_achievement_reward", entry, tx)) && ok(transition("claim_achievement_reward", entry, tx)), "expanded reward and replay");
+		const auto after = hq_economy::snapshot();
+		const auto currency_reward = entry.kind == 8 ? 250u : 0u;
+		require(after.currencies.at(6) == before.currencies.at(6) - price + currency_reward, "expanded price and reward paid exactly once");
+		if (entry.kind != 8) require(after.inventory.at({6, 0}).quantity == before.inventory.at({6, 0}).quantity + 1, "weekly/contract grants one Zombies drop");
+	};
+	for (const auto& row : hq_zombies_catalog::entries) check(row.id, hq_zombies_catalog::achievement(row), 0, 0);
+	for (const auto& row : hq_zombies_contract_catalog::entries) check(row.id, hq_zombies_contract_catalog::achievement(row), row.sku, row.price);
+	achievement_engine::set_catalog(full);
+	std::cout << "PASS: 20 daily / 7 weekly rotation, carried progress, all 35 objectives, negative predicates, paid contracts, rewards and persistence\n";
+}
+
+void duplicate_drop_checks()
+{
+	constexpr std::uint32_t cosmetic = 0x20000D, consumable = 0x4A00003;
+	const auto saved = hq_economy::snapshot();
+	const auto seed = [&](unsigned drop, unsigned quantity, unsigned expires, unsigned credits) {
+		require(hq_economy::transact([&](auto& next) {
+			next.inventory.clear(); next.currencies.clear();
+			std::erase_if(next.transactions, [](const auto& pair) { return !pair.first.starts_with("migration:"); });
+			next.inventory[{cosmetic, 0}] = {cosmetic, quantity, 0, 0, expires};
+			return hq_economy::grant(next, {"GRANT_PRODUCT", drop, 2}) &&
+				hq_economy::grant(next, {"GRANT_PRODUCT", consumable, 4}) &&
+				hq_economy::grant(next, {"GRANT_CURRENCY", 6, credits});
+		}), "duplicate fixture seeded");
+	};
+	const auto open = [](const char* drop, const char* tx) {
+		return request(std::string{"{\"Action\":\"open_supply_drop\",\"SupplyDropID\":\""} + drop + "\",\"ClientTx\":\"" + tx + "\"}");
+	};
+	// Deliberately synthetic per-item lookup results, not asserted retail prices.
+	// The game-thread adapter supplies values from the native pawnValues reader.
+	for (const auto price : {1u, 37u, 125u, 777u, 0u})
+		for (const auto& [drop, name] : std::map<unsigned, const char*>{{1, "sd_mp"}, {2, "sd_mp_rare"}, {6, "sd_zombie_rare"}})
+			for (const auto ownership : {0u, 1u, 2u, 3u})
+			{
+				// unowned, already owned, zero quantity, expired rental
+				seed(drop, ownership == 2 ? 0 : ownership == 0 ? 0 : 1,
+					ownership == 3 ? static_cast<unsigned>(time(nullptr) - 1) : 0, 100);
+				achievement_engine::set_loot_catalog({cosmetic}, false, {{cosmetic, price}});
+				achievement_engine::set_loot_catalog({consumable}, true);
+				const auto result = open(name, "duplicate-roll");
+				require(ok(result), "MP common/rare and Zombies drop succeeds");
+				const auto count = drop == 6 ? 2u : 3u;
+				const auto paid = (count - (ownership == 1 ? 0 : 1)) * price;
+				require(result["GrantedItems"].Size() == (drop == 6 ? 5 : 3), "converted duplicate still occupies its reveal card");
+				for (unsigned i = 0; i < result["GrantedItems"].Size(); ++i)
+					require(result["GrantedItems"][i]["id"].GetUint() == (i < count ? cosmetic : consumable), "reveal ordering preserved");
+				const auto state = hq_economy::snapshot();
+				require(state.currencies.at(6) == 100 + paid && state.inventory.at({cosmetic, 0}).quantity == 1 &&
+					state.inventory.at({cosmetic, 0}).expires == 0, "one permanent cosmetic and exact duplicate credit");
+				require(state.inventory.at({drop, 0}).quantity == 1, "one drop consumed");
+				require(state.inventory.at({consumable, 0}).quantity == (drop == 6 ? 7 : 4), "owned Zombies consumables keep stacking");
+				const auto& currencies = result["GrantedCurrencies"];
+				require(currencies.Size() == (paid ? 1 : 0), "zero payout is not a spurious currency grant");
+				if (paid) require(currencies[0]["currency_id"].GetUint() == 6 &&
+					currencies[0]["balance_before"].GetUint() == 100 && currencies[0]["balance_delta"].GetUint() == paid,
+					"GrantedCurrencies uses the native decoder fields and aggregate amount");
+				// Replay after spending everything and unloading metadata must use the
+				// original receipt, never reroll, reprice or grant the old payout again.
+				require(hq_economy::transact([](auto& next) { return hq_economy::grant(next, {"SET_CURRENCY_BALANCE", 6, 0}); }), "spend after opening");
+				achievement_engine::set_loot_catalog({});
+				achievement_engine::set_loot_catalog({}, true);
+				hq_economy::invalidate();
+				const auto revision = hq_economy::snapshot().revision;
+				const auto replay = open(name, "duplicate-roll");
+				require(ok(replay) && replay["GrantedItems"] == result["GrantedItems"] &&
+					replay["GrantedCurrencies"] == currencies, "persisted receipt replays the same cards and credit report");
+				require(hq_economy::snapshot().currencies.at(6) == 0 && hq_economy::snapshot().revision == revision,
+					"replay neither repays nor writes the store");
+				require(!ok(open(drop == 6 ? "sd_mp" : "sd_zombie_rare", "duplicate-roll")), "drop-type transaction conflict refused");
+			}
+
+	seed(6, 1, 0, 100);
+	achievement_engine::set_loot_catalog({cosmetic});
+	achievement_engine::set_loot_catalog({consumable}, true);
+	auto revision = hq_economy::snapshot().revision;
+	require(!ok(open("sd_zombie_rare", "missing-value")) && hq_economy::snapshot().revision == revision,
+		"missing pawn data leaves drop, wallet and inventory untouched");
+	achievement_engine::set_loot_catalog({cosmetic}, false, {{cosmetic, 25}});
+	require(ok(open("sd_zombie_rare", "missing-value")), "retry succeeds once native values are ready");
+
+	seed(6, 1, 0, UINT32_MAX - 1);
+	revision = hq_economy::snapshot().revision;
+	require(!ok(open("sd_zombie_rare", "overflow")) && hq_economy::snapshot().revision == revision &&
+		hq_economy::snapshot().inventory.at({6, 0}).quantity == 2 && hq_economy::snapshot().inventory.at({consumable, 0}).quantity == 4,
+		"wallet overflow rolls back consumed drop and all five rolls");
+
+	seed(6, 1, 0, 100);
+	revision = hq_economy::snapshot().revision;
+	const auto blocked_save = CreateFileA("players2/user/hq_economy.json.tmp", GENERIC_WRITE, 0,
+		nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+	require(blocked_save != INVALID_HANDLE_VALUE, "hold temporary save file exclusively");
+	const auto failed = open("sd_zombie_rare", "save-failure");
+	CloseHandle(blocked_save);
+	hq_economy::invalidate();
+	require(!ok(failed) && hq_economy::snapshot().revision == revision &&
+		hq_economy::snapshot().inventory.at({6, 0}).quantity == 2 && hq_economy::snapshot().currencies.at(6) == 100,
+		"failed save leaves the original drop and balance on disk");
+	require(ok(open("sd_zombie_rare", "save-failure")) && hq_economy::snapshot().currencies.at(6) == 150,
+		"failed-save retry pays duplicates once");
+	// Receipts from before duplicate conversion remain valid and do not gain a
+	// retroactive payout merely because a client retries an old opening.
+	require(hq_economy::transact([](auto& next) {
+		next.transactions["drop:legacy"] = R"({"Status":"ok","SupplyDropID":"sd_zombie_rare","GrantedItems":[{"id":2097165},{"id":2097165},{"id":77594627},{"id":77594627},{"id":77594627}],"GrantedCurrencies":[]})";
+		return true;
+	}), "legacy receipt fixture");
+	const auto legacy = open("sd_zombie_rare", "legacy");
+	require(ok(legacy) && legacy["GrantedCurrencies"].Empty() && hq_economy::snapshot().currencies.at(6) == 150,
+		"old receipt replay never invents retroactive duplicate credits");
+	require(hq_economy::transact([&](auto& next) { next = saved; return true; }), "restore prior economy fixture");
+	std::cout << "PASS: MP/ZM duplicate payouts, same-drop repeats, zero/expired ownership, consumable stacking, native currency fields, persisted replay, missing metadata, overflow and save rollback\n";
+}
+
 int main(int argc, char** argv)
 {
 	try
@@ -123,7 +359,8 @@ int main(int argc, char** argv)
 
 		std::vector<hq_economy::achievement> catalog;
 		std::map<std::string, hq_event_predicate::rule> rules;
-		for (const auto& row : hq_zombies_catalog::entries)
+		// Keep the original nine-order fixture stable; the full pool is checked below.
+		for (const auto& row : std::span{hq_zombies_catalog::entries}.first<9>())
 		{
 			catalog.push_back(hq_zombies_catalog::achievement(row));
 			rules.emplace(row.name, hq_event_predicate::rule{34, row.predicate});
@@ -226,14 +463,14 @@ int main(int argc, char** argv)
 
 		// The Zombies reveal needs both pools: two regular cards then three
 		// consumables. Missing either pool must leave the drop intact.
-		achievement_engine::set_loot_catalog({0x20000D});
+		achievement_engine::set_loot_catalog({0x20000D}, false, {{0x20000D, 25}});
 		require(!ok(request(R"({"Action":"open_supply_drop","SupplyDropID":"sd_zombie_rare","ClientTx":"drop"})")), "missing Zombies pool fails closed");
 		require(hq_economy::snapshot().inventory.at({6,0}).quantity == 1, "failed opening retains drop");
 		achievement_engine::set_loot_catalog({0x4A00003}, true);
 		achievement_engine::set_loot_catalog({});
 		require(!ok(request(R"({"Action":"open_supply_drop","SupplyDropID":"sd_zombie_rare","ClientTx":"drop"})")), "missing regular-card pool fails closed");
 		require(hq_economy::snapshot().inventory.at({6,0}).quantity == 1, "either missing pool retains drop");
-		achievement_engine::set_loot_catalog({0x20000D});
+		achievement_engine::set_loot_catalog({0x20000D}, false, {{0x20000D, 25}});
 		auto opened = request(R"({"Action":"open_supply_drop","SupplyDropID":"sd_zombie_rare","ClientTx":"drop"})");
 		require(ok(opened) && opened["GrantedItems"].Size() == 5, "ZM drop returns five reveal records");
 		for (unsigned i = 0; i < 5; ++i)
@@ -242,13 +479,13 @@ int main(int argc, char** argv)
 		std::cout << "Reveal fixture: " << (scratch / "zombies-drop-response.json").string() << '\n';
 		require(ok(request(R"({"Action":"open_supply_drop","SupplyDropID":"sd_zombie_rare","ClientTx":"drop"})")), "open replay");
 		require(hq_economy::snapshot().inventory.at({0x4A00003,0}).quantity == 3, "three consumables, once");
-		require(hq_economy::snapshot().inventory.at({0x20000D,0}).quantity == 2, "two regular cards, once");
+		require(hq_economy::snapshot().inventory.at({0x20000D,0}).quantity == 1, "two regular cards: one item and one converted duplicate");
 		require(hq_marketplace::purchase("zm-purchase", 6, 1) == 0, "buy zombie drop");
 		require(hq_marketplace::purchase("zm-purchase", 6, 1) == 0, "purchase replay");
-		require(hq_economy::snapshot().currencies.at(6) == 500, "purchase debits AC once");
+		require(hq_economy::snapshot().currencies.at(6) == 525, "purchase debits AC once after duplicate credits");
 		require(hq_economy::transact([](auto& next) { return hq_mail::redeem(next, 1, "s2x-mail:welcome-v1"); }), "mail claim");
 		require(hq_economy::transact([](auto& next) { return hq_mail::redeem(next, 1, "s2x-mail:welcome-v1"); }), "mail replay");
-		require(hq_economy::snapshot().currencies.at(6) == 1000, "mail pays once");
+		require(hq_economy::snapshot().currencies.at(6) == 1025, "mail pays once after duplicate credits");
 		hq_economy::invalidate();
 		require(hq_economy::snapshot().inventory.at({0x4A00003,0}).quantity == 3, "ZM inventory survives reload");
 
@@ -273,7 +510,7 @@ int main(int argc, char** argv)
 		for (const auto& definition : hq_zombies_contract_catalog::entries)
 		{
 			catalog.push_back(hq_zombies_contract_catalog::achievement(definition));
-			rules.emplace(definition.name, hq_event_predicate::rule{34, ""});
+			rules.emplace(definition.name, hq_event_predicate::rule{34, definition.predicate});
 			const auto sku = hq_marketplace::find_sku(definition.sku);
 			require(sku && sku->price == definition.price && sku->currency == 6 &&
 				hq_marketplace::granted_items(*sku).front() == definition.token &&
@@ -293,14 +530,14 @@ int main(int argc, char** argv)
 				hq_economy::grant(next, {"GRANT_PRODUCT", 0x50000B9, 1});
 		}), "MP active contracts and pending purchase fixture");
 		auto contracts = request(R"({"Action":"get_scheduled_user_achievements","AchievementKind":11})");
-		require(contracts["Achievements"].Size() == 3, "three native Zombies contracts offered");
+		require(contracts["Achievements"].Size() == 8, "eight native Zombies contracts offered");
 		for (const auto& entry : contracts["Achievements"].GetArray())
 			require(entry["kind"].GetInt() == 11 && entry["expirationTimestamp"].GetUint64() == 0 &&
 				entry["usageTimeTarget"].GetUint() > 0, "contract uses match-time expiry");
 		const auto zm_first = hq_zombies_contract_catalog::achievement(hq_zombies_contract_catalog::entries[0]);
 		require(!ok(transition("activate_user_contract", zm_first, "unpaid")), "contract cannot activate without paid token");
 		const auto wallet_before_contracts = hq_economy::snapshot().currencies.at(6);
-		for (const auto& definition : hq_zombies_contract_catalog::entries)
+		for (const auto& definition : std::span{hq_zombies_contract_catalog::entries}.first<3>())
 		{
 			const auto contract = hq_zombies_contract_catalog::achievement(definition);
 			const auto tx = std::string{"buy-"} + definition.name;
@@ -314,6 +551,7 @@ int main(int argc, char** argv)
 			require(hq_marketplace::purchase(tx + "-again", definition.sku, 1) != 0, "active contract cannot be repurchased");
 		}
 		require(hq_economy::snapshot().currencies.at(6) == wallet_before_contracts - 800, "three purchases debit AC exactly once");
+		require(hq_marketplace::purchase("fourth-zm-slot", hq_zombies_contract_catalog::entries[3].sku, 1) != 0, "expanded catalog still limits Zombies to three active contracts");
 		hq_contract_clock contract_clock;
 		const auto start = hq_contract_clock::clock::now();
 		contract_clock.tick(true, start, 11);
@@ -384,6 +622,8 @@ int main(int argc, char** argv)
             std::cout << "PASS: captured match twice: 27 kills, 12 headshots, 13 LMG, 11 pistol, 1 upgraded; other predicates unchanged\n";
         }
 
+		expanded_catalog_checks(timestamp);
+		duplicate_drop_checks();
 		achievement_engine::set_catalog({mp});
 		auto mp_offers = request(R"({"Action":"get_scheduled_user_achievements"})");
 		for (const auto& entry : mp_offers["Achievements"].GetArray()) require(entry["kind"].GetInt() < 8, "MP catalog excludes persisted ZM orders");

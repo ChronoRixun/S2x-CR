@@ -23,6 +23,7 @@ namespace demonware::achievement_engine
 		std::mutex catalog_mutex{};
 		std::vector<hq_economy::achievement> definitions{};
 		std::vector<std::uint32_t> loot_items{}, zombies_loot_items{};
+		std::map<std::uint32_t, std::uint32_t> loot_duplicate_credits;
 		std::map<std::string, hq_event_predicate::rule> event_rules;
 		using allocator = rapidjson::Document::AllocatorType;
 
@@ -475,7 +476,8 @@ namespace demonware::achievement_engine
 		definitions = std::move(catalog);
 	}
 
-	void set_loot_catalog(std::vector<std::uint32_t> items, const bool zombies)
+	void set_loot_catalog(std::vector<std::uint32_t> items, const bool zombies,
+		std::map<std::uint32_t, std::uint32_t> duplicate_credits)
 	{
 		std::erase_if(items, [](const auto id) { return id <= 2 || id > INT32_MAX; });
 		std::sort(items.begin(), items.end());
@@ -483,6 +485,7 @@ namespace demonware::achievement_engine
 		if (items.size() > 10000) items.clear();
 		std::lock_guard lock{catalog_mutex};
 		(zombies ? zombies_loot_items : loot_items) = std::move(items);
+		if (!zombies) loot_duplicate_credits = std::move(duplicate_credits);
 	}
 
 	void retry_event_cache_refresh()
@@ -961,9 +964,11 @@ namespace demonware::achievement_engine
 					drop == "sd_zombie_rare" ? 6 : 0;
 				if (!drop_id) return fail("unsupported_supply_drop");
 				std::vector<std::uint32_t> pool, consumables;
+				std::map<std::uint32_t, std::uint32_t> duplicate_credits;
 				{
 					std::lock_guard lock{catalog_mutex};
 					pool = loot_items;
+					duplicate_credits = loot_duplicate_credits;
 					if (drop_id == 6) consumables = zombies_loot_items;
 				}
 				const auto key = "drop:" + client_tx;
@@ -981,6 +986,9 @@ namespace demonware::achievement_engine
 					else
 					{
 						if (pool.empty() || (drop_id == 6 && consumables.empty())) return false;
+						// Do not consume a drop before the main-thread asset lookup is ready.
+						// Missing values are not permission to guess a payout or lose a duplicate.
+						for (const auto id : pool) if (!duplicate_credits.contains(id)) return false;
 						auto owned = next.inventory.find({drop_id, 0});
 						if (owned == next.inventory.end() || !owned->second.quantity ||
 							(owned->second.expires && owned->second.expires <= now)) return false;
@@ -992,24 +1000,49 @@ namespace demonware::achievement_engine
 						// Uniform rolls with replacement remain local policy, not retail odds.
 						std::mt19937_64 random{std::random_device{}()};
 						rapidjson::Value items{rapidjson::kArrayType};
-						const auto grant_rolls = [&](const auto& candidates, const unsigned count)
+						std::uint32_t credits{};
+						const auto balance = next.currencies.find(hq_economy::armory_credits);
+						const auto balance_before = balance == next.currencies.end() ? 0u : balance->second;
+						const auto grant_rolls = [&](const auto& candidates, const unsigned count, const bool stackable)
 						{
 							std::uniform_int_distribution<std::size_t> roll{0, candidates.size() - 1};
 							for (unsigned i = 0; i < count; ++i)
 							{
 								const auto id = candidates[roll(random)];
-								if (!hq_economy::grant(next, {"GRANT_PRODUCT", id, 1})) return false;
+								const auto prior = next.inventory.find({id, 0});
+								if (!stackable && prior != next.inventory.end() && hq_economy::live(prior->second, now))
+								{
+									const auto amount = duplicate_credits.at(id);
+									// The native GrantedCurrencies decoder reads a signed delta.
+									if (amount > INT32_MAX - credits) return false;
+									credits += amount;
+								}
+								else
+								{
+									// grant() replaces expired/zero-quantity items with permanent units.
+									if (!hq_economy::grant(next, {"GRANT_PRODUCT", id, 1})) return false;
+								}
 								rapidjson::Value item{rapidjson::kObjectType};
 								item.AddMember("id", id, alloc);
 								items.PushBack(item, alloc);
 							}
 							return true;
 						};
-						if (!grant_rolls(pool, drop_id == 6 ? 2 : 3) ||
-							(drop_id == 6 && !grant_rolls(consumables, 3))) return false;
+						if (!grant_rolls(pool, drop_id == 6 ? 2 : 3, false) ||
+							(drop_id == 6 && !grant_rolls(consumables, 3, true))) return false;
+						if (credits && !hq_economy::grant(next, {"GRANT_CURRENCY", hq_economy::armory_credits, credits})) return false;
+						rapidjson::Value currencies{rapidjson::kArrayType};
+						if (credits)
+						{
+							rapidjson::Value currency{rapidjson::kObjectType};
+							currency.AddMember("currency_id", hq_economy::armory_credits, alloc);
+							currency.AddMember("balance_before", balance_before, alloc);
+							currency.AddMember("balance_delta", credits, alloc);
+							currencies.PushBack(currency, alloc);
+						}
 						response.AddMember("SupplyDropID", text(drop, alloc), alloc);
 						response.AddMember("GrantedItems", items, alloc);
-						response.AddMember("GrantedCurrencies", rapidjson::Value{rapidjson::kArrayType}, alloc);
+						response.AddMember("GrantedCurrencies", currencies, alloc);
 						next.transactions[key] = encode(response);
 					}
 					// Absolute quantities, including zero for the consumed drop. On replay,
