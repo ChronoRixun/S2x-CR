@@ -107,6 +107,14 @@ local function read_current_progression( controller )
 
 	local prestige = try_player_data( controller, group, prestige_field )
 	local experience = try_player_data( controller, group, experience_field )
+	-- MP's displayed XP also includes inventory rewards since the last reset.
+	-- Use the same reader as AAR.GetCareerExperience / the Soldier screen.
+	if experience_field == "experience" then
+		local read, total = pcall( function ()
+			return Engine.GetPlayerDataMPXP( controller, group )
+		end )
+		experience = read and type( total ) == "number" and total or nil
+	end
 	if not ( prestige and experience ) then
 		return false, 0, 1
 	end

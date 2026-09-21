@@ -6,6 +6,7 @@
 #include "unlock_zombies.hpp"
 
 #include "game/game.hpp"
+#include "game/demonware/hq_economy.hpp"
 #include "game/ui_scripting/execution.hpp"
 
 #include "ui_scripting.hpp"
@@ -992,6 +993,36 @@ namespace stats
 				return false;
 			}
 
+			// MP displays experience + inventoryTotalXP - inventoryXPAtLastReset
+			// (native 0xD71B0). Setting only experience leaves past reward XP on top
+			// of the requested rank. Match the native prestige reset (0x18ED20) by
+			// baselining both inventory fields to currency 1. Use the persisted wallet
+			// that hq_native projects, so a pending wallet refresh cannot restore old XP.
+			int inventory_experience{};
+			const auto reset_inventory_experience = target.stats_group == ranked_stats_group;
+			if (reset_inventory_experience)
+			{
+				try
+				{
+					const auto wallet = demonware::hq_economy::snapshot();
+					const auto it = wallet.currencies.find(1);
+					const auto amount = it == wallet.currencies.end() ? 0u : it->second;
+					if (amount > static_cast<unsigned>(std::numeric_limits<int>::max()) ||
+						!is_stat_path_valid({"inventoryTotalXP"}, target.stats_group) ||
+						!is_stat_path_valid({"inventoryXPAtLastReset"}, target.stats_group))
+					{
+						console::error("%s: inventory XP cannot be reset safely; rank was not changed.\n", command);
+						return false;
+					}
+					inventory_experience = static_cast<int>(amount);
+				}
+				catch (const std::exception& error)
+				{
+					console::error("%s: cannot read inventory XP: %s. Rank was not changed.\n", command, error.what());
+					return false;
+				}
+			}
+
 			// The game's own prestige routine advances by exactly one prestige and only
 			// in Multiplayer, so it cannot serve a command that sets an absolute prestige
 			// in either mode. We write the prestige stat directly instead. That is the
@@ -1006,6 +1037,13 @@ namespace stats
 			if (!set_stat({target.experience_stat}, experience, target.stats_group))
 			{
 				console::error("%s: failed to write %s.\n", command, target.experience_stat);
+				return false;
+			}
+			if (reset_inventory_experience &&
+				(!set_stat({"inventoryTotalXP"}, inventory_experience, target.stats_group) ||
+					!set_stat({"inventoryXPAtLastReset"}, inventory_experience, target.stats_group)))
+			{
+				console::error("%s: failed to reset inventory XP; rank update is incomplete.\n", command);
 				return false;
 			}
 
