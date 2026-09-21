@@ -6,6 +6,7 @@
 #include "hq_payroll.hpp"
 #include "hq_marketplace.hpp"
 #include "component/console/console.hpp"
+#include "game/game.hpp"
 #include "steam/steam.hpp"
 #include <charconv>
 #include <chrono>
@@ -592,6 +593,14 @@ namespace demonware::achievement_engine
 		return [&]()
 		{
 			if (event.timestamp > 0 && data.transactions.contains(key)) return true;
+			// A soldier level-up awards a Common Supply Drop (mp/supplyDropTypes.csv sd_mp,
+			// item 1). The event carries no rank; the receipt above keeps it once per event.
+			if (event_type == 14 && !game::environment::is_zombies())
+			{
+				if (!hq_economy::grant(data, {"GRANT_PRODUCT", 1, 1})) return false;
+				changed = true;
+				console::info("[HQ AE] rank up: granted a Common Supply Drop\n");
+			}
 			if (payroll)
 			{
 				auto& entry = data.achievements["payroll_officer"];

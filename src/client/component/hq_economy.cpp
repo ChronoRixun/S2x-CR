@@ -67,16 +67,16 @@ namespace hq_economy
 		void event_command(const command::params& params)
 		{
 			const std::string_view name = params.size() == 2 ? params[1] : "";
-			if (name != "kill" && name != "headshot" && name != "payroll")
+			if (name != "kill" && name != "headshot" && name != "payroll" && name != "rankup")
 			{
-				console::info("Usage: aeevent <kill|headshot|payroll> (changes local economy)\n");
+				console::info("Usage: aeevent <kill|headshot|payroll|rankup> (changes local economy)\n");
 				return;
 			}
 			static std::int64_t last{};
 			const auto timestamp = std::chrono::duration_cast<std::chrono::microseconds>(
 				std::chrono::system_clock::now().time_since_epoch()).count();
 			last = std::max(last + 1, timestamp);
-			demonware::reward_game_events::event event{name == "payroll" ? "18" : "1", last, {}};
+			demonware::reward_game_events::event event{name == "payroll" ? "18" : name == "rankup" ? "14" : "1", last, {}};
 			if (name == "headshot") event.parameters.push_back({"6", 1});
 			console::info("[HQ event] diagnostic event %.*s: %s; use aefetch user to refresh the native cache\n",
 				static_cast<int>(name.size()), name.data(),
