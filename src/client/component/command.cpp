@@ -692,7 +692,11 @@ namespace command
 			const auto chat = verb == "say" || verb == "say_team";
 			// Own the payload before native handlers or script callbacks can tokenize
 			// another command. Notifications observe chat and do not suppress delivery.
-			const auto text = chat ? params.join(1).substr(0, 256) : std::string{};
+			// The chat prompt prefixes its text with 0x1F so the HUD can tell chat from
+			// prints; a console `say` carries none. Scripts get what the player typed.
+			auto text = chat ? params.join(1) : std::string{};
+			if (!text.empty() && text.front() == '\x1F') text.erase(0, 1);
+			text = text.substr(0, 256);
 			const auto team = verb == "say_team";
 
 			const auto handled = execute_custom_sv_command_internal(client_num, params);
