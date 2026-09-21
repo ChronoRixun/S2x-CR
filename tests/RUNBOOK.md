@@ -263,6 +263,8 @@ The debug line proves the repair ran; only your eyes prove it rendered.
 6. In each mode, load any map before quitting so the stats upload. Relaunch and confirm the ranks stuck.
 7. Play a few minutes and earn XP; progress moves forward from the set level. If a claimable MP reward with XP is handy, claim it and confirm that XP counts too.
 
+Two things that look wrong and are not: the UNLOCKS chooser inside a custom game lobby applies the rank (the console confirms it) but that lobby's rank card is a cached party record and only refreshes when you re-enter the lobby, so read the result on the HQ Soldier tab; and after a `setrank` upward, the next match start makes the game send one `player_rank_up` event, so the console prints `[HQ AE] rank up: granted a Rare Supply Drop` once. That is the level-up drop reacting to a debug command, not a duplicate payout.
+
 **Evidence if it fails:** the console output of the command and a screenshot of the Soldier screen.
 
 **Verified already:** the production command against all 2,000 rank thresholds and the inventory-XP baseline in the offline harness; the chooser reader under Lua stubs. Never run: the commands on this profile since the change.
