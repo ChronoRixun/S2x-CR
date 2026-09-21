@@ -45,6 +45,8 @@ A saved `cg_unlock_zm_progression` toggle (also an UNLOCKS row) makes the tutori
 
 Orders, contracts, payroll, supply drops, the Quartermaster and Mail all run over the Achievement Engine protocol that upstream stubs. This fork answers those requests from a local economy store (`players2/user/hq_economy.json`), with retail-shaped Orders, nine contracts priced in Armory Credits, payroll, supply drops that open, and a Quartermaster whose purchases are usable in Create-a-Class. It is the largest branch and is offered upstream as a draft. The Zombies Supplies screens are out of scope for now.
 
+Every soldier level-up awards a Rare Supply Drop, the way the end-of-match screen promises; the store credits it from the game's own rank-up event, so it works on dedicated servers and in Local Play alike.
+
 Headquarters balances, inventory, Orders, contracts, Mail and reward receipts are saved in `players2/user/hq_economy.json`; `hqeconomy reload` in the console reloads it. Deleting `players2/user/hq_economy.json` with every instance closed resets the Headquarters economy and nothing else.
 
 ### Bot names
@@ -76,6 +78,16 @@ powershell -ExecutionPolicy Bypass -File tools\server-launcher.ps1
 ```
 
 The launcher finds the game folder through `-GameDir`, a remembered choice, the current directory, its own folder or up to two folders above it, or the Steam registry entry; otherwise it asks for the folder that contains `s2x.exe` and remembers it. On a machine without Steam, run it from the game folder or pass `-GameDir "C:\Games\Call of Duty WWII"`.
+
+### Server status card
+
+`tools/server-status.ps1` keeps a Discord embed current with what a dedicated server is doing. It queries the server the way the game client does (`s2x_getInfo` with the S2 packet trailer), asks the master server whether the address is listed, and edits the "Status", "Now playing", "Players" and "Server browser" fields on an existing bot embed, leaving every other field and the card's text alone. Run it on the server box; `-Install` registers a scheduled task that updates the card every two minutes with no console window (it runs through `conhost.exe --headless`):
+
+```
+powershell -ExecutionPolicy Bypass -File tools\server-status.ps1 -ChannelId <channel id> -MessageId <message id> -PublicAddress <public ip>:<port> -TokenFile C:\s2x-status\token.txt -Install
+```
+
+`-DryRun` prints the fields instead of editing anything, and `-Uninstall` removes the task. The token file holds the Discord bot token and is read only from that path or the `DISCORD_TOKEN` environment variable.
 
 ## Requirements
 
