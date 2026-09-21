@@ -22,7 +22,7 @@ Where I know the exact console wording it is quoted verbatim from real runs. Whe
 | `4335186` | Drops still open when an item has no pawn value (my fix on top of #6) | section 1 |
 | `a46e3c8` | Launcher labels DLC maps, Zombies zone names corrected | section 6 |
 | `57424a2` | Discord status card script | already live on box 4; section 7 regression |
-| `8a50b18` | Upstream update download is opt-in (`-update`); a plain launch no longer pulls upstream's UI scripts into AppData | section 0.3 |
+| `8a50b18` | Upstream update download is opt-in (`-update`); a plain launch no longer pulls upstream's UI scripts into AppData | section 0.4 |
 | `f27228e`, `7cdc566` | Zombies consumable cards stack their charge count on the family stock row, so a Self-Revive card raises "In Stock" | section 1 step 5 |
 | `86b712d`–`d8268d3` | README, contributing files, CI, the showcase site | nothing to play |
 
@@ -81,13 +81,6 @@ Copy-Item "$game\players2" "D:\S2x\build\backups\players2-$stamp" -Recurse
 
 - [ ] `players2` backed up to `build\backups\players2-<stamp>`
 
-## 0.3 The updater stays quiet
-
-Until rc2, every launch without `-noupdate` ran upstream's updater, which downloaded upstream's UI scripts into `%LOCALAPPDATA%\s2x\data\ui_scripts`; the loader runs every `ui_scripts` folder it finds, so those loaded after ours and replaced the fork's `unlocks.lua`. It happened at 09:11 on 2026-09-21. rc2 makes the download opt-in. Launch `s2x.exe` directly for this check, without any flags, because the desktop shortcuts still pass `-noupdate` and that flag is now ignored.
-
-- [ ] Console prints `[Updater] Automatic updates are off in this fork; new builds are at https://github.com/ChronoRixun/S2x/releases`
-- [ ] No `ui_scripts` folder under `%LOCALAPPDATA%\s2x\data` after the launch (only the renamed `ui_scripts_off-*` folders)
-
 ## 0.3 Launching
 
 Launch the client from a shortcut, with Steam running and signed in: `C:\Users\Owen\Desktop\S2x Development.lnk` (`-noupdate -multiplayer`) and `D:\S2x\build\backups\S2x Zombies Dev.lnk` (`-noupdate -zombies`). Astra's runbook asks for `-demonware_debug`; on this PC that launch died three seconds in on 2026-09-13 and was never fixed. Try it once if you want the extra event evidence; if it dies, use the plain shortcut, nothing below needs it.
@@ -112,7 +105,14 @@ Get-Content $log | Select-Object -Skip $before | Select-String -Pattern 'error|F
 
 Typing into a server console from a script: `D:\S2x\build\backups\syscon2.ps1 -TargetPid <pid> -Commands 'status'`; reading its window: `syscon-read.ps1 -TargetPid <pid> -Tail 40`.
 
-## 0.4 Baseline pass
+## 0.4 The updater stays quiet
+
+Until rc2, every launch without `-noupdate` ran upstream's updater, which downloaded upstream's UI scripts into `%LOCALAPPDATA%\s2x\data\ui_scripts`; the loader runs every `ui_scripts` folder it finds, so those loaded after ours and replaced the fork's `unlocks.lua`. It happened at 09:11 on 2026-09-21. rc2 makes the download opt-in. Launch `s2x.exe` directly for this check, without any flags, because the desktop shortcuts still pass `-noupdate` and that flag is now ignored.
+
+- [ ] Console prints `[Updater] Automatic updates are off in this fork; new builds are at https://github.com/ChronoRixun/S2x/releases`
+- [ ] No `ui_scripts` folder under `%LOCALAPPDATA%\s2x\data` after the launch (only the renamed `ui_scripts_off-*` folders)
+
+## 0.5 Baseline pass
 
 One launch of each mode before testing anything specific, so a broken menu is found before it is blamed on a feature.
 
