@@ -652,6 +652,16 @@ function Set-Config($cfg) {
 }
 
 function Update-PresetList {
+    # Presets bundled next to the launcher (the zip ships them in tools\presets) are
+    # copied in once; a preset the host already has under that name is left alone.
+    New-Item -ItemType Directory -Force $PresetDir | Out-Null
+    foreach ($bundle in @((Join-Path $PSScriptRoot "presets"), (Join-Path $PSScriptRoot "server-presets"))) {
+        if (-not (Test-Path $bundle)) { continue }
+        Get-ChildItem $bundle -Filter "*.json" -ErrorAction SilentlyContinue | ForEach-Object {
+            $dst = Join-Path $PresetDir $_.Name
+            if (-not (Test-Path $dst)) { Copy-Item $_.FullName $dst -ErrorAction SilentlyContinue }
+        }
+    }
     $cmbPreset.Items.Clear()
     [void]$cmbPreset.Items.Add("(last used)")
     Get-ChildItem $PresetDir -Filter "*.json" -ErrorAction SilentlyContinue |
@@ -782,8 +792,12 @@ function Stop-S2xServer {
         if ($raw -match '^\s*(\d+)') { $ids += [int]$Matches[1] }
     }
     foreach ($id in ($ids | Select-Object -Unique)) {
-        $proc = Get-Process -Id $id -ErrorAction SilentlyContinue
-        if ($proc -and $proc.ProcessName -eq "s2x") { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }
+        # A pid file can outlive its server and Windows reuses PIDs, so only a
+        # dedicated server started on this port qualifies, never a game client.
+        $cmd = (Get-CimInstance Win32_Process -Filter "ProcessId = $id" -ErrorAction SilentlyContinue).CommandLine
+        if ($cmd -and $cmd -match "\bs2x\.exe" -and $cmd -match "-dedicated" -and $cmd -match "net_port $port(\s|$)") {
+            Stop-Process -Id $id -Force -ErrorAction SilentlyContinue
+        }
     }
     Remove-Item $pidPath -Force -ErrorAction SilentlyContinue
     $script:serverProcess = $null
