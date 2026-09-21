@@ -1,0 +1,340 @@
+<title>S2x Fork Showcase</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Source+Sans+3:wght@400;600&display=swap');
+
+  :root {
+    --bg: #141412;
+    --surface: #1e1e1c;
+    --surface-raised: #282825;
+    --accent: #c4a44a;
+    --accent-dim: #8b7a3a;
+    --text: #e8e0d0;
+    --text-muted: #9a9280;
+    --border: #3a3830;
+    --glow: rgba(196, 164, 74, 0.15);
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f0ece4;
+      --surface: #e8e2d8;
+      --surface-raised: #fff;
+      --accent: #8b6f2a;
+      --accent-dim: #b09448;
+      --text: #1a1a18;
+      --text-muted: #6a6458;
+      --border: #d0c8b8;
+      --glow: rgba(139, 111, 42, 0.1);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #141412;
+    --surface: #1e1e1c;
+    --surface-raised: #282825;
+    --accent: #c4a44a;
+    --accent-dim: #8b7a3a;
+    --text: #e8e0d0;
+    --text-muted: #9a9280;
+    --border: #3a3830;
+    --glow: rgba(196, 164, 74, 0.15);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Source Sans 3', 'Segoe UI', sans-serif;
+    padding-inline: 16px;
+    line-height: 1.6;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  h1, h2, h3 {
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-wrap: balance;
+  }
+
+  .hero {
+    text-align: center;
+    padding: 3rem 0 2rem;
+  }
+
+  .hero h1 {
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 0 0 0.3rem;
+  }
+
+  .hero .subtitle {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    margin: 0 0 2rem;
+  }
+
+  .hero-img {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .section {
+    margin: 3rem 0;
+  }
+
+  .section h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--accent);
+    border-bottom: 2px solid var(--accent-dim);
+    padding-bottom: 0.4rem;
+    margin: 0 0 0.6rem;
+  }
+
+  .section p {
+    color: var(--text-muted);
+    margin: 0 0 1.2rem;
+    font-size: 0.95rem;
+  }
+
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+  }
+
+  .gallery img {
+    width: 100%;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .gallery img:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 20px var(--glow);
+  }
+
+  .gallery-wide {
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  }
+
+  .caption {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 4px;
+  }
+
+  .feature-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .feature-card img {
+    width: 100%;
+    display: block;
+  }
+
+  .feature-card .card-text {
+    padding: 10px 14px;
+  }
+
+  .feature-card .card-text h3 {
+    font-size: 0.85rem;
+    margin: 0;
+    color: var(--accent);
+  }
+
+  .feature-card .card-text p {
+    font-size: 0.8rem;
+    margin: 4px 0 0;
+    color: var(--text-muted);
+  }
+
+  .lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(0,0,0,0.92);
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+    padding: 16px;
+  }
+
+  .lightbox.active { display: flex; }
+
+  .lightbox img {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 4px;
+  }
+
+  .footer {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    padding: 2rem 0 1rem;
+    border-top: 1px solid var(--border);
+  }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.8rem; }
+    .gallery { grid-template-columns: 1fr; }
+    .gallery-wide { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="hero">
+  <h1>S2x Fork</h1>
+  <p class="subtitle">A personal fork of Call of Duty: WWII's custom client: bot names, bots in every mode, a full Headquarters economy with level-up supply drops, a dedicated server that starts every time, and a launcher to run it.</p>
+  <img class="hero-img" src="assets/79a4d96e070295b7fac0f07b7f8b1bc6.jpg" alt="Headquarters">
+</div>
+
+<div class="section">
+  <h2>Bot Fill</h2>
+  <p>Automatic bot spawning on every map start. Set <code>bot_fill 17</code> and every match fills with bots across all gametypes — TDM, Domination, Free-for-All, Hardpoint, and even War mode with full 9v9 teams.</p>
+  <div class="gallery gallery-wide">
+    <div class="feature-card"><img src="assets/c41591826338be157af7f692f51d24d5.jpg" alt="Domination with bots"><div class="card-text"><h3>Domination on Shipment</h3><p>4v3 with bots, full scoreboard and progression</p></div></div>
+    <div class="feature-card"><img src="assets/ceac760be3ed97b6106f9802d4213b94.jpg" alt="War with bots"><div class="card-text"><h3>Operation Husky</h3><p>9v9 War mode with bot teammates</p></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Bot Names</h2>
+  <p>Three name pools replace the engine's stock bot names. <strong>Default</strong> keeps the originals, <strong>Modern</strong> uses 2016-2026 gamertag styles, and <strong>Nostalgia</strong> brings back the Xbox 360 era. 54 names per pool, shuffled every map — a different lobby every game.</p>
+  <div class="gallery">
+    <div class="feature-card"><img src="assets/2543f5ff999531e7ae9d6dc6b78a525a.jpg" alt="Nostalgia names"><div class="card-text"><h3>Nostalgia Pool</h3><p>xXDarkAngelXx, NoSc0pe360, CamperKing2010</p></div></div>
+    <div class="feature-card"><img src="assets/64de20c9489e3bfa30a344f584a7c43b.jpg" alt="Nostalgia TDM"><div class="card-text"><h3>Nostalgia TDM</h3><p>Full lobby with a real player who joined</p></div></div>
+    <div class="feature-card"><img src="assets/5e0d9e50d3ce1f1581cb2f9de8a61431.jpg" alt="Modern names"><div class="card-text"><h3>Modern Pool</h3><p>BlindSprint, Reaver22, bleakwinter, SleepyDave</p></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Bots in Custom Matches</h2>
+  <p>Offline Local Play used to accept bots and never show them. The fork routes <code>bot_fill</code> and <code>spawnBot</code> through the game's own spawn script on listen servers, so bots pick teams and classes and actually walk onto the map. Requests are capped at the free slots.</p>
+  <div class="gallery">
+    <div class="feature-card"><img src="assets/d6db95ef2421df8e8751285f198397bb.png" alt="bot_fill 4 in a custom match"><div class="card-text"><h3>bot_fill 4</h3><p>Four bots fighting in a UI-started Custom Match on Pointe du Hoc</p></div></div>
+    <div class="feature-card"><img src="assets/587bc6203ae8e8222c258110a50c7de7.png" alt="spawnBot to six"><div class="card-text"><h3>spawnBot 2</h3><p>Two more added mid-match, scoreboard at six</p></div></div>
+    <div class="feature-card"><img src="assets/59f5c44dc66f957cf6683a43c1bc44af.png" alt="capped at seventeen"><div class="card-text"><h3>spawnBot 99</h3><p>Capped at 17 bots plus the host</p></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Headquarters Economy</h2>
+  <p>Orders, contracts, payroll, supply drops, the Quartermaster, and Mail — all running locally over the Achievement Engine protocol. Earn rewards, complete challenges, and open supply drops just like the retail game.</p>
+  <div class="gallery">
+    <div class="feature-card"><img src="assets/cf041d53ca218faaa3ce4f05b8e1e4b7.jpg" alt="Quartermaster"><div class="card-text"><h3>Quartermaster</h3><p>Supply drops, CWL packs, and Collections</p></div></div>
+    <div class="feature-card"><img src="assets/8a7e0b5ddbc9c397e9a13216282ae1b3.jpg" alt="Contracts"><div class="card-text"><h3>Contracts</h3><p>9 timed challenges priced in Armory Credits</p></div></div>
+    <div class="feature-card"><img src="assets/34dc02ea54aa83a2e6792faf087251f2.jpg" alt="Orders"><div class="card-text"><h3>Daily Orders</h3><p>Completed order with Supply Drop reward</p></div></div>
+    <div class="feature-card"><img src="assets/012ebf8262b960804f67c527785ac717.jpg" alt="Orders list"><div class="card-text"><h3>Above and Beyond</h3><p>Daily and weekly progress tracking</p></div></div>
+    <div class="feature-card"><img src="assets/d8ca1e16026fd7c21f799766eea12d7c.jpg" alt="Payroll"><div class="card-text"><h3>Headquarters Post</h3><p>Payroll timer and mail delivery</p></div></div>
+    <div class="feature-card"><img src="assets/459ef6b6ac868d463d726440c7b76fea.jpg" alt="CWL Packs"><div class="card-text"><h3>CWL Packs</h3><p>FaZe, OpTic, and every team's pack</p></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Supply Drops</h2>
+  <p>Supply drops open with the full card-flip animation. Common, Rare, Epic, and Legendary items — calling cards, weapon charms, emotes, pistol grips, uniforms — with duplicates converting to Armory Credits.</p>
+  <div class="gallery">
+    <div class="feature-card"><img src="assets/11c81d1a8ad20dd05544b1d4eafbf0f6.jpg" alt="Cards flipping"><div class="card-text"><h3>Card Reveal</h3><p>Three cards flip with rarity glow effects</p></div></div>
+    <div class="feature-card"><img src="assets/b637c78ff0fedc442581b50c121ac588.jpg" alt="Legendary reveal"><div class="card-text"><h3>Legendary Pull</h3><p>Russia calling card and Resistance uniform</p></div></div>
+    <div class="feature-card"><img src="assets/83a566810923d8ffd5da887a4c1a7f8f.jpg" alt="Rare supply drop"><div class="card-text"><h3>Rare Supply Drop</h3><p>Eastern Dragon charm, Task Force 9, Partigiani — all Epic</p></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Level-Up Supply Drops</h2>
+  <p>Every soldier level-up now pays out the Rare Supply Drop the end-of-match screen promises. The game always reported the level-up; the fork's economy finally credits it, on dedicated servers and in Local Play alike.</p>
+  <div class="gallery gallery-wide">
+    <div class="feature-card"><img src="assets/2340ac6ea9538fb6a3b3ae9dd2462715.webp" alt="Rank 11"><div class="card-text"><h3>Rank 3 to 11 in one night</h3><p>Five level-ups in a single match, five drops credited</p></div></div>
+    <div class="feature-card"><img src="assets/c2aa3b67a78e827dfc313d17f6d4ff6a.png" alt="Six supply drops waiting"><div class="card-text"><h3>Waiting in Headquarters</h3><p>Six drops earned from ranking up, ready to open</p></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Server Launcher</h2>
+  <p>A WPF launcher with a mode toggle for Multiplayer and Zombies. Pick maps, gametypes, score limits and bot settings, name the server in colour with the swatch row (<code>^1</code> red, <code>^3</code> yellow, <code>^7</code> white) and watch the preview, then hit Launch. It finds the game folder on its own, so a spare box with the game files copied over and no Steam installed becomes a dedicated server in one click.</p>
+  <div class="gallery gallery-wide">
+    <div class="feature-card"><img src="assets/cdef6c2192784b7e71264ffb8c5517c3.png" alt="Launcher with coloured server name"><div class="card-text"><h3>Coloured Server Names</h3><p>Swatches insert the code at the cursor; the preview shows what the browser will render</p></div></div>
+    <div class="feature-card"><img src="assets/2eab84e7dcdda4584a093513b85a92ff.png" alt="Zombies mode on a Steam-less box"><div class="card-text"><h3>Zombies Mode on a Spare PC</h3><p>Running from a plain Windows box with no Steam, presets saved per mode</p></div></div>
+  </div>
+  <div class="gallery" style="margin-top:12px">
+    <div class="feature-card"><img src="assets/008220060280f73842b7360a9ff3aa8e.png" alt="Server Launcher running"><div class="card-text"><h3>Multiplayer Mode</h3><p>4-map rotation with PID and connect address</p></div></div>
+    <div class="feature-card"><img src="assets/81e12c6e8a3d9e391e1adb513f6f1b7a.png" alt="Gametype selection"><div class="card-text"><h3>Gametype Selection</h3><p>All 9 gametypes available per rotation entry</p></div></div>
+    <div class="feature-card"><img src="assets/f44db66c92d53d8323bebde966fe0e8e.png" alt="Zombies launcher"><div class="card-text"><h3>Zombies Mode</h3><p>Zombies maps with score limits and bot fill hidden</p></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>A Dedicated Server That Starts Every Time</h2>
+  <p>Roughly one launch in ten used to die a few seconds in. The cause was a repair guard in the game's anti-tamper layer that quietly restored three of the client's own patches, after which an integrity check failed and the process was shut down. The guard is now filtered like the rest: forty cold starts in a row reached a full match with bots, against nine of ten before.</p>
+</div>
+
+<div class="section">
+  <h2>Zombies Economy</h2>
+  <p>The HQ economy extends into Nazi Zombies with its own orders, contracts, and supply drops. Kill zombies, survive waves, earn headshots — progress tracked in real time with Armory Credit and Rare Zombie Supply Drop rewards.</p>
+  <div class="gallery">
+    <div class="feature-card"><img src="assets/9b4d4a821203e02986d491b4d29e7784.jpg" alt="Zombies weekly order"><div class="card-text"><h3>Precision Week</h3><p>Weekly Zombies Order: Kill 200 zombies with headshots — 21/200</p></div></div>
+    <div class="feature-card"><img src="assets/fbe5e3953b71dd2360001f01175dcc99.webp" alt="Zombies contract"><div class="card-text"><h3>Zombie Hunter</h3><p>Contract: Kill 250 zombies for a Rare Zombie Supply Drop</p></div></div>
+    <div class="feature-card"><img src="assets/3ba2d176047779998441e0418d41defb.jpg" alt="Zombies daily order"><div class="card-text"><h3>Dead on Target</h3><p>Daily order at 12/25 headshots — 250 Armory Credits</p></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Nazi Zombies</h2>
+  <p>Groesten Haus and The Final Reich playable with full progression. Wall buys, mystery box, consumables, wave tracking — the complete zombies experience preserved.</p>
+  <div class="gallery">
+    <div class="feature-card"><img src="assets/b58fe8ca450f03b75153d27a165c66d0.jpg" alt="Zombies gameplay"><div class="card-text"><h3>Groesten Haus</h3><p>STG44 by the fireplace — muzzle flash and bodies</p></div></div>
+    <div class="feature-card"><img src="assets/1f98bea858cc56e60d572d51bbcbb8a5.jpg" alt="Zombie close-up"><div class="card-text"><h3>Up Close</h3><p>They don't knock</p></div></div>
+    <div class="feature-card"><img src="assets/c95c5d86db1e16caec5e2b4a8c36be82.jpg" alt="Zombies scoreboard"><div class="card-text"><h3>Wave 5</h3><p>58 kills, 39 headshots on Groesten Haus</p></div></div>
+    <div class="feature-card"><img src="assets/b95e905f0cccdf77b37459b33b5e519b.jpg" alt="Zombies USS Texas"><div class="card-text"><h3>USS Texas</h3><p>Zombies in the ship interior</p></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Zombies Supply Drops</h2>
+  <p>Zombie Supply Drops open with the skull-backed card flip. Consumables like Self-Revives, weapon guarantees, and Double Jolts drop alongside uniforms and calling cards.</p>
+  <div class="gallery">
+    <div class="feature-card"><img src="assets/8688f43ee1768609a7435a1bcbe45992.jpg" alt="Zombies supply drop"><div class="card-text"><h3>Aurora Epic</h3><p>Expeditionary uniform and Homefront Hero calling card</p></div></div>
+    <div class="feature-card"><img src="assets/7180e08fa8a251b175c3b003acfd2388.jpg" alt="M1903 Guarantee"><div class="card-text"><h3>Consumables</h3><p>M1903 Guarantee — forces the Mystery Box's next weapon</p></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Join the Community</h2>
+  <p>We're keeping Call of Duty: WWII alive. Join the Discord to find games, get server updates, and connect with other players.</p>
+  <div style="text-align:center; margin: 1.5rem 0;">
+    <a href="https://discord.gg/yMPWMTyPPZ" target="_blank" rel="noopener" style="display:inline-block; background:var(--accent); color:#141412; font-family:'Oswald',sans-serif; font-size:1.1rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; padding:14px 40px; border-radius:6px; text-decoration:none; transition:opacity 0.2s;">Join Discord</a>
+  </div>
+  <p style="text-align:center; font-size:0.85rem;">Download the latest build from the <a href="https://github.com/ChronoRixun/S2x/releases/latest" target="_blank" rel="noopener" style="color:var(--accent);">v1.2.0 release</a>. You need a legitimate Steam copy of Call of Duty: WWII.</p>
+</div>
+
+<div class="footer">
+  S2x Fork — ChronoRixun
+</div>
+
+<div class="lightbox" id="lightbox" onclick="this.classList.remove('active')">
+  <img id="lightbox-img" alt="Full size">
+</div>
+
+<script>
+document.querySelectorAll('.gallery img, .hero-img').forEach(img => {
+  img.addEventListener('click', () => {
+    const lb = document.getElementById('lightbox');
+    document.getElementById('lightbox-img').src = img.src;
+    lb.classList.add('active');
+  });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('lightbox').classList.remove('active');
+});
+</script>
