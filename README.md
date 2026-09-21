@@ -28,6 +28,7 @@ S2x is a custom client project for Call of Duty®: WWII, focused on preserving a
 - **CoD WWII Community** on Discord: <https://discord.gg/yMPWMTyPPZ>. Our servers, looking-for-game, and the place to report anything that's wrong with them.
 - **S2x** on Discord: <https://discord.gg/wdC8Jpc2cC>. The upstream project's server, run by Brentdevent.
 - Bugs and ideas for this fork go in [Issues](https://github.com/ChronoRixun/S2x/issues).
+- The [showcase](https://chronorixun.github.io/S2x/) is a screenshot tour of what the fork adds.
 
 ## What this fork adds
 
