@@ -787,12 +787,11 @@ $btnLaunch.Add_Click({
     [System.IO.File]::WriteAllText($CfgPath, (Build-ServerCfg), $utf8NoBom)
 
     $port = [math]::Max(1024, [math]::Min(65535, (Get-BoxInt $txtPort 27016)))
-    if ($script:isZombies) {
-        $firstMap = $script:rotationData[0].Map
-        $launchArgs = "-noupdate -dedicated -zombies +set net_port $port +exec server.cfg +map $firstMap"
-    } else {
-        $launchArgs = "-noupdate -dedicated +set net_port $port +exec server.cfg +map_rotate"
-    }
+    # Both modes start from the rotation server.cfg carries; a command-line +map
+    # runs before the dedicated party exists and is dropped, so Zombies never left
+    # the virtual lobby.
+    $modeFlag = if ($script:isZombies) { " -zombies" } else { "" }
+    $launchArgs = "-noupdate -dedicated$modeFlag +set net_port $port +exec server.cfg +map_rotate"
 
     try {
         $script:serverProcess = Start-Process -FilePath (Join-Path $GameDir "s2x.exe") `
