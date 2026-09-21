@@ -22,7 +22,8 @@ namespace demonware::achievement_engine
 		std::function<void(cache_update)> cache_sink{};
 		std::mutex catalog_mutex{};
 		std::vector<hq_economy::achievement> definitions{};
-		std::vector<std::uint32_t> loot_items{}, zombies_loot_items{};
+		std::vector<std::uint32_t> loot_items{};
+		std::map<std::uint32_t, consumable_grant> zombies_consumables{};
 		std::map<std::uint32_t, std::uint32_t> loot_duplicate_credits;
 		std::map<std::string, hq_event_predicate::rule> event_rules;
 		using allocator = rapidjson::Document::AllocatorType;
@@ -476,16 +477,27 @@ namespace demonware::achievement_engine
 		definitions = std::move(catalog);
 	}
 
-	void set_loot_catalog(std::vector<std::uint32_t> items, const bool zombies,
-		std::map<std::uint32_t, std::uint32_t> duplicate_credits)
+	void set_loot_catalog(std::vector<std::uint32_t> items, std::map<std::uint32_t, std::uint32_t> duplicate_credits)
 	{
 		std::erase_if(items, [](const auto id) { return id <= 2 || id > INT32_MAX; });
 		std::sort(items.begin(), items.end());
 		items.erase(std::unique(items.begin(), items.end()), items.end());
 		if (items.size() > 10000) items.clear();
 		std::lock_guard lock{catalog_mutex};
-		(zombies ? zombies_loot_items : loot_items) = std::move(items);
-		if (!zombies) loot_duplicate_credits = std::move(duplicate_credits);
+		loot_items = std::move(items);
+		loot_duplicate_credits = std::move(duplicate_credits);
+	}
+
+	void set_zombies_loot_catalog(std::map<std::uint32_t, consumable_grant> consumables)
+	{
+		std::erase_if(consumables, [](const auto& entry)
+		{
+			const auto& [id, grant] = entry;
+			return id <= 2 || id > INT32_MAX || grant.stock <= 2 || grant.stock > INT32_MAX || !grant.units || grant.units > 64;
+		});
+		if (consumables.size() > 10000) consumables.clear();
+		std::lock_guard lock{catalog_mutex};
+		zombies_consumables = std::move(consumables);
 	}
 
 	void retry_event_cache_refresh()
@@ -965,12 +977,14 @@ namespace demonware::achievement_engine
 				if (!drop_id) return fail("unsupported_supply_drop");
 				std::vector<std::uint32_t> pool, consumables;
 				std::map<std::uint32_t, std::uint32_t> duplicate_credits;
+				std::map<std::uint32_t, consumable_grant> consumable_grants;
 				{
 					std::lock_guard lock{catalog_mutex};
 					pool = loot_items;
 					duplicate_credits = loot_duplicate_credits;
-					if (drop_id == 6) consumables = zombies_loot_items;
+					if (drop_id == 6) consumable_grants = zombies_consumables;
 				}
+				for (const auto& [id, grant] : consumable_grants) consumables.push_back(id);
 				const auto key = "drop:" + client_tx;
 				const auto ok = hq_economy::transact([&](hq_economy::state& next)
 				{
@@ -1022,7 +1036,11 @@ namespace demonware::achievement_engine
 								else
 								{
 									// grant() replaces expired/zero-quantity items with permanent units.
-									if (!hq_economy::grant(next, {"GRANT_PRODUCT", id, 1})) return false;
+									// A consumable card stacks its charge count on its family stock row.
+									const auto card = consumable_grants.find(id);
+									const auto stock = card == consumable_grants.end() ? id : card->second.stock;
+									const auto units = card == consumable_grants.end() ? 1u : card->second.units;
+									if (!hq_economy::grant(next, {"GRANT_PRODUCT", stock, units})) return false;
 								}
 								rapidjson::Value item{rapidjson::kObjectType};
 								item.AddMember("id", id, alloc);
@@ -1053,7 +1071,11 @@ namespace demonware::achievement_engine
 					for (const auto& item : response["GrantedItems"].GetArray())
 					{
 						if (!item.IsObject() || !item.HasMember("id") || !item["id"].IsUint()) return false;
-						ids.push_back(item["id"].GetUint());
+						const auto id = item["id"].GetUint();
+						ids.push_back(id);
+						// A card that stacks elsewhere changed its stock row, so report that too.
+						const auto card = consumable_grants.find(id);
+						if (card != consumable_grants.end()) ids.push_back(card->second.stock);
 					}
 					std::sort(ids.begin(), ids.end());
 					ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
@@ -1061,14 +1083,17 @@ namespace demonware::achievement_engine
 					for (const auto id : ids)
 					{
 						const auto found = next.inventory.find({id, 0});
-						if (found == next.inventory.end()) return false;
-						const auto& entry = found->second;
+						// A card that stacks elsewhere never gets a row of its own; report it empty.
+						if (found == next.inventory.end() && !consumable_grants.contains(id)) return false;
+						const auto quantity = found == next.inventory.end() ? 0u : found->second.quantity;
+						const auto collision = found == next.inventory.end() ? 0u : found->second.collision;
+						const auto modified = found == next.inventory.end() ? static_cast<std::uint32_t>(now) : found->second.modified;
 						rapidjson::Value item{rapidjson::kObjectType};
 						item.AddMember("item_id", id, alloc);
-						item.AddMember("item_quantity", entry.quantity, alloc);
-						item.AddMember("collision_field", entry.collision, alloc);
+						item.AddMember("item_quantity", quantity, alloc);
+						item.AddMember("collision_field", collision, alloc);
 						item.AddMember("expiry_duration", std::numeric_limits<std::int64_t>::max(), alloc);
-						item.AddMember("mod_date_time", entry.modified, alloc);
+						item.AddMember("mod_date_time", modified, alloc);
 						inventory.PushBack(item, alloc);
 					}
 					response.AddMember("DetailedInventory", inventory, alloc);

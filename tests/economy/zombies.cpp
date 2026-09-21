@@ -266,8 +266,8 @@ void duplicate_drop_checks()
 				// unowned, already owned, zero quantity, expired rental
 				seed(drop, ownership == 2 ? 0 : ownership == 0 ? 0 : 1,
 					ownership == 3 ? static_cast<unsigned>(time(nullptr) - 1) : 0, 100);
-				achievement_engine::set_loot_catalog({cosmetic}, false, {{cosmetic, price}});
-				achievement_engine::set_loot_catalog({consumable}, true);
+				achievement_engine::set_loot_catalog({cosmetic}, {{cosmetic, price}});
+				achievement_engine::set_zombies_loot_catalog({{consumable, {consumable, 1}}});
 				const auto result = open(name, "duplicate-roll");
 				require(ok(result), "MP common/rare and Zombies drop succeeds");
 				const auto count = drop == 6 ? 2u : 3u;
@@ -289,7 +289,7 @@ void duplicate_drop_checks()
 				// original receipt, never reroll, reprice or grant the old payout again.
 				require(hq_economy::transact([](auto& next) { return hq_economy::grant(next, {"SET_CURRENCY_BALANCE", 6, 0}); }), "spend after opening");
 				achievement_engine::set_loot_catalog({});
-				achievement_engine::set_loot_catalog({}, true);
+				achievement_engine::set_zombies_loot_catalog({});
 				hq_economy::invalidate();
 				const auto revision = hq_economy::snapshot().revision;
 				const auto replay = open(name, "duplicate-roll");
@@ -304,7 +304,7 @@ void duplicate_drop_checks()
 	// shown, nothing is credited and nothing is stacked. An unowned one is granted.
 	seed(6, 1, 0, 100);
 	achievement_engine::set_loot_catalog({cosmetic});
-	achievement_engine::set_loot_catalog({consumable}, true);
+	achievement_engine::set_zombies_loot_catalog({{consumable, {consumable, 1}}});
 	{
 		const auto result = open("sd_zombie_rare", "missing-value");
 		require(ok(result) && result["GrantedItems"].Size() == 5 && result["GrantedCurrencies"].Size() == 0,
@@ -317,7 +317,28 @@ void duplicate_drop_checks()
 	seed(6, 0, 0, 100);
 	require(ok(open("sd_zombie_rare", "missing-value-unowned")) && hq_economy::snapshot().inventory.at({cosmetic, 0}).quantity == 1,
 		"an unowned item without a pawn value is still granted once");
-	achievement_engine::set_loot_catalog({cosmetic}, false, {{cosmetic, 25}});
+	// A rated card stacks its charge count, and a family with an unrated stock row
+	// (Self-Revives) stacks there while the reveal still names the card.
+	seed(6, 0, 0, 100);
+	achievement_engine::set_zombies_loot_catalog({{0x4A0003F, {0x4A0003B, 4}}});
+	{
+		const auto result = open("sd_zombie_rare", "stock-row");
+		require(ok(result) && result["GrantedItems"].Size() == 5, "stock-row drop opens");
+		for (unsigned i = 2; i < 5; ++i)
+			require(result["GrantedItems"][i]["id"].GetUint() == 0x4A0003Fu, "reveal names the rated card");
+		const auto state = hq_economy::snapshot();
+		require(state.inventory.at({0x4A0003B, 0}).quantity == 12 && state.inventory.find({0x4A0003F, 0}) == state.inventory.end(),
+			"three epic cards stack twelve units on the stock row and none on the card");
+		bool stock_reported{}, card_reported{};
+		for (const auto& item : result["DetailedInventory"].GetArray())
+		{
+			if (item["item_id"].GetUint() == 0x4A0003Bu) stock_reported = item["item_quantity"].GetUint() == 12;
+			if (item["item_id"].GetUint() == 0x4A0003Fu) card_reported = item["item_quantity"].GetUint() == 0;
+		}
+		require(stock_reported && card_reported, "DetailedInventory carries the stock row and the empty card");
+	}
+	achievement_engine::set_zombies_loot_catalog({{consumable, {consumable, 1}}});
+	achievement_engine::set_loot_catalog({cosmetic}, {{cosmetic, 25}});
 	auto revision = hq_economy::snapshot().revision;
 
 	seed(6, 1, 0, UINT32_MAX - 1);
@@ -474,14 +495,14 @@ int main(int argc, char** argv)
 
 		// The Zombies reveal needs both pools: two regular cards then three
 		// consumables. Missing either pool must leave the drop intact.
-		achievement_engine::set_loot_catalog({0x20000D}, false, {{0x20000D, 25}});
+		achievement_engine::set_loot_catalog({0x20000D}, {{0x20000D, 25}});
 		require(!ok(request(R"({"Action":"open_supply_drop","SupplyDropID":"sd_zombie_rare","ClientTx":"drop"})")), "missing Zombies pool fails closed");
 		require(hq_economy::snapshot().inventory.at({6,0}).quantity == 1, "failed opening retains drop");
-		achievement_engine::set_loot_catalog({0x4A00003}, true);
+		achievement_engine::set_zombies_loot_catalog({{0x4A00003, {0x4A00003, 1}}});
 		achievement_engine::set_loot_catalog({});
 		require(!ok(request(R"({"Action":"open_supply_drop","SupplyDropID":"sd_zombie_rare","ClientTx":"drop"})")), "missing regular-card pool fails closed");
 		require(hq_economy::snapshot().inventory.at({6,0}).quantity == 1, "either missing pool retains drop");
-		achievement_engine::set_loot_catalog({0x20000D}, false, {{0x20000D, 25}});
+		achievement_engine::set_loot_catalog({0x20000D}, {{0x20000D, 25}});
 		auto opened = request(R"({"Action":"open_supply_drop","SupplyDropID":"sd_zombie_rare","ClientTx":"drop"})");
 		require(ok(opened) && opened["GrantedItems"].Size() == 5, "ZM drop returns five reveal records");
 		for (unsigned i = 0; i < 5; ++i)

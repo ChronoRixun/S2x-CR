@@ -89,17 +89,32 @@ namespace hq_economy
 			try
 			{
 				const auto* stats = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/StatsTable.csv", false).stringTable;
-				if (stats && stats->values && stats->columnCount > 24)
+				if (stats && stats->values && stats->columnCount > 29)
 				{
-					std::vector<std::uint32_t> zombies_pool;
+					// Column 24 marks the unrated stock row of a family. Self-Revives are the
+					// one case: the Consumables screen counts that row, not the rated cards.
+					std::map<std::string, std::uint32_t> family_stock;
 					for (int row = 0; row < stats->rowCount; ++row)
 					{
 						std::uint32_t id{};
 						if (std::string_view{cell(stats, row, 0)} == "zombieconsumable" &&
-							std::string_view{cell(stats, row, 20)} != "1" && std::string_view{cell(stats, row, 24)} != "1" &&
-							parse_number(cell(stats, row, 18), id)) zombies_pool.push_back(id);
+							std::string_view{cell(stats, row, 24)} == "1" && parse_number(cell(stats, row, 18), id))
+							family_stock[cell(stats, row, 1)] = id;
 					}
-					demonware::achievement_engine::set_loot_catalog(std::move(zombies_pool), true);
+					std::map<std::uint32_t, demonware::achievement_engine::consumable_grant> zombies_pool;
+					for (int row = 0; row < stats->rowCount; ++row)
+					{
+						std::uint32_t id{}, rarity{};
+						if (std::string_view{cell(stats, row, 0)} != "zombieconsumable" ||
+							std::string_view{cell(stats, row, 20)} == "1" || std::string_view{cell(stats, row, 24)} == "1" ||
+							!parse_number(cell(stats, row, 18), id)) continue;
+						// The reveal labels a card by its rarity (29), common 1 charge up to epic 4,
+						// and the slot badge counts units, so a card stacks rarity + 1 of them.
+						if (!parse_number(cell(stats, row, 29), rarity) || rarity > 3) rarity = 0;
+						const auto stock = family_stock.find(cell(stats, row, 1));
+						zombies_pool[id] = {stock == family_stock.end() ? id : stock->second, rarity + 1};
+					}
+					demonware::achievement_engine::set_zombies_loot_catalog(std::move(zombies_pool));
 				}
 				const auto* collections = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/collections.csv", false).stringTable;
 				const auto* items = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/itemscollections.csv", false).stringTable;
@@ -147,7 +162,7 @@ namespace hq_economy
 					console::warn("[HQ economy] %zu of %zu loot items have no Armory Credit pawn value; their duplicates grant nothing extra\n",
 						pool.size() - duplicate_credits.size(), pool.size());
 				}
-				demonware::achievement_engine::set_loot_catalog(std::move(pool), false, std::move(duplicate_credits));
+				demonware::achievement_engine::set_loot_catalog(std::move(pool), std::move(duplicate_credits));
 			}
 			catch (const std::exception& error)
 			{

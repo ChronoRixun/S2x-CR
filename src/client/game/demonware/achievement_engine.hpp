@@ -35,9 +35,13 @@ namespace demonware::achievement_engine
 	void set_event_rules(std::map<std::string, hq_event_predicate::rule> rules);
 	void set_catalog(std::vector<hq_economy::achievement> catalog);
 	// Non-consumable duplicates convert to Armory Credits when the ID has a pawn
-	// value; the rest roll as plain grants. Zombies consumables stack instead.
-	void set_loot_catalog(std::vector<std::uint32_t> items, bool zombies = false,
-		std::map<std::uint32_t, std::uint32_t> duplicate_credits = {});
+	// value; the rest roll as plain grants.
+	void set_loot_catalog(std::vector<std::uint32_t> items, std::map<std::uint32_t, std::uint32_t> duplicate_credits = {});
+	// A Zombies consumable card stacks `units` of `stock`: its own ID, unless its
+	// family keeps stock on one unrated row (Self-Revives), which the Consumables
+	// screen counts. The reveal still shows the rolled card.
+	struct consumable_grant { std::uint32_t stock; std::uint32_t units; };
+	void set_zombies_loot_catalog(std::map<std::uint32_t, consumable_grant> consumables);
 	bool valid_event(const reward_game_events::event& event, bool native_payroll = false);
 	bool submit_relay_events(std::vector<reward_game_events::event>& events);
 	bool submit_events(const std::vector<reward_game_events::event>& events, bool native_payroll = false);
