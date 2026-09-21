@@ -160,7 +160,7 @@ if (-not $window) {
 # ── Resolve controls, and say which ones are missing ───────────────────────────
 $ControlNames = @(
     "barTitle","btnMinimize","btnClose",
-    "txtName","cmbPreset","btnLoadPreset","btnSavePreset","btnDeletePreset",
+    "txtName","pnlColors","txtNamePreview","cmbPreset","btnLoadPreset","btnSavePreset","btnDeletePreset",
     "lblRotationCount","btnClear","cmbMap","cmbGametype","btnAdd","lstRotation",
     "numWar","numDom","numHp","numDm","numConf","numSd","numCtf","numGun","numBall",
     "lblScoreSummary","chkHalftime",
@@ -381,6 +381,40 @@ $sldBotFill.Add_ValueChanged({
     Update-Summaries
 })
 $cmbBotNames.Add_SelectionChanged({ Update-Summaries })
+
+# ── Server name colour codes ───────────────────────────────────────────────────
+# The engine renders ^0-^7 in sv_hostname (browser, scoreboard); the swatches insert
+# a code at the caret and the preview shows the result without the codes.
+$ColorCodes = @{ '0' = '#101010'; '1' = '#E0332B'; '2' = '#34C759'; '3' = '#F5C400'
+                 '4' = '#3C7BFF'; '5' = '#2AD4E0'; '6' = '#E040C8'; '7' = '#F2F2F2' }
+$BrushConverter = New-Object System.Windows.Media.BrushConverter
+function Update-NamePreview {
+    $txtNamePreview.Inlines.Clear()
+    $color = $ColorCodes['7']
+    foreach ($part in [regex]::Split($txtName.Text, '(\^[0-9])')) {
+        if ($part -match '^\^([0-9])$') {
+            if ($ColorCodes.ContainsKey($Matches[1])) { $color = $ColorCodes[$Matches[1]] }
+            continue
+        }
+        if ($part.Length -eq 0) { continue }
+        $run = New-Object System.Windows.Documents.Run $part
+        $run.Foreground = $BrushConverter.ConvertFromString($color)
+        $txtNamePreview.Inlines.Add($run)
+    }
+}
+$txtName.Add_TextChanged({ Update-NamePreview })
+foreach ($swatch in $pnlColors.Children) {
+    if ($swatch -isnot [System.Windows.Controls.Border] -or -not $swatch.Tag) { continue }
+    $swatch.Add_MouseLeftButtonDown({
+        param($sender, $e)
+        $pos = $txtName.CaretIndex
+        $txtName.Text = $txtName.Text.Insert($pos, [string]$sender.Tag)
+        $txtName.CaretIndex = $pos + 2
+        $txtName.Focus()
+        $e.Handled = $true
+    })
+}
+Update-NamePreview
 
 # ── Mode toggle (MP / Zombies) ────────────────────────────────────────────────
 $script:cmbMode = New-Object System.Windows.Controls.ComboBox

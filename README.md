@@ -69,7 +69,7 @@ The rotation is mode-aware: MP players see MP orders, zombies players see zombie
 
 ### Dedicated server launcher
 
-`tools/server-launcher.ps1` is a WPF GUI for launching a dedicated server without writing configs by hand. A mode toggle switches between Multiplayer and Zombies — each with its own map list, settings, and saved presets. It handles server name, map rotation, per-gametype score limits, single-round domination, bot fill, bot names, and port. Presets save and load independently per mode.
+`tools/server-launcher.ps1` is a WPF GUI for launching a dedicated server without writing configs by hand. A mode toggle switches between Multiplayer and Zombies — each with its own map list, settings, and saved presets. It handles server name, map rotation, per-gametype score limits, single-round domination, bot fill, bot names, and port. Presets save and load independently per mode. The server name accepts the engine's `^0`–`^7` colour codes (yellow is `^3`, white `^7`); the swatches under the name field insert them at the cursor and the preview shows how the browser will render the name.
 
 ```text
 powershell -ExecutionPolicy Bypass -File tools\server-launcher.ps1

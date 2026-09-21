@@ -525,6 +525,21 @@
           <Border BorderBrush="{StaticResource Accent}" BorderThickness="2,0,0,0">
             <TextBox x:Name="txtName" Text="S2x Dedicated Server" FontSize="14" BorderThickness="0,1,1,1"/>
           </Border>
+          <DockPanel Margin="0,6,0,0" LastChildFill="True">
+            <StackPanel x:Name="pnlColors" Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
+              <TextBlock Text="COLOR" Style="{StaticResource Mono}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+              <Border Tag="^1" Background="#E0332B" ToolTip="Red  ^1" Width="20" Height="16" Margin="0,0,4,0" CornerRadius="2" Cursor="Hand"/>
+              <Border Tag="^2" Background="#34C759" ToolTip="Green  ^2" Width="20" Height="16" Margin="0,0,4,0" CornerRadius="2" Cursor="Hand"/>
+              <Border Tag="^3" Background="#F5C400" ToolTip="Yellow  ^3" Width="20" Height="16" Margin="0,0,4,0" CornerRadius="2" Cursor="Hand"/>
+              <Border Tag="^4" Background="#3C7BFF" ToolTip="Blue  ^4" Width="20" Height="16" Margin="0,0,4,0" CornerRadius="2" Cursor="Hand"/>
+              <Border Tag="^5" Background="#2AD4E0" ToolTip="Cyan  ^5" Width="20" Height="16" Margin="0,0,4,0" CornerRadius="2" Cursor="Hand"/>
+              <Border Tag="^6" Background="#E040C8" ToolTip="Magenta  ^6" Width="20" Height="16" Margin="0,0,4,0" CornerRadius="2" Cursor="Hand"/>
+              <Border Tag="^7" Background="#F2F2F2" ToolTip="White  ^7" Width="20" Height="16" Margin="0,0,4,0" CornerRadius="2" Cursor="Hand"/>
+              <Border Tag="^0" Background="#101010" BorderBrush="{StaticResource Edge}" BorderThickness="1" ToolTip="Black  ^0" Width="20" Height="16" Margin="0,0,4,0" CornerRadius="2" Cursor="Hand"/>
+            </StackPanel>
+            <TextBlock x:Name="txtNamePreview" FontSize="13" Margin="14,0,0,0" VerticalAlignment="Center"
+                       TextTrimming="CharacterEllipsis" Foreground="{StaticResource Ink}"/>
+          </DockPanel>
         </StackPanel>
         <StackPanel Grid.Column="1" VerticalAlignment="Center">
           <TextBlock Text="PRESET" Style="{StaticResource FieldLabel}"/>
