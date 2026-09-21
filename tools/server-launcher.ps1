@@ -142,6 +142,20 @@ $ZombieMapPacks = @{
 $ZombieMapKeys   = @($ZombieMaps.Keys)
 $ZombieMapValues = @($ZombieMaps.Values)
 
+# Presets saved before v1.3.0 carry the placeholder zone names the launcher used
+# to list Zombies maps; the game never had them. The old single Tortured Path
+# entry becomes its first chapter.
+$LegacyZombieZones = @{
+    "nazi_zombie_proto"       = "mp_zombie_house"
+    "nazi_zombie_asylum_f"    = "mp_zombie_descent"
+    "nazi_zombie_island"      = "mp_zombie_island"
+    "nazi_zombie_office"      = "mp_zombie_berlin"
+    "nazi_zombie_treasure"    = "mp_zombie_windmill"
+    "nazi_zombie_uss"         = "mp_zombie_dnk"
+    "nazi_zombie_museum"      = "mp_zombie_dig_02"
+    "nazi_zombie_mountaineer" = "mp_zombie_nest_01"
+}
+
 $BotNamePools = @("default", "modern", "nostalgia")
 $script:isZombies = $false
 $script:suppressModeSwitch = $false
@@ -667,6 +681,9 @@ function Import-Preset($name) {
         }
         if ($cmbMap.Items.Count -gt 0) { $cmbMap.SelectedIndex = 0 }
 
+        foreach ($entry in $cfg.rotation) {
+            if ($entry.map -and $LegacyZombieZones.ContainsKey($entry.map)) { $entry.map = $LegacyZombieZones[$entry.map] }
+        }
         Set-Config $cfg
     } finally {
         $script:suppressModeSwitch = $false
