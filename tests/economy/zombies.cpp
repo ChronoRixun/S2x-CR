@@ -522,6 +522,11 @@ int main(int argc, char** argv)
 		require(ok(request(R"({"Action":"open_supply_drop","SupplyDropID":"sd_zombie_rare","ClientTx":"drop"})")), "open replay");
 		require(hq_economy::snapshot().inventory.at({0x4A00003,0}).quantity == 3, "three consumables, once");
 		require(hq_economy::snapshot().inventory.at({0x20000D,0}).quantity == 1, "two regular cards: one item and one converted duplicate");
+		// A Zombies level-up pays a Rare Zombie Supply Drop once per event, as the
+		// after-action screen promises; the receipt makes a retry a no-op.
+		reward_game_events::event levelup{"14", timestamp++, {}};
+		require(achievement_engine::submit_event(levelup) && achievement_engine::submit_event(levelup), "ZM level-up accepted and retried");
+		require(hq_economy::snapshot().inventory.at({6,0}).quantity == 1 && !hq_economy::snapshot().inventory.contains({2,0}), "ZM level-up grants one zombie drop, not an MP rare, and only once");
 		require(hq_marketplace::purchase("zm-purchase", 6, 1) == 0, "buy zombie drop");
 		require(hq_marketplace::purchase("zm-purchase", 6, 1) == 0, "purchase replay");
 		require(hq_economy::snapshot().currencies.at(6) == 525, "purchase debits AC once after duplicate credits");

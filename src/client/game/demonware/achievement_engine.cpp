@@ -608,14 +608,15 @@ namespace demonware::achievement_engine
 		return [&]()
 		{
 			if (event.timestamp > 0 && data.transactions.contains(key)) return true;
-			// A soldier level-up awards a Rare Supply Drop (mp/supplyDropTypes.csv sd_mp_rare,
-			// item 2), as the end-of-match screen promises. The event carries no rank; the
-			// receipt above keeps it once per event.
-			if (event_type == 14 && !game::environment::is_zombies())
+			// A soldier level-up awards a Rare Supply Drop, as the end-of-match screen
+			// promises: sd_mp_rare (item 2) in Multiplayer, sd_zombie_rare (item 6) in
+			// Zombies. The event carries no rank; the receipt above keeps it once per event.
+			if (event_type == 14)
 			{
-				if (!hq_economy::grant(data, {"GRANT_PRODUCT", 2, 1})) return false;
+				const auto zombies = game::environment::is_zombies();
+				if (!hq_economy::grant(data, {"GRANT_PRODUCT", zombies ? 6u : 2u, 1})) return false;
 				changed = true;
-				console::info("[HQ AE] rank up: granted a Rare Supply Drop\n");
+				console::info("[HQ AE] rank up: granted a Rare %sSupply Drop\n", zombies ? "Zombie " : "");
 			}
 			if (payroll)
 			{
