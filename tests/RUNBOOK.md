@@ -1,7 +1,7 @@
 # S2x-CR release runbook — v1.3.0 candidate
 
 **Written:** 2026-09-21 (from Astra's morning runbook, reordered by risk and extended with the install, box 4 and release steps)
-**Build under test:** `integration` at `66939a8` (everything since `v1.2.0`; rc6 adds the updater change, the consumable stock fix, the chat marker fix, the Zombies level-up drop and the launcher preset rewrite on top of `d8268d3`; the exe is rc5's, only the launcher script changed)
+**Build under test:** `integration` at `7a06aa1` (everything since `v1.2.0`; rc7 adds the updater change, the consumable stock fix, the chat marker fix, the Zombies level-up drop, the launcher preset rewrite and the launcher Zombies start on top of `d8268d3`; the exe is rc5's, only the launcher script changed since)
 **Repo:** `D:\S2x` — **Game:** `D:\Program Files\Steam\steamapps\common\Call of Duty WWII` — **Box 4:** runs v1.1.2 today, plus a hand-copied `server-status.ps1`
 **Budget:** about 90 minutes for sections 1–6 on this PC, then 20 minutes for box 4 and the release
 
@@ -27,6 +27,7 @@ Where I know the exact console wording it is quoted verbatim from real runs. Whe
 | `7fb6d64` | Chat from the in-game prompt reaches scripts without the 0x1F marker the engine prefixes, so `!visits` matches | section 2 |
 | `39a1f7e` | A Zombies level-up grants the Rare Zombie Supply Drop the after-action report promises | section 5 |
 | `39991ed`, `66939a8` | Launcher rewrites the pre-v1.3.0 placeholder Zombies zone names in saved presets and the last-used config | section 6 step 3 |
+| `7a06aa1` | Launcher starts Zombies servers with `map_rotate`; a command-line `+map` was dropped and the server never left the virtual lobby | section 6 step 4 |
 | `86b712d`–`d8268d3` | README, contributing files, CI, the showcase site | nothing to play |
 
 Automated coverage before you start: the economy, rank, scripting and storage harnesses pass offline; the fork's CI run is green; the chat bridge's argument order and the two engine addresses it calls were verified against the decompiled engine. What none of that proves is anything rendered on screen or anything a human types in chat. That is what this runbook is for.
@@ -44,7 +45,7 @@ cd D:\S2x
 git checkout integration; git pull --ff-only
 .\tools\premake5.exe vs2022
 & 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe' build\s2x.sln /t:client /p:Configuration=Release /p:Platform=x64 /m /v:minimal
-powershell -File build\diagnostics\package-release.ps1 -Version v1.3.0-rc6
+powershell -File build\diagnostics\package-release.ps1 -Version v1.3.0-rc7
 ```
 
 The packager prints every file it staged. Expect exactly this shape, and stop if anything is missing:
@@ -61,7 +62,7 @@ Install by copying the stage over the game folder:
 
 ```powershell
 $game = 'D:\Program Files\Steam\steamapps\common\Call of Duty WWII'
-Copy-Item D:\S2x\build\release\v1.3.0-rc6\stage\* $game -Recurse -Force
+Copy-Item D:\S2x\build\release\v1.3.0-rc7\stage\* $game -Recurse -Force
 ```
 
 Two things that have bitten before: `%LOCALAPPDATA%\s2x\data\ui_scripts_off` must stay renamed off (it outranks the game folder), and the `patches` folder must hold all seven files, not just the changed one.
@@ -336,7 +337,7 @@ The catalog with every target, price and time limit is `tests\economy\zombies-ca
 - [ ] DLC labels on the MP picker
 - [ ] Zombies names correct, Tortured Path split in three
 - [ ] Presets still load; a v1.2.0 Zombies preset shows the real map names after loading
-- [ ] A Zombies server started from the launcher loads the right zone
+- [ ] A Zombies server started from the launcher loads the right zone (its console must print "Dedicated map rotation" and select the map itself; before rc7 it stopped at "Virtual lobby initialized")
 
 ---
 
@@ -344,7 +345,7 @@ The catalog with every target, price and time limit is `tests\economy\zombies-ca
 
 Only after sections 1–6 are ticked. Box 4 has no Steam and runs the launcher from the game folder; the status task keeps running through the upgrade.
 
-1. Copy `D:\S2x\build\release\v1.3.0-rc6\s2x-cr-v1.3.0-rc6.zip` to box 4.
+1. Copy `D:\S2x\build\release\v1.3.0-rc7\s2x-cr-v1.3.0-rc7.zip` to box 4.
 2. Stop the server (close its console window). Extract the zip over the game folder, replacing what is there. `s2x\scripts\mp` now exists with the two scripts.
 3. Start the server from the launcher with the "My Server" preset.
 4. From this PC: the server appears in the browser within a minute, `connect` works, chat works on the public server (say something; nothing dies), and the Discord card updates within two minutes with the current map.
