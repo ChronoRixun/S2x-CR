@@ -86,7 +86,7 @@ For server-side scripting, drop `.gsc` files into `s2x\scripts\mp\` on the serve
 
 ## How it is tested
 
-Everything on `integration` is built and exercised in play before a release: dedicated servers through full rotations with bots and a connected client, the console commands with their error paths, the menus in Multiplayer and Zombies, and the persisted files afterwards. The economy, rank, scripting and storage code also have offline harnesses under `tests\`, and [tests/MORNING-RUNBOOK.md](tests/MORNING-RUNBOOK.md) lists the live checks for the current build.
+Everything on `integration` is built and exercised in play before a release: dedicated servers through full rotations with bots and a connected client, the console commands with their error paths, the menus in Multiplayer and Zombies, and the persisted files afterwards. The economy, rank, scripting and storage code also have offline harnesses under `tests\`, and [tests/RUNBOOK.md](tests/RUNBOOK.md) lists the live checks for the current build.
 
 ## Contributing
 

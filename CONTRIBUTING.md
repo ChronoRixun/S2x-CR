@@ -23,7 +23,7 @@ That pull request was about 1,200 lines. Once the cause was traced, the fix was 
 
 - Open an issue before a branch, so the problem is stated before the solution. One branch per issue from `integration`, named `fix/<issue>-<topic>` or `feat/<issue>-<topic>`.
 - Keep it buildable: `generate.bat`, then Release x64 with no new warnings.
-- Test it in play. Install the build and exercise what the change touches: a dedicated server through a rotation, the menu, the console command and its error paths, the persisted files afterwards. [tests/MORNING-RUNBOOK.md](tests/MORNING-RUNBOOK.md) shows the shape of a live check. Where an offline harness exists under `tests/` (economy, rank, scripting, storage), it must pass, and it grows when the code it covers changes.
+- Test it in play. Install the build and exercise what the change touches: a dedicated server through a rotation, the menu, the console command and its error paths, the persisted files afterwards. [tests/RUNBOOK.md](tests/RUNBOOK.md) shows the shape of a live check. Where an offline harness exists under `tests/` (economy, rank, scripting, storage), it must pass, and it grows when the code it covers changes.
 - Say what you did not test. That sentence is worth more than an implied full pass.
 - A pull request body is a short paragraph, not a document: the cause, the change, what it was tested against, what was not tested, and the simpler option you rejected and why. Length in proportion to the diff.
 - One pass of an automated reviewer is a thermometer, not a treadmill. A clean first pass is evidence the change is at the source. A review that keeps producing findings is telling you about the shape of the change, not its correctness; re-examine the design instead of working through the list.
