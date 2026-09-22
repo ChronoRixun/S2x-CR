@@ -88,7 +88,7 @@ namespace S2x.ServerManager.Services
             if (name.Length == 0) return "A preset needs a name.";
             if (name.StartsWith("_", StringComparison.Ordinal))
                 return "Names starting with _ belong to the launcher's own state.";
-            if (name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || name.IndexOf('.') == 0)
+            if (name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
                 return "A preset name cannot contain \\ / : * ? \" < > |.";
             return null;
         }
