@@ -248,9 +248,14 @@
             <DockPanel Margin="0,7,0,0">
               <TextBlock views:TextEffects.Tracked="{Binding StateCaps}" FontSize="10.5" FontWeight="Bold"
                          Foreground="{Binding StateBrush}" Margin="0,0,8,0"/>
-              <TextBlock Text="{Binding RosterLine}" FontSize="10.5" Foreground="{StaticResource Dim}"
-                         TextTrimming="CharacterEllipsis"/>
+              <TextBlock DockPanel.Dock="Right" Text="{Binding UptimeLine}" Style="{StaticResource Mono}"
+                         FontSize="10" VerticalAlignment="Center"/>
+              <Grid/>
             </DockPanel>
+            <!-- The live line gets the row to itself: the four things on it do not fit beside
+                 the state, and a trimmed one says the least about the busiest server. -->
+            <TextBlock Text="{Binding RosterLine}" FontSize="10.5" Foreground="{StaticResource Dim}"
+                       TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/>
           </StackPanel>
         </Border>
       </Button>

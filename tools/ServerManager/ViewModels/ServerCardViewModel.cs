@@ -233,10 +233,13 @@ namespace S2x.ServerManager.ViewModels
             get
             {
                 var dot = " " + GameData.MiddleDot + " ";
-                if (State.Status == ServerStatus.Stopped) return RotationSummary;
+                if (State.Status == ServerStatus.Stopped)
+                    return Preset.Rotation.Count + " maps" + dot + Preset.BotFill + " bots" +
+                           dot + "cap " + Preset.MaxPlayers;
                 if (State.Status == ServerStatus.Crashed) return "exited" + dot + "PID " + State.Pid;
                 if (State.Status == ServerStatus.Starting) return "loading" + dot + MapName;
-                var line = MapName + dot + CapText + " humans" + dot + State.Bots + " bots";
+                // The strip above the editor spells these out; the row has 186 px for them.
+                var line = MapName + dot + CapText + dot + State.Bots + " bots";
                 if (State.PingMs > 0) line += dot + State.PingMs + " ms";
                 return line;
             }
