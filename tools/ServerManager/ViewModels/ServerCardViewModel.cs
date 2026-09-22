@@ -39,7 +39,18 @@ namespace S2x.ServerManager.ViewModels
             RestartCommand = new RelayCommand(() => _fleet.Restart(this));
             CopyCommand = new RelayCommand(Copy);
             SelectCommand = new RelayCommand(() => _fleet.Selected = this);
+            EditCommand = new RelayCommand(() => _fleet.OpenEditor(Preset));
         }
+
+        /// <summary>How many other presets claim this card's port; set by the fleet's count.</summary>
+        public int SharedPorts { get; set; }
+
+        public string SharedNote
+        {
+            get { return "shares :" + Preset.Port + " with " + SharedPorts + (SharedPorts == 1 ? " preset" : " presets"); }
+        }
+
+        public Visibility SharedVisibility { get { return Show(SharedPorts > 0); } }
 
         public ServerPreset Preset { get; private set; }
         public ServerState State { get; set; }
@@ -49,6 +60,7 @@ namespace S2x.ServerManager.ViewModels
         public RelayCommand RestartCommand { get; private set; }
         public RelayCommand CopyCommand { get; private set; }
         public RelayCommand SelectCommand { get; private set; }
+        public RelayCommand EditCommand { get; private set; }
 
         public void Refresh()
         {
@@ -149,7 +161,7 @@ namespace S2x.ServerManager.ViewModels
         public Visibility HealthPlate { get { return Show(State.NeedsAttention); } }
         public Visibility StoppedPlate { get { return Show(State.Status == ServerStatus.Stopped); } }
         public Visibility NextRow { get { return Show(!State.NeedsAttention && Preset.Rotation.Count > 0); } }
-        public string CapText { get { return State.Humans + "/" + Math.Max(State.Cap, Preset.PlayerCap); } }
+        public string CapText { get { return State.Humans + "/" + Math.Max(State.Cap, Preset.MaxPlayers); } }
         public string UptimeText { get { return ServerState.FormatSpan(State.Uptime); } }
 
         public string MapName
@@ -187,7 +199,7 @@ namespace S2x.ServerManager.ViewModels
         {
             get
             {
-                var cap = Math.Max(1, State.Cap > 0 ? State.Cap : Preset.PlayerCap);
+                var cap = Math.Max(1, State.Cap > 0 ? State.Cap : Preset.MaxPlayers);
                 var ticks = new List<SlotTick>(cap);
                 for (int i = 0; i < cap; i++)
                 {
@@ -243,7 +255,7 @@ namespace S2x.ServerManager.ViewModels
             get
             {
                 return string.Format("{0} in rotation {1} {2} bots {1} cap {3}",
-                    Preset.Rotation.Count, GameData.MiddleDot, Preset.BotFill, Preset.PlayerCap);
+                    Preset.Rotation.Count, GameData.MiddleDot, Preset.BotFill, Preset.MaxPlayers);
             }
         }
 

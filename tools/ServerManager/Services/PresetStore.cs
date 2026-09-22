@@ -10,17 +10,17 @@ using S2x.ServerManager.Models;
 namespace S2x.ServerManager.Services
 {
     /// <summary>
-    /// Reads the presets the PowerShell launcher writes to &lt;game&gt;\s2x\presets. Names starting
-    /// with "_" (_lastused, _lastused_mp, _lastused_zombies) are the launcher's own state; they
-    /// are not servers, so they stay hidden.
+    /// Reads and writes the presets the PowerShell launcher keeps in &lt;game&gt;\s2x\presets.
+    /// Names starting with "_" (_lastused, _lastused_mp, _lastused_zombies) are the launcher's
+    /// own state; they are not servers, so they stay hidden.
     /// </summary>
     internal sealed class PresetStore
     {
         private readonly string _presetDir;
 
-        public PresetStore(string gameDir)
+        public PresetStore(string gameDir, string presetDir = null)
         {
-            _presetDir = GameFolder.PresetDir(gameDir);
+            _presetDir = string.IsNullOrEmpty(presetDir) ? GameFolder.PresetDir(gameDir) : Path.GetFullPath(presetDir);
         }
 
         public string Directory { get { return _presetDir; } }
@@ -43,7 +43,7 @@ namespace S2x.ServerManager.Services
                 .ToList();
         }
 
-        /// <summary>The presets bundled next to this exe, offered on the empty screen.</summary>
+        /// <summary>The presets bundled next to this exe, offered on the empty screen and in + New server.</summary>
         public static List<ServerPreset> Bundled()
         {
             var list = new List<ServerPreset>();
@@ -74,6 +74,79 @@ namespace S2x.ServerManager.Services
             return target;
         }
 
+        public bool Exists(string name)
+        {
+            return File.Exists(Path.Combine(_presetDir, name + ".json"));
+        }
+
+        public string PathFor(string name) { return Path.Combine(_presetDir, name + ".json"); }
+
+        /// <summary>A name the launcher's preset box can also show, or the reason it cannot.</summary>
+        public static string NameProblem(string name)
+        {
+            name = (name ?? "").Trim();
+            if (name.Length == 0) return "A preset needs a name.";
+            if (name.StartsWith("_", StringComparison.Ordinal))
+                return "Names starting with _ belong to the launcher's own state.";
+            if (name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || name.IndexOf('.') == 0)
+                return "A preset name cannot contain \\ / : * ? \" < > |.";
+            return null;
+        }
+
+        /// <summary>The lowest free port at or above the launcher's default.</summary>
+        public static int NextFreePort(IEnumerable<int> taken)
+        {
+            var used = new HashSet<int>(taken);
+            for (int port = 27016; port <= 65535; port++) if (!used.Contains(port)) return port;
+            return 27016;
+        }
+
+        public void Save(ServerPreset preset)
+        {
+            System.IO.Directory.CreateDirectory(_presetDir);
+            if (string.IsNullOrEmpty(preset.FilePath)) preset.FilePath = PathFor(preset.FileName);
+            PresetJson.Save(preset.FilePath, Compose(preset));
+        }
+
+        /// <summary>The preset as the file's keys, the launcher's spellings, unknown keys kept.</summary>
+        private static Dictionary<string, object> Compose(ServerPreset preset)
+        {
+            var root = preset.Raw ?? new Dictionary<string, object>(StringComparer.Ordinal);
+            preset.Raw = root;
+
+            root["serverName"] = preset.ServerName;
+            root["mode"] = preset.IsZombies ? "zombies" : "mp";
+            root["rotation"] = preset.Rotation.Select(entry =>
+            {
+                var item = new Dictionary<string, object>(StringComparer.Ordinal);
+                item["gametype"] = entry.Gametype;
+                item["map"] = entry.Map;
+                return (object)item;
+            }).ToArray();
+
+            var scores = Get(root, "scoreLimits") as Dictionary<string, object>;
+            if (scores == null) root["scoreLimits"] = scores = new Dictionary<string, object>(StringComparer.Ordinal);
+            foreach (var pair in GameData.DefaultScoreLimits)
+            {
+                int value;
+                scores[pair.Key] = preset.ScoreLimits.TryGetValue(pair.Key, out value) ? Clamp(value, 1, 999) : pair.Value;
+            }
+
+            root["singleRoundDom"] = preset.SingleRoundDom;
+            root["botFill"] = preset.BotFill;
+            root["botNames"] = preset.BotNames;
+            root["port"] = preset.Port;
+
+            root["botDifficulty"] = preset.BotDifficulty;
+            root["maxPlayers"] = preset.MaxPlayers;
+            root["minPlayers"] = preset.MinPlayers;
+            root["startDelay"] = preset.StartDelay;
+            root["advertise"] = preset.Advertise;
+            root["extraLines"] = preset.ExtraLines.Cast<object>().ToArray();
+            root["shuffleOnLaunch"] = preset.ShuffleOnLaunch;
+            return root;
+        }
+
         public static ServerPreset Read(string file)
         {
             try
@@ -94,6 +167,25 @@ namespace S2x.ServerManager.Services
                 preset.Port = Clamp(Int(root, "port", 27016), 1024, 65535);
                 preset.BotFill = Clamp(Int(root, "botFill", 12), 0, 18);   // Set-Config clamps both ends
                 preset.SingleRoundDom = Bool(root, "singleRoundDom", true);
+
+                var ceiling = ServerPreset.CapCeiling(preset.IsZombies);
+                preset.MaxPlayers = Clamp(Int(root, "maxPlayers", ceiling), 1, ceiling);
+                preset.BotFill = Math.Min(preset.BotFill, preset.MaxPlayers);
+                preset.MinPlayers = Clamp(Int(root, "minPlayers", 1), 1, preset.MaxPlayers);
+                preset.StartDelay = Clamp(Int(root, "startDelay", 60), 0, ServerPreset.MaxStartDelay);
+                preset.Advertise = Bool(root, "advertise", true);
+                preset.ShuffleOnLaunch = Bool(root, "shuffleOnLaunch", false);
+
+                var difficulty = (Str(root, "botDifficulty") ?? "regular").ToLowerInvariant();
+                preset.BotDifficulty = Array.IndexOf(GameData.BotDifficulties, difficulty) >= 0 ? difficulty : "regular";
+
+                var extra = Get(root, "extraLines") as object[];
+                if (extra != null)
+                    foreach (var line in extra)
+                    {
+                        var value = Convert.ToString(line, CultureInfo.InvariantCulture);
+                        if (!string.IsNullOrWhiteSpace(value)) preset.ExtraLines.Add(value);
+                    }
 
                 var scores = Get(root, "scoreLimits") as Dictionary<string, object>;
                 foreach (var pair in GameData.DefaultScoreLimits)

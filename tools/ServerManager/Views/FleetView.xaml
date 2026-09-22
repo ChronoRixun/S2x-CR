@@ -79,6 +79,10 @@
                     <TextBlock views:TextEffects.Tracked="{Binding StateCaps}" FontSize="10.5" FontWeight="Bold"
                                Foreground="{Binding StateBrush}" VerticalAlignment="Center"/>
                   </DockPanel>
+                  <!-- Two presets on one port is one server; the second never gets the socket. -->
+                  <TextBlock Text="{Binding SharedNote}" Visibility="{Binding SharedVisibility}"
+                             FontSize="10.5" Foreground="{StaticResource Accent}" Margin="14,4,0,0"
+                             TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
               </Grid>
             </Border>
@@ -184,7 +188,7 @@
                         Visibility="{Binding RestartButton}" Command="{Binding RestartCommand}"
                         BorderBrush="{Binding CardEdge}" BorderThickness="0,0,1,0"/>
                 <Button Grid.Column="2" Style="{StaticResource CardAction}" Content="EDIT"
-                        IsEnabled="False" ToolTip="next slice"
+                        Command="{Binding EditCommand}" ToolTip="Name, rotation, rules, bots"
                         BorderBrush="{Binding CardEdge}" BorderThickness="0,0,1,0"/>
                 <Button Grid.Column="3" Style="{StaticResource CardAction}" Content="CONSOLE"
                         IsEnabled="False" ToolTip="next slice"
@@ -324,7 +328,7 @@
           <Button Style="{StaticResource DangerGhost}" Content="&#x25A0; STOP ALL" Command="{Binding StopAllCommand}"
                   Margin="8,0,0,0"/>
           <Button Style="{StaticResource Outline}" Content="+ New server" Command="{Binding NewServerCommand}"
-                  ToolTip="next slice" ToolTipService.ShowOnDisabled="True" Margin="14,0,0,0"/>
+                  ToolTip="A bundled rotation or a blank one, on the next free port" Margin="14,0,0,0"/>
           <Border BorderBrush="{StaticResource Edge}" BorderThickness="1" Height="32" Margin="10,0,0,0">
             <StackPanel Orientation="Horizontal">
               <Button Style="{StaticResource Segment}" Content="&#x25A6; CARDS" Command="{Binding ShowCardsCommand}"
@@ -405,11 +409,9 @@
                 </StackPanel>
               </StackPanel>
               <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                <Button Style="{StaticResource Primary}" Content="&#x25B6; START" Padding="12,7"
-                        Visibility="{Binding StartButton}" Command="{Binding StartCommand}"/>
-                <Button Style="{StaticResource DangerGhost}" Content="&#x25A0; STOP" Padding="12,6"
-                        Visibility="{Binding StopButton}" Command="{Binding StopCommand}"/>
-                <Button Style="{StaticResource Outline}" Content="CONSOLE" Padding="12,6" Margin="6,0,0,0"
+                <!-- Starting and stopping belong to the editor's footer below, so this strip is
+                     only what the server is doing right now. -->
+                <Button Style="{StaticResource Outline}" Content="CONSOLE" Padding="12,6"
                         IsEnabled="False" ToolTip="next slice" ToolTipService.ShowOnDisabled="True"/>
                 <Button Style="{StaticResource Outline}" Padding="8,6" Margin="6,0,0,0" FontFamily="Consolas"
                         FontSize="11" Command="{Binding CopyCommand}" ToolTip="Copy the connect line">
@@ -431,14 +433,9 @@
             </DockPanel>
           </Border>
 
-          <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
-            <TextBlock views:TextEffects.Tracked="EDITOR" FontSize="10.5" FontWeight="SemiBold"
-                       Foreground="{StaticResource Accent}" HorizontalAlignment="Center"/>
-            <TextBlock Text="The rotation builder lands in the next slice." FontSize="16" Margin="0,8,0,0"
-                       HorizontalAlignment="Center"/>
-            <TextBlock Text="Until then, change a preset in the PowerShell launcher and it shows up here."
-                       FontSize="12.5" Foreground="{StaticResource Muted}" Margin="0,6,0,0" HorizontalAlignment="Center"/>
-          </StackPanel>
+          <!-- The selected row's editor, the same one EDIT opens full screen. -->
+          <views:EditorView Grid.Row="1" DataContext="{Binding DataContext.RosterEditor,
+                                                       RelativeSource={RelativeSource AncestorType=UserControl}}"/>
         </Grid>
       </Grid>
 

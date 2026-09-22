@@ -59,6 +59,39 @@ namespace S2x.ServerManager.Services
             return fleet;
         }
 
+        /// <summary>The editor's three demo states: a filled multiplayer rotation, Zombies, empty.</summary>
+        public static KeyValuePair<ServerPreset, ServerState> Editor(string state)
+        {
+            if (string.Equals(state, "zombies", StringComparison.OrdinalIgnoreCase))
+            {
+                var zombies = Preset("^5CR's ^7Zombies ^5/ ^7Four up", 27019, 0, "default",
+                    "mp_zombie_descent:zombies", "mp_zombie_island:zombies",
+                    "mp_zombie_berlin:zombies", "mp_zombie_nest_01:zombies");
+                zombies.Mode = "zombies";
+                zombies.MaxPlayers = 4;
+                zombies.MinPlayers = 2;
+                zombies.StartDelay = 45;
+                return Pair(zombies, new ServerState { Port = zombies.Port });
+            }
+
+            if (string.Equals(state, "empty", StringComparison.OrdinalIgnoreCase))
+            {
+                var blank = Preset("^7New server", 27020, 12, "nostalgia");
+                blank.FileName = "New server";
+                return Pair(blank, new ServerState { Port = blank.Port });
+            }
+
+            var moshpit = Preset("^3CR's ^7Small Map Moshpit ^3(DLC)", 27018, 12, "nostalgia",
+                "mp_shipment_s2:war", "mp_house:dom", "mp_gibraltar_02:conf", "mp_london:hp",
+                "mp_france_village:dm", "mp_airship:war", "mp_fuhrerbunker:dom", "mp_v2_rocket_02:conf",
+                "mp_monte_cassino_v2:hp", "mp_shipment_s2:conf", "mp_house:hp", "mp_gibraltar_02:dm");
+            moshpit.BotDifficulty = "hardened";
+            moshpit.MinPlayers = 2;
+            moshpit.StartDelay = 45;
+            moshpit.ScoreLimits["dom"] = 225;
+            return Pair(moshpit, Running(moshpit, 2, 14208, 6, 12, 24, TimeSpan.FromMinutes(192)));
+        }
+
         public static List<StarterViewModel> Starters(FleetViewModel fleet)
         {
             var bundled = PresetStore.Bundled();
@@ -117,7 +150,7 @@ namespace S2x.ServerManager.Services
                 LastReply = DateTime.Now,
                 Humans = humans,
                 Bots = bots,
-                Cap = preset.PlayerCap,
+                Cap = preset.MaxPlayers,
                 PingMs = ping,
                 MapKey = entry.Map,
                 GametypeKey = entry.Gametype,

@@ -124,6 +124,15 @@ namespace S2x.ServerManager.Models
 
         public static readonly string[] BotNamePools = { "default", "modern", "nostalgia" };
 
+        // bot_DifficultyDefault takes these four.
+        public static readonly string[] BotDifficulties = { "recruit", "regular", "hardened", "veteran" };
+
+        /// <summary>The map table for the mode: Zombies has zones, multiplayer has maps.</summary>
+        public static List<KeyValuePair<string, string>> MapsFor(bool zombies)
+        {
+            return zombies ? ZombieMaps : Maps;
+        }
+
         // The engine renders ^0-^7 in sv_hostname; same mapping as Update-NamePreview.
         public static readonly Dictionary<char, string> ColorCodes = new Dictionary<char, string>
         {

@@ -11,6 +11,10 @@
         FontFamily="Segoe UI" FontSize="13"
         UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
 
+  <Window.InputBindings>
+    <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveEditorCommand}"/>
+  </Window.InputBindings>
+
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="40"/>
@@ -27,9 +31,14 @@
             <TextBlock views:TextEffects.Tracked="S2x" FontWeight="Bold" FontSize="13"/>
           </StackPanel>
         </Border>
+        <Button DockPanel.Dock="Left" Style="{StaticResource Flat}" Content="&#x2039; FLEET"
+                Visibility="{Binding BackVisibility}" Command="{Binding BackCommand}"
+                Foreground="{StaticResource Accent}" Padding="14,0"
+                BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0"/>
         <TextBlock DockPanel.Dock="Left" Margin="16,0" VerticalAlignment="Center"
-                   views:TextEffects.Tracked="SERVER MANAGER"
-                   FontSize="10.5" FontWeight="SemiBold" Foreground="#FF7C858C"/>
+                   views:TextEffects.Tracked="{Binding Breadcrumb}"
+                   FontSize="10.5" FontWeight="SemiBold" Foreground="#FF7C858C"
+                   TextTrimming="CharacterEllipsis"/>
 
         <Button DockPanel.Dock="Right" x:Name="btnClose" Style="{StaticResource CaptionClose}" Content="&#x2715;"/>
         <Button DockPanel.Dock="Right" x:Name="btnMaximize" Style="{StaticResource Caption}" Content="&#x2610;" FontSize="11"/>
@@ -39,6 +48,11 @@
       </DockPanel>
     </Border>
 
-    <views:FleetView Grid.Row="1"/>
+    <Grid Grid.Row="1">
+      <views:FleetView Visibility="{Binding FleetVisibility}"/>
+      <views:EditorView DataContext="{Binding Editor}"
+                        Visibility="{Binding DataContext.EditorVisibility,
+                                     RelativeSource={RelativeSource AncestorType=Window}}"/>
+    </Grid>
   </Grid>
 </Window>

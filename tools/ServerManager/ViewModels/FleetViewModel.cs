@@ -34,16 +34,23 @@ namespace S2x.ServerManager.ViewModels
         private readonly DispatcherTimer _timer;
         private readonly bool _demo;
 
+        // One editor per preset, so the roster's pane and the full screen are the same edit and
+        // unsaved work survives walking back to the fleet.
+        private readonly Dictionary<ServerPreset, EditorViewModel> _editors = new Dictionary<ServerPreset, EditorViewModel>();
+
         private string _presetSignature = "";
         private bool _polling;
         private string _viewMode = "cards";
+        private string _screen = "fleet";
         private string _toast = "";
         private DispatcherTimer _toastTimer;
+        private EditorViewModel _editor;
 
-        public FleetViewModel(string gameDir)
+        public FleetViewModel(string gameDir, string presetDir = null)
         {
+            GameDir = gameDir;
             _controller = new ServerController(gameDir);
-            _store = new PresetStore(gameDir);
+            _store = new PresetStore(gameDir, presetDir);
             Servers = new ObservableCollection<ServerCardViewModel>();
             BuildCommands();
             LoadStarters();
@@ -56,11 +63,15 @@ namespace S2x.ServerManager.ViewModels
         private FleetViewModel(IEnumerable<ServerCardViewModel> cards, List<StarterViewModel> starters)
         {
             _demo = true;
+            GameDir = @"D:\Steam\steamapps\common\Call of Duty WWII";
             Servers = new ObservableCollection<ServerCardViewModel>(cards);
             Starters = starters;
             BuildCommands();
             Recount();
         }
+
+        public string GameDir { get; private set; }
+        public bool IsDemo { get { return _demo; } }
 
         public ObservableCollection<ServerCardViewModel> Servers { get; private set; }
         public List<StarterViewModel> Starters { get; private set; }
@@ -70,8 +81,64 @@ namespace S2x.ServerManager.ViewModels
         public RelayCommand NewServerCommand { get; private set; }
         public RelayCommand ShowCardsCommand { get; private set; }
         public RelayCommand ShowRosterCommand { get; private set; }
+        public RelayCommand SaveEditorCommand { get; private set; }
+        public RelayCommand BackCommand { get; private set; }
 
         public void StartPolling() { if (!_demo) _timer.Start(); }
+
+        // ── screens ───────────────────────────────────────────────────────────────
+        public string Screen
+        {
+            get { return _screen; }
+            set
+            {
+                if (!Set(ref _screen, value)) return;
+                Raise("FleetVisibility"); Raise("EditorVisibility"); Raise("BackVisibility"); Raise("Breadcrumb");
+            }
+        }
+
+        public EditorViewModel Editor
+        {
+            get { return _editor; }
+            private set { Set(ref _editor, value); Raise("Breadcrumb"); }
+        }
+
+        public Visibility FleetVisibility { get { return _screen == "editor" ? Visibility.Collapsed : Visibility.Visible; } }
+        public Visibility EditorVisibility { get { return _screen == "editor" ? Visibility.Visible : Visibility.Collapsed; } }
+        public Visibility BackVisibility { get { return _screen == "editor" ? Visibility.Visible : Visibility.Collapsed; } }
+
+        public string Breadcrumb
+        {
+            get
+            {
+                if (_screen != "editor" || _editor == null) return "SERVER MANAGER";
+                return "SERVER MANAGER  ›  EDITOR  ›  " + _editor.PlainName.ToUpperInvariant();
+            }
+        }
+
+        /// <summary>The one editor for this preset, whether the roster pane or EDIT asked for it.</summary>
+        public EditorViewModel EditorFor(ServerPreset preset, bool isNew = false)
+        {
+            if (preset == null) return null;
+            EditorViewModel editor;
+            if (!_editors.TryGetValue(preset, out editor))
+                _editors[preset] = editor = new EditorViewModel(this, preset, isNew);
+            return editor;
+        }
+
+        public void OpenEditor(ServerPreset preset, bool isNew = false)
+        {
+            Editor = EditorFor(preset, isNew);
+            Screen = "editor";
+        }
+
+        public void ShowFleet() { Screen = "fleet"; }
+
+        /// <summary>The roster's right pane edits whatever row is selected.</summary>
+        public EditorViewModel RosterEditor
+        {
+            get { return Selected == null ? null : EditorFor(Selected.Preset); }
+        }
 
         // ── view switch ───────────────────────────────────────────────────────────
         public string ViewMode
@@ -105,6 +172,7 @@ namespace S2x.ServerManager.ViewModels
                 Set(ref _selected, value);
                 if (_selected != null) _selected.IsSelected = true;
                 Raise("HasSelection");
+                Raise("RosterEditor");
             }
         }
 
@@ -152,38 +220,171 @@ namespace S2x.ServerManager.ViewModels
         {
             StartAllCommand = new RelayCommand(StartAll, () => Servers.Any(s => s.CanStart));
             StopAllCommand = new RelayCommand(StopAll, () => Servers.Any(s => s.CanStop));
-            NewServerCommand = new RelayCommand(() => { }, () => false);   // the editor arrives in slice 2
+            NewServerCommand = new RelayCommand(NewServer);
             ShowCardsCommand = new RelayCommand(() => ViewMode = "cards");
             ShowRosterCommand = new RelayCommand(() => ViewMode = "roster");
+            SaveEditorCommand = new RelayCommand(() => { if (_screen == "editor" && _editor != null) _editor.Save(); });
+            BackCommand = new RelayCommand(ShowFleet);
         }
 
-        public async void Start(ServerCardViewModel card)
+        public void Start(ServerCardViewModel card) { StartPreset(card.Preset); }
+
+        public async void StartPreset(ServerPreset preset)
         {
             if (_demo) return;
-            var preset = card.Preset;
+            // A port belongs to one server: the second one to ask for the socket never gets it,
+            // so say so instead of leaving a card that starts and dies.
+            if (PresetsOnPort(preset.Port, preset) > 0)
+            {
+                Toast("Two servers cannot share :" + preset.Port + ". Give one of them a free port first.");
+                return;
+            }
             var failure = await Task.Run(() => _controller.Start(preset));
             if (failure != null) Toast(failure);
             else Toast("Starting " + preset.PlainName + " on :" + preset.Port);
             await PollAsync();
         }
 
-        public async void Stop(ServerCardViewModel card)
+        public void Stop(ServerCardViewModel card) { StopPort(card.Preset.Port); }
+
+        public async void StopPort(int port)
         {
             if (_demo) return;
-            var port = card.Preset.Port;
             var failure = await Task.Run(() => _controller.Stop(port));
             if (failure != null) Toast(failure);
             await PollAsync();
         }
 
-        public async void Restart(ServerCardViewModel card)
+        public void Restart(ServerCardViewModel card) { RestartPreset(card.Preset); }
+
+        public async void RestartPreset(ServerPreset preset)
         {
             if (_demo) return;
-            var preset = card.Preset;
             Toast("Restarting " + preset.PlainName);
             var failure = await Task.Run(() => { var stop = _controller.Stop(preset.Port); System.Threading.Thread.Sleep(1500); return stop ?? _controller.Start(preset); });
             if (failure != null) Toast(failure);
             await PollAsync();
+        }
+
+        // ── presets the editor writes ─────────────────────────────────────────────
+        /// <summary>How many other presets claim this port.</summary>
+        public int PresetsOnPort(int port, ServerPreset except)
+        {
+            return Servers.Count(s => s.Preset != except && s.Preset.Port == port);
+        }
+
+        public ServerState StateFor(int port)
+        {
+            ServerState state;
+            if (_states.TryGetValue(port, out state)) return state;
+            return new ServerState { Port = port };
+        }
+
+        /// <summary>Writes the preset file. The signature moves with it, so our own write is not a change.</summary>
+        public bool SavePreset(ServerPreset preset, bool isNew)
+        {
+            if (_demo) { Toast("Demo mode: nothing was written"); return false; }
+            try
+            {
+                _store.Save(preset);
+                _presetSignature = Signature();
+                if (isNew && !Servers.Any(s => s.Preset == preset))
+                {
+                    ServerState state;
+                    if (!_states.TryGetValue(preset.Port, out state)) _states[preset.Port] = state = new ServerState { Port = preset.Port };
+                    Servers.Add(new ServerCardViewModel(this, preset, state));
+                    Raise("EmptyVisibility"); Raise("CardsVisibility"); Raise("RosterVisibility");
+                }
+                foreach (var card in Servers) card.Refresh();
+                Recount();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Toast("Could not write the preset: " + ex.Message);
+                return false;
+            }
+        }
+
+        /// <summary>Save as: a second preset file, a second server, opened in place of this one.</summary>
+        public void SaveCopy(EditorViewModel editor, ServerPreset preset, string name)
+        {
+            var copy = preset.Copy();
+            copy.FileName = name;
+            copy.FilePath = _store.PathFor(name);
+            // The original keeps its port, so the copy needs one of its own.
+            copy.Port = PresetStore.NextFreePort(Servers.Select(s => s.Preset.Port));
+            if (!SavePreset(copy, true)) return;
+            Toast("Saved " + name + " on :" + copy.Port);
+            OpenEditor(copy);
+        }
+
+        /// <summary>The Save as prompt. Refuses what the launcher's preset box could not show.</summary>
+        public string AskPresetName(string title, string suggestion)
+        {
+            while (true)
+            {
+                var entered = Views.PromptDialog.Ask(title, "Preset name", suggestion);
+                if (entered == null) return null;
+                var problem = PresetStore.NameProblem(entered);
+                if (problem == null) return entered.Trim();
+                Toast(problem);
+                suggestion = entered;
+            }
+        }
+
+        private void NewServer()
+        {
+            if (_demo) { Toast("Demo mode: nothing was written"); return; }
+            var choices = new List<Views.StarterChoice>
+            {
+                new Views.StarterChoice
+                {
+                    Title = "Blank server",
+                    Summary = "No maps yet, everything else at the launcher's defaults.",
+                    Meta = "0 maps",
+                    Blank = true,
+                },
+            };
+            foreach (var bundled in PresetStore.Bundled())
+                choices.Add(new Views.StarterChoice
+                {
+                    Title = bundled.FileName,
+                    Summary = Describe(bundled),
+                    Meta = bundled.Rotation.Count + " maps",
+                    Source = bundled,
+                });
+
+            var picked = Views.NewServerDialog.Ask(choices);
+            if (picked == null) return;
+
+            ServerPreset preset;
+            if (picked.Blank)
+            {
+                preset = new ServerPreset { ServerName = "^7New server", FileName = "New server" };
+                foreach (var pair in GameData.DefaultScoreLimits) preset.ScoreLimits[pair.Key] = pair.Value;
+                preset.FileName = _store.Exists(preset.FileName) ? FreeName(preset.FileName) : preset.FileName;
+            }
+            else
+            {
+                // A bundled starter is seeded under its own name the once, the way the launcher's
+                // Update-PresetList seeds it, and never over a preset the host already has: the
+                // second server off the same starter becomes its own file.
+                var starter = (ServerPreset)picked.Source;
+                preset = starter.Copy();
+                preset.Raw = new Dictionary<string, object>(StringComparer.Ordinal);
+                preset.FileName = _store.Exists(starter.FileName) ? FreeName(starter.FileName) : starter.FileName;
+            }
+            preset.FilePath = _store.PathFor(preset.FileName);
+            preset.Port = PresetStore.NextFreePort(Servers.Select(s => s.Preset.Port));
+            OpenEditor(preset, true);
+        }
+
+        private string FreeName(string name)
+        {
+            for (int i = 2; i < 100; i++)
+                if (!_store.Exists(name + " " + i)) return name + " " + i;
+            return name + " copy";
         }
 
         private async void StartAll()
@@ -226,6 +427,8 @@ namespace S2x.ServerManager.ViewModels
 
                 foreach (var port in ports) Apply(port, round);
                 foreach (var card in Servers) { card.State = _states[card.Preset.Port]; card.Refresh(); }
+                // An open editor keeps its state line and its NOW marker up to date too.
+                foreach (var editor in _editors.Values) editor.RefreshState();
                 Recount();
             }
             catch (Exception ex)
@@ -425,11 +628,18 @@ namespace S2x.ServerManager.ViewModels
         // ── totals ────────────────────────────────────────────────────────────────
         private void Recount()
         {
+            // A port belongs to one server. Say on the card when two presets claim the same one.
+            foreach (var card in Servers)
+            {
+                card.SharedPorts = PresetsOnPort(card.Preset.Port, card.Preset);
+                card.Refresh();
+            }
+
             FleetTotal = Servers.Count;
             FleetUp = Servers.Count(s => s.State.IsLive);
             FleetHumans = Servers.Where(s => s.State.Status == ServerStatus.Running).Sum(s => s.State.Humans);
             FleetBots = Servers.Where(s => s.State.IsLive || s.State.Status == ServerStatus.NotAnswering).Sum(s => s.State.Bots);
-            FleetCap = Servers.Where(s => s.State.IsLive || s.State.Status == ServerStatus.NotAnswering).Sum(s => Math.Max(s.State.Cap, s.Preset.PlayerCap));
+            FleetCap = Servers.Where(s => s.State.IsLive || s.State.Status == ServerStatus.NotAnswering).Sum(s => Math.Max(s.State.Cap, s.Preset.MaxPlayers));
             FleetAttention = Servers.Count(s => s.State.NeedsAttention);
 
             var worst = Servers.FirstOrDefault(s => s.State.Status == ServerStatus.Crashed)
@@ -448,10 +658,30 @@ namespace S2x.ServerManager.ViewModels
         public static FleetViewModel Demo(string state)
         {
             var fleet = new FleetViewModel(new List<ServerCardViewModel>(), new List<StarterViewModel>());
-            foreach (var pair in DemoData.Build(state)) fleet.Servers.Add(new ServerCardViewModel(fleet, pair.Key, pair.Value));
+            foreach (var pair in DemoData.Build(state))
+            {
+                fleet._states[pair.Key.Port] = pair.Value;
+                fleet.Servers.Add(new ServerCardViewModel(fleet, pair.Key, pair.Value));
+            }
             fleet.Starters = DemoData.Starters(fleet);
             fleet.Selected = fleet.Servers.FirstOrDefault();
             fleet.Recount();
+            return fleet;
+        }
+
+        /// <summary>--demo-editor: one server, opened in the editor, no game folder read.</summary>
+        public static FleetViewModel DemoEditor(string state)
+        {
+            var fleet = new FleetViewModel(new List<ServerCardViewModel>(), new List<StarterViewModel>());
+            var pair = DemoData.Editor(state);
+            fleet._states[pair.Key.Port] = pair.Value;
+            fleet.Servers.Add(new ServerCardViewModel(fleet, pair.Key, pair.Value));
+            fleet.Starters = DemoData.Starters(fleet);
+            fleet.Selected = fleet.Servers[0];
+            fleet.Recount();
+            fleet.OpenEditor(pair.Key);
+            // The multiplayer state is the one with something not written yet.
+            if (string.Equals(state, "mp", StringComparison.OrdinalIgnoreCase)) fleet.Editor.ShuffleOnLaunch = true;
             return fleet;
         }
     }

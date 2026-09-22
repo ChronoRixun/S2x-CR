@@ -147,18 +147,32 @@ namespace S2x.ServerManager.Services
             catch { return 0; }
         }
 
-        /// <summary>Same lines, same order as Build-ServerCfg in tools/server-launcher.ps1.</summary>
+        private static readonly Random Shuffler = new Random();
+
+        /// <summary>
+        /// Build-ServerCfg's lines in its order first, so a preset the PowerShell launcher wrote
+        /// still comes out as the text it wrote, then the editor's own lines, then the host's
+        /// advanced block last so it wins. Bots and score limits are multiplayer only.
+        /// </summary>
         public static string BuildServerCfg(ServerPreset preset)
         {
-            var lines = new List<string> { "set sv_hostname \"" + preset.ServerName + "\"" };
+            var zombies = preset.IsZombies;
+            // The hostname is quoted in the cfg, so a quote or a newline in it would end the
+            // line early and feed the rest to the console. Colour codes stay.
+            var hostname = new string((preset.ServerName ?? "")
+                .Where(c => c != '"' && c != '\r' && c != '\n').ToArray());
+            var lines = new List<string> { "set sv_hostname \"" + hostname + "\"" };
 
-            var used = new HashSet<string>(preset.Rotation.Select(r => r.Gametype));
-            foreach (var pair in GameData.DefaultScoreLimits)
+            if (!zombies)
             {
-                if (!used.Contains(pair.Key) && preset.Rotation.Count != 0) continue;
-                int value;
-                if (!preset.ScoreLimits.TryGetValue(pair.Key, out value)) value = pair.Value;
-                lines.Add("set scr_" + pair.Key + "_scorelimit " + Math.Max(1, Math.Min(999, value)));
+                var used = new HashSet<string>(preset.Rotation.Select(r => r.Gametype));
+                foreach (var pair in GameData.DefaultScoreLimits)
+                {
+                    if (!used.Contains(pair.Key) && preset.Rotation.Count != 0) continue;
+                    int value;
+                    if (!preset.ScoreLimits.TryGetValue(pair.Key, out value)) value = pair.Value;
+                    lines.Add("set scr_" + pair.Key + "_scorelimit " + Math.Max(1, Math.Min(999, value)));
+                }
             }
 
             if (preset.SingleRoundDom)
@@ -167,14 +181,36 @@ namespace S2x.ServerManager.Services
                 lines.Add("set scr_dom_roundlimit 1");
             }
 
-            lines.Add("set bot_fill " + preset.BotFill);
-            lines.Add("set bot_names " + preset.BotNames);
+            if (!zombies)
+            {
+                lines.Add("set bot_fill " + preset.BotFill);
+                lines.Add("set bot_names " + preset.BotNames);
+            }
 
             if (preset.Rotation.Count > 0)
             {
-                var parts = preset.Rotation.Select(r => "gametype " + r.Gametype + " map " + r.Map);
+                // Shuffle on every launch shuffles what the cfg says, not the preset: the host
+                // keeps the order they typed.
+                var rotation = preset.Rotation.ToList();
+                if (preset.ShuffleOnLaunch)
+                    for (int i = rotation.Count - 1; i > 0; i--)
+                    {
+                        var j = Shuffler.Next(i + 1);
+                        var hold = rotation[i]; rotation[i] = rotation[j]; rotation[j] = hold;
+                    }
+                var parts = rotation.Select(r => "gametype " + r.Gametype + " map " + r.Map);
                 lines.Add("set sv_maprotation \"" + string.Join(" ", parts) + "\"");
             }
+
+            lines.Add("set bot_DifficultyDefault " + preset.BotDifficulty);
+            lines.Add("set party_maxplayers " + preset.MaxPlayers);
+            lines.Add("set party_minplayers " + preset.MinPlayers);
+            lines.Add("set party_matchStartDelay " + preset.StartDelay);
+            lines.Add("set master_server_enable " + (preset.Advertise ? "1" : "0"));
+            lines.Add("set sv_lanOnly " + (preset.Advertise ? "0" : "1"));
+
+            foreach (var line in preset.ExtraLines)
+                if (!string.IsNullOrWhiteSpace(line)) lines.Add(line.Trim());
 
             return string.Join("\n", lines);
         }

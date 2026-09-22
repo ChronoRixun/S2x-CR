@@ -22,6 +22,8 @@ namespace S2x.ServerManager.Views
         public static readonly Brush Edge = Frozen("#FF262B30");
         public static readonly Brush EdgeHot = Frozen("#FF3A4147");
         public static readonly Brush Bar = Frozen("#FF0A0B0D");
+        public static readonly Brush Field = Frozen("#FF16191C");
+        public static readonly Brush Row = Frozen("#FF121417");
         public static readonly Brush Panel = Frozen("#FF0E1012");
         public static readonly Brush TagBg = Frozen("#FF1A1710");
         public static readonly Brush TagEdge = Frozen("#FF3A2F1C");
