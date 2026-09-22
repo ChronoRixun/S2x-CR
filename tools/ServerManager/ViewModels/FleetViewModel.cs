@@ -275,9 +275,27 @@ namespace S2x.ServerManager.ViewModels
         /// HIDE and UNHIDE on a card: the same preset file, one key different. Written the way
         /// every other change is written, so a launcher reading it afterwards sees a whole preset.
         /// </summary>
-        public void SetHidden(ServerCardViewModel card, bool hidden)
+        public async void SetHidden(ServerCardViewModel card, bool hidden)
         {
             if (_demo) { Toast("Demo mode: nothing was written"); return; }
+            var port = card.Preset.Port;
+            // HIDE is only offered with no process behind the card, and that reading is up to
+            // three seconds old, so the process list is read again the way Delete reads it:
+            // a server that came up in the meantime is not put out of sight. Unhiding is safe.
+            if (hidden)
+            {
+                var scan = await Task.Run(() => ProcessInspector.DedicatedServers());
+                if (!scan.Complete)
+                {
+                    Toast("Could not read the running servers, so :" + port + " cannot be checked. Nothing was hidden.");
+                    return;
+                }
+                if (scan.Servers.ContainsKey(port))
+                {
+                    Toast("A server is running on :" + port + ". Stop it before hiding this one.");
+                    return;
+                }
+            }
             var candidate = card.Preset.Copy();
             candidate.Hidden = hidden;
             if (!SavePreset(candidate, false)) return;
@@ -531,12 +549,15 @@ namespace S2x.ServerManager.ViewModels
 
             try
             {
-                File.Delete(preset.FilePath);
+                // The preset file goes last, because it is what the card is. A cfg or a pid that
+                // will not delete then leaves a whole preset behind and a true refusal, rather
+                // than a card and an editor sitting on a file that is not there any more.
                 if (portIsOnlyMine)
                 {
                     File.Delete(GameFolder.CfgPath(GameDir, port));
                     File.Delete(GameFolder.PidPath(GameDir, port));
                 }
+                File.Delete(preset.FilePath);
             }
             catch (Exception ex)
             {
@@ -943,7 +964,10 @@ namespace S2x.ServerManager.ViewModels
         private void RebuildShown()
         {
             HiddenCount = Servers.Count(s => s.Preset.Hidden);
-            var wanted = Servers.Where(s => _showHidden || !s.Preset.Hidden).ToList();
+            // A hidden server with a process behind it is still on the box: the launcher or a
+            // second copy of this app can start one. It stays on screen, and stoppable, however
+            // it got up; only an idle one goes away.
+            var wanted = Servers.Where(s => _showHidden || !s.Preset.Hidden || s.CanStop).ToList();
             if (!Shown.SequenceEqual(wanted))
             {
                 Shown.Clear();
