@@ -84,14 +84,14 @@
                        Visibility="{Binding FilterPlaceholderVisibility}"/>
           </Grid>
 
-          <!-- the file being read, and whether it is this server's own -->
-          <TextBlock DockPanel.Dock="Left" Text="{Binding LogFile}" Style="{StaticResource Mono}"
-                     VerticalAlignment="Center" Margin="14,0,0,0" TextTrimming="CharacterEllipsis"/>
-          <Border DockPanel.Dock="Left" Visibility="{Binding SharedVisibility}" Margin="10,0,0,0"
+          <!-- whether this is the server's own log, and the file being read -->
+          <Border DockPanel.Dock="Left" Visibility="{Binding SharedVisibility}" Margin="14,0,0,0"
                   Background="{StaticResource TagBg}" BorderBrush="{StaticResource TagEdge}"
                   BorderThickness="1" Padding="7,2" VerticalAlignment="Center">
             <TextBlock Text="{Binding SharedNote}" FontSize="11" Foreground="{StaticResource Accent}"/>
           </Border>
+          <TextBlock DockPanel.Dock="Left" Text="{Binding LogFile}" Style="{StaticResource Mono}"
+                     VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis"/>
         </DockPanel>
       </Border>
 
