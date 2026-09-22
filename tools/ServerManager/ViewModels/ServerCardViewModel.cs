@@ -62,12 +62,9 @@ namespace S2x.ServerManager.ViewModels
         public string ModeBadge { get { return Preset.IsZombies ? "ZM" : "MP"; } }
         public string Name { get { return Preset.ServerName; } }
         public string PlainName { get { return Preset.PlainName; } }
-        public string PresetName { get { return Preset.FileName; } }
         public string Address { get { return "127.0.0.1:" + Preset.Port; } }
 
         // ── state ─────────────────────────────────────────────────────────────────
-        public ServerStatus Status { get { return State.Status; } }
-
         public string StateCaps
         {
             get

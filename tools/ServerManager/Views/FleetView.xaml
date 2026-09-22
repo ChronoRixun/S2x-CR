@@ -73,7 +73,7 @@
                   <TextBlock views:TextEffects.ColorName="{Binding Name}" FontSize="14" FontWeight="SemiBold"
                              TextTrimming="CharacterEllipsis"/>
                   <DockPanel Margin="0,5,0,0">
-                    <Rectangle Width="7" Height="7" Fill="{Binding DotBrush}" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                    <Rectangle Style="{StaticResource StateDot}" Fill="{Binding DotBrush}" Margin="0,0,7,0"/>
                     <TextBlock DockPanel.Dock="Right" Text="{Binding UptimeLine}" Style="{StaticResource Mono}"
                                VerticalAlignment="Center"/>
                     <TextBlock views:TextEffects.Tracked="{Binding StateCaps}" FontSize="10.5" FontWeight="Bold"
@@ -217,7 +217,7 @@
         <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="12,12">
           <StackPanel>
             <DockPanel>
-              <Rectangle Width="7" Height="7" Fill="{Binding DotBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+              <Rectangle Style="{StaticResource StateDot}" Fill="{Binding DotBrush}" Margin="0,0,8,0"/>
               <TextBlock DockPanel.Dock="Right" Text="{Binding PortText, StringFormat=:{0}}"
                          Style="{StaticResource Mono}" VerticalAlignment="Center" Margin="6,0,0,0"/>
               <TextBlock Text="{Binding PlainName}" FontSize="12.5" FontWeight="SemiBold"
@@ -396,7 +396,8 @@
           <Border Background="{Binding CardBackground}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
             <DockPanel Margin="20,0">
               <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center" MinWidth="170">
-                <Rectangle Width="8" Height="8" Fill="{Binding DotBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <Rectangle Style="{StaticResource StateDot}" Width="8" Height="8"
+                           Fill="{Binding DotBrush}" Margin="0,0,10,0"/>
                 <StackPanel>
                   <TextBlock views:TextEffects.Tracked="{Binding StateCaps}" FontSize="10.5" FontWeight="Bold"
                              Foreground="{Binding StateBrush}"/>

@@ -81,6 +81,28 @@
     <Setter Property="Foreground" Value="{StaticResource Ink}"/>
   </Style>
 
+  <!-- The state dot. A server that is up but has not answered yet pulses. -->
+  <Style x:Key="StateDot" TargetType="Rectangle">
+    <Setter Property="Width" Value="7"/>
+    <Setter Property="Height" Value="7"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding IsStarting}" Value="True">
+        <DataTrigger.EnterActions>
+          <BeginStoryboard x:Name="PulseDot">
+            <Storyboard>
+              <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.3"
+                               Duration="0:0:0.5" AutoReverse="True" RepeatBehavior="Forever"/>
+            </Storyboard>
+          </BeginStoryboard>
+        </DataTrigger.EnterActions>
+        <DataTrigger.ExitActions>
+          <StopStoryboard BeginStoryboardName="PulseDot"/>
+        </DataTrigger.ExitActions>
+      </DataTrigger>
+    </Style.Triggers>
+  </Style>
+
   <!-- ── buttons ──────────────────────────────────────────────────────────── -->
   <!-- One template; Tag carries the hover background so the variants stay short. -->
   <Style x:Key="Flat" TargetType="Button">

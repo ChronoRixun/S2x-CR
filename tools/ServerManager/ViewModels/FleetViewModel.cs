@@ -71,8 +71,6 @@ namespace S2x.ServerManager.ViewModels
         public RelayCommand ShowCardsCommand { get; private set; }
         public RelayCommand ShowRosterCommand { get; private set; }
 
-        public string GameDir { get { return _demo ? "(demo)" : _controller.GameDir; } }
-
         public void StartPolling() { if (!_demo) _timer.Start(); }
 
         // ── view switch ───────────────────────────────────────────────────────────
@@ -88,7 +86,6 @@ namespace S2x.ServerManager.ViewModels
             }
         }
 
-        public bool IsEmpty { get { return Servers.Count == 0; } }
         public Visibility EmptyVisibility { get { return Servers.Count == 0 ? Visibility.Visible : Visibility.Collapsed; } }
         public Visibility CardsVisibility { get { return Servers.Count > 0 && _viewMode == "cards" ? Visibility.Visible : Visibility.Collapsed; } }
         public Visibility RosterVisibility { get { return Servers.Count > 0 && _viewMode == "roster" ? Visibility.Visible : Visibility.Collapsed; } }
@@ -337,7 +334,7 @@ namespace S2x.ServerManager.ViewModels
             foreach (var card in wanted) Servers.Add(card);
             if (Selected == null || !Servers.Contains(Selected)) Selected = Servers.FirstOrDefault();
             LoadStarters();
-            Raise("IsEmpty"); Raise("EmptyVisibility"); Raise("CardsVisibility"); Raise("RosterVisibility");
+            Raise("EmptyVisibility"); Raise("CardsVisibility"); Raise("RosterVisibility");
         }
 
         private static bool Same(ServerPreset a, ServerPreset b)
