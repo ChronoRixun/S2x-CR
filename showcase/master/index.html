@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>S2x-CR — Call of Duty: WWII multiplayer, restored</title>
-<meta name="description" content="A community client for Call of Duty: WWII. Nine dedicated servers across four hosts, bots that fill every lobby, and the Headquarters progression economy running again. You bring a legitimate Steam copy.">
+<meta name="description" content="A community client for Call of Duty: WWII. Community-run dedicated servers, bots that fill lobbies, and the Headquarters progression economy running again. You bring a legitimate Steam copy.">
 <meta name="theme-color" content="#0c0e0d">
 <link rel="canonical" href="https://chronorixun.github.io/S2x/">
 
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="S2x-CR">
 <meta property="og:title" content="The servers are empty. That's the whole problem S2x solves.">
-<meta property="og:description" content="Call of Duty: WWII, brought back — dedicated servers, bots that fill every lobby, and the Headquarters progression economy running again. Infrastructure, not a population. Come and be the population.">
+<meta property="og:description" content="Call of Duty: WWII, brought back — dedicated servers, bots that fill lobbies, and the Headquarters progression economy running again. Infrastructure, not a population. Come and be the population.">
 <meta property="og:url" content="https://chronorixun.github.io/S2x/">
 <meta property="og:image" content="https://chronorixun.github.io/S2x/shots/20260921153435_1.jpg">
 <meta property="og:image:width" content="2560">
@@ -19,7 +19,7 @@
 <meta property="og:image:alt" content="A soldier advancing across open mud towards a capture point on Pointe du Hoc under a grey sky.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="The servers are empty. That's the whole problem S2x solves.">
-<meta name="twitter:description" content="Call of Duty: WWII, brought back — dedicated servers, bots that fill every lobby, and the Headquarters economy running again.">
+<meta name="twitter:description" content="Call of Duty: WWII, brought back — dedicated servers, bots that fill lobbies, and the Headquarters economy running again.">
 <meta name="twitter:image" content="https://chronorixun.github.io/S2x/shots/20260921153435_1.jpg">
 <meta name="twitter:image:alt" content="A soldier advancing across open mud towards a capture point on Pointe du Hoc.">
 
@@ -224,15 +224,15 @@ dialog#lb::backdrop{background:rgba(6,7,6,.9)}
 <!-- ===================== HERO ===================== -->
 <div class="hero" id="top">
   <div class="bg">
-    <img src="../shots/20260921153435_1.jpg" width="2560" height="1352" fetchpriority="high"
+    <img src="../shots/w960/20260921153435_1.webp" srcset="../shots/w640/20260921153435_1.webp 640w, ../shots/w960/20260921153435_1.webp 960w, ../shots/w1280/20260921153435_1.webp 1280w, ../shots/w1920/20260921153435_1.webp 1920w, ../shots/w2560/20260921153435_1.webp 2560w" sizes="100vw" width="2560" height="1352" fetchpriority="high"
          alt="A soldier advancing across open mud towards a capture point on Pointe du Hoc, bunkers and a grey sky ahead.">
   </div>
   <div class="wrap">
-    <p class="kicker">S2x-CR · Call of Duty: WWII · community client · v1.3.0</p>
+    <p class="kicker">S2x-CR · Call of Duty: WWII · community client</p>
     <h1>The servers are empty. <span>That’s the whole problem S2x solves.</span></h1>
-    <p class="stand">Nine dedicated servers, run by four different people, sitting there waiting. S2x-CR is the client that gets you onto them — and bots that fill the lobby the moment you connect, so an empty server still gives you a full match.</p>
+    <p class="stand">When these captures were taken, nine dedicated servers from at least three different hosts were up and waiting. S2x-CR is the client that gets you onto them — and on a server running bot_fill, or in a custom match of your own, bots fill the lobby so an empty server still gives you a full game.</p>
     <div class="actions">
-      <a class="btn solid" href="https://github.com/ChronoRixun/S2x/releases/latest">Download the build →</a>
+      <a class="btn solid" href="https://discord.gg/yMPWMTyPPZ">Get the build on Discord →</a>
       <a class="btn ghost" href="#proof">Show me the servers</a>
     </div>
     <p class="req">Requires a legitimate Steam copy of Call of Duty: WWII. S2x doesn’t ship the game files and doesn’t get around needing them — it patches and hosts what you already own.</p>
@@ -246,7 +246,7 @@ dialog#lb::backdrop{background:rgba(6,7,6,.9)}
     <p class="kicker">01 — The part you can check yourself</p>
     <div class="sh">
       <h2>This is the server browser, unedited</h2>
-      <p>Before anything here tries to sell you something: the actual state of it. Nine dedicated servers. Four independent hosts. <strong>Prop Hunt running on a 2017 engine that was never meant to support it.</strong> Pings from 19 to 154 milliseconds.</p>
+      <p>Before anything here tries to sell you something: the state of it on 21 September. Nine dedicated servers. At least three different hosts. <strong>Prop Hunt running on a 2017 engine that was never meant to support it.</strong> Pings from 19 to 154 milliseconds.</p>
       <p>And every single row reads 0/18.</p>
     </div>
 
@@ -277,7 +277,7 @@ dialog#lb::backdrop{background:rgba(6,7,6,.9)}
 
         <div class="counts">
           <div><b>9</b><span>dedicated servers</span></div>
-          <div><b>4</b><span>independent hosts</span></div>
+          <div><b>3+</b><span>different hosts</span></div>
           <div><b>19–154</b><span>ping, ms</span></div>
           <div class="flag"><b>0/18</b><span>players — the part that’s on you</span></div>
         </div>
@@ -288,7 +288,7 @@ dialog#lb::backdrop{background:rgba(6,7,6,.9)}
           <h3>Sitrep — read this before you download</h3>
           <p>Every server in these captures reads <b>0/18</b>. That isn’t a crop or a dodge — they were empty when the shots were taken, and they may well be empty when you go and look.</p>
           <p><b>This is a small project, not a secret thriving scene</b>, and you should know that before you install anything.</p>
-          <p class="big">What you’re looking at is <b>infrastructure, not a population</b>: nine real servers, run by four different people, answering pings from 19 to 154 ms, with bots ready to fill any lobby the second someone walks into it. The only missing input is a player.</p>
+          <p class="big">What you’re looking at is <b>infrastructure, not a population</b>: nine real servers from at least three different hosts, answering pings from 19 to 154 ms, and — wherever the host runs bot_fill — bots ready to fill a lobby as soon as a map starts. The only missing input is a player.</p>
           <p>That’s the whole pitch, and it’s why this page exists.</p>
         </div>
 
@@ -306,23 +306,23 @@ dialog#lb::backdrop{background:rgba(6,7,6,.9)}
         <figure>
           <p class="when">2026.09.20 · 20:54</p>
           <button class="shotbtn" type="button" data-full="../shots/20260920205442_1.jpg" data-cap="The server browser on 20 September at 20:54 — four servers, on build v1.1.1.">
-            <span class="shot"><img src="../shots/20260920205442_1.jpg" width="2560" height="1440" loading="lazy"
+            <span class="shot"><img src="../shots/w960/20260920205442_1.webp" srcset="../shots/w640/20260920205442_1.webp 640w, ../shots/w960/20260920205442_1.webp 960w, ../shots/w1280/20260920205442_1.webp 1280w, ../shots/20260920205442_1.jpg 2560w" sizes="(max-width:820px) calc(100vw - 30px), (max-width:1190px) calc(33.3vw - 23px), 373px" width="2560" height="1440" loading="lazy"
               alt="The S2x server browser showing four dedicated servers, each with zero of eighteen players, on an older build."></span>
           </button>
-          <figcaption><span class="tally">4 servers</span><b>Two hosts</b>CR’s and NamelessNoobs, plus the two unattended 24/7 boxes. Running Domination, Team Deathmatch, War and Demolition.<span class="n">build v1.1.1 · all 0/18</span><span class="stamp">captured 2026.09.20 · 20:54</span></figcaption>
+          <figcaption><span class="tally">4 servers</span><b>Two named hosts</b>CR’s and NamelessNoobs, plus the two 24/7 boxes. Running Domination, Team Deathmatch, War and Demolition.<span class="n">build v1.1.1 · all 0/18</span><span class="stamp">captured 2026.09.20 · 20:54</span></figcaption>
         </figure>
         <figure>
           <p class="when">2026.09.21 · 17:10</p>
           <button class="shotbtn" type="button" data-full="../shots/20260921171022_1.jpg" data-cap="The server browser on 21 September at 17:10 — eight servers.">
-            <span class="shot"><img src="../shots/20260921171022_1.jpg" width="1208" height="638" loading="lazy"
-              alt="The S2x server browser showing eight dedicated servers across four hosts, each with zero of eighteen players."></span>
+            <span class="shot"><img src="../shots/w960/20260921171022_1.webp" srcset="../shots/w640/20260921171022_1.webp 640w, ../shots/w960/20260921171022_1.webp 960w, ../shots/20260921171022_1.jpg 1208w" sizes="(max-width:820px) calc(100vw - 30px), (max-width:1190px) calc(33.3vw - 23px), 373px" width="1208" height="638" loading="lazy"
+              alt="The S2x server browser showing eight dedicated servers from at least three hosts, each with zero of eighteen players."></span>
           </button>
           <figcaption><span class="tally">8 servers</span><b>Glooples appears</b>Prop Hunt arrives on the list, and the Glooples objective server with it.<span class="n">build v1.3.0 · all 0/18</span><span class="stamp">captured 2026.09.21 · 17:10</span></figcaption>
         </figure>
         <figure>
           <p class="when">2026.09.21 · 17:59</p>
-          <button class="shotbtn" type="button" data-full="../shots/20260921175918_1.jpg" data-cap="The server browser on 21 September at 17:59 — nine servers across four hosts.">
-            <span class="shot"><img src="../shots/20260921175918_1.jpg" width="1920" height="1080" loading="lazy"
+          <button class="shotbtn" type="button" data-full="../shots/20260921175918_1.jpg" data-cap="The server browser on 21 September at 17:59 — nine servers from at least three hosts.">
+            <span class="shot"><img src="../shots/w960/20260921175918_1.webp" srcset="../shots/w640/20260921175918_1.webp 640w, ../shots/w960/20260921175918_1.webp 960w, ../shots/w1280/20260921175918_1.webp 1280w, ../shots/20260921175918_1.jpg 1920w" sizes="(max-width:820px) calc(100vw - 30px), (max-width:1190px) calc(33.3vw - 23px), 373px" width="1920" height="1080" loading="lazy"
               alt="The in-game S2x server browser listing nine dedicated servers from hosts CR's, Glooples and NamelessNoobs, each showing zero of eighteen players."></span>
           </button>
           <figcaption><span class="tally">9 servers</span><b>Forty-nine minutes later</b>A third CR’s box on London Docks, and the maps have rotated underneath everything. This is the one transcribed above.<span class="n">build v1.3.0 · all 0/18</span><span class="stamp">captured 2026.09.21 · 17:59</span></figcaption>
@@ -339,20 +339,20 @@ dialog#lb::backdrop{background:rgba(6,7,6,.9)}
     <div class="sh">
       <h2>Join at 3am. Get a full 9v9.</h2>
       <p>Set <code>bot_fill 17</code> and every match fills on map start — Team Deathmatch, Domination, Free-for-All, Hardpoint, and War with complete nine-a-side teams. The moment a real player connects, a bot steps out and hands over its slot.</p>
-      <p>This is the part most revival projects get wrong. The bots aren’t a consolation prize for a dead game. <strong>They’re the thing that lets a handful of people keep nine servers worth playing on</strong> — because nobody has to be the first one sitting in an empty lobby hoping someone else turns up.</p>
+      <p>This is the part most revival projects get wrong. The bots aren’t a consolation prize for a dead game. <strong>They’re the thing that lets a handful of people keep servers worth playing on</strong> — because nobody has to be the first one sitting in an empty lobby hoping someone else turns up.</p>
     </div>
 
     <div class="grid g2">
       <figure>
         <button class="shotbtn" type="button" data-full="../shots/20260917225123_1.jpg" data-cap="War on Operation Husky — nine a side, every slot filled on map start.">
-          <span class="shot t43"><img src="../shots/20260917225123_1.jpg" width="1278" height="982" loading="lazy"
+          <span class="shot t43"><img src="../shots/w960/20260917225123_1.webp" srcset="../shots/w640/20260917225123_1.webp 640w, ../shots/w960/20260917225123_1.webp 960w, ../shots/20260917225123_1.jpg 1278w" sizes="(max-width:600px) calc(100vw - 30px), (max-width:1190px) calc(50vw - 26px), 569px" width="1278" height="982" loading="lazy"
             alt="A War mode scoreboard on Operation Husky with nine players on each team, all filled by bots using military codenames."></span>
         </button>
         <figcaption><b>War · Operation Husky</b>bot_fill doesn’t skip the big modes — full 9v9, both sides.<span class="n">Default pool · Domino, Causeway, Overlord, Juno</span><span class="stamp">captured 2026.09.17 · 22:51</span></figcaption>
       </figure>
       <figure>
         <button class="shotbtn" type="button" data-full="../shots/20260919172800_1.jpg" data-cap="Domination on Shipment 1944 — 97 to 114, with the bots putting points on the board.">
-          <span class="shot t43"><img src="../shots/20260919172800_1.jpg" width="1920" height="1080" loading="lazy"
+          <span class="shot t43"><img src="../shots/w960/20260919172800_1.webp" srcset="../shots/w640/20260919172800_1.webp 640w, ../shots/w960/20260919172800_1.webp 960w, ../shots/w1280/20260919172800_1.webp 1280w, ../shots/20260919172800_1.jpg 1920w" sizes="(max-width:600px) calc(100vw - 30px), (max-width:1190px) calc(50vw - 26px), 569px" width="1920" height="1080" loading="lazy"
             alt="A Domination scoreboard on Shipment 1944 reading Allies 97 to Axis 114, filled with modern-style bot gamertags."></span>
         </button>
         <figcaption><b>Domination · Shipment 1944</b>They capture, they defend, and they’ll beat you if you let them.<span class="n">97–114 · Modern pool · BlindSprint, Reaver22, bleakwinter</span><span class="stamp">captured 2026.09.19 · 17:28</span></figcaption>
@@ -367,14 +367,14 @@ dialog#lb::backdrop{background:rgba(6,7,6,.9)}
     <div class="grid g2">
       <figure>
         <button class="shotbtn" type="button" data-full="../shots/20260921160211_1.jpg" data-cap="Default pool — Domino, Causeway, Mike, Love, Overlord, Juno, Tare.">
-          <span class="shot"><img src="../shots/20260921160211_1.jpg" width="2560" height="1352" loading="lazy"
+          <span class="shot"><img src="../shots/w960/20260921160211_1.webp" srcset="../shots/w640/20260921160211_1.webp 640w, ../shots/w960/20260921160211_1.webp 960w, ../shots/w1280/20260921160211_1.webp 1280w, ../shots/20260921160211_1.jpg 2560w" sizes="(max-width:600px) calc(100vw - 30px), (max-width:1190px) calc(50vw - 26px), 569px" width="2560" height="1352" loading="lazy"
             alt="A Team Deathmatch scoreboard on Pointe du Hoc with eight players a side using military codename bot names."></span>
         </button>
         <figcaption><b>Default</b>Domino · Causeway · Overlord · Juno · Tare · X-Ray<span class="n">TDM · Pointe du Hoc · 8v8</span><span class="stamp">captured 2026.09.21 · 16:02</span></figcaption>
       </figure>
       <figure>
         <button class="shotbtn" type="button" data-full="../shots/20260919174500_1.jpg" data-cap="Nostalgia pool — a one-point game with nine minutes left on Shipment.">
-          <span class="shot"><img src="../shots/20260919174500_1.jpg" width="1920" height="1080" loading="lazy"
+          <span class="shot"><img src="../shots/w960/20260919174500_1.webp" srcset="../shots/w640/20260919174500_1.webp 640w, ../shots/w960/20260919174500_1.webp 960w, ../shots/w1280/20260919174500_1.webp 1280w, ../shots/20260919174500_1.jpg 1920w" sizes="(max-width:600px) calc(100vw - 30px), (max-width:1190px) calc(50vw - 26px), 569px" width="1920" height="1080" loading="lazy"
             alt="A Team Deathmatch scoreboard on Shipment 1944 showing Xbox 360 era style bot gamertags with the score at twenty-six to twenty-five."></span>
         </button>
         <figcaption><b>Nostalgia</b>NoSc0pe360 · xXDarkAngelXx · CamperKing2010<span class="n">TDM · 26–25 · 9:08 remaining</span><span class="stamp">captured 2026.09.19 · 17:45</span></figcaption>
@@ -395,7 +395,7 @@ dialog#lb::backdrop{background:rgba(6,7,6,.9)}
       </div>
       <figure>
         <button class="shotbtn" type="button" data-full="../shots/20260919174935_1.jpg" data-cap="The end-of-match board, with supply drops credited.">
-          <span class="shot"><img src="../shots/20260919174935_1.jpg" width="1920" height="1080" loading="lazy"
+          <span class="shot"><img src="../shots/w960/20260919174935_1.webp" srcset="../shots/w640/20260919174935_1.webp 640w, ../shots/w960/20260919174935_1.webp 960w, ../shots/w1280/20260919174935_1.webp 1280w, ../shots/20260919174935_1.jpg 1920w" sizes="(max-width:940px) calc(100vw - 30px), (max-width:1190px) calc(50vw - 31px), 564px" width="1920" height="1080" loading="lazy"
             alt="The Top Players end of match screen showing final scores and the number of supply drops earned."></span>
         </button>
         <figcaption><b>Top Players, full time</b>Drops credited to the soldier who earned them.<span class="n">The screen finally telling the truth</span><span class="stamp">captured 2026.09.19 · 17:49</span></figcaption>
@@ -411,9 +411,9 @@ dialog#lb::backdrop{background:rgba(6,7,6,.9)}
     <div class="sh"><h2>Four steps, and none of them are a leap of faith</h2></div>
     <ol class="steps">
       <li><div><h3>Own the game on Steam</h3><p>Call of Duty: WWII, the 2017 release. If it’s already in your library you’re most of the way there.</p></div></li>
-      <li><div><h3>Extract the release into the game folder</h3><p>The one with <code>s2_mp64_ship.exe</code> in it. Drop the contents of the ZIP in beside it.</p></div></li>
+      <li><div><h3>Get the build and extract it</h3><p>The zip is on the <a href="https://discord.gg/yMPWMTyPPZ" style="color:var(--gold)">Discord</a>. Drop its contents into the game folder, beside <code>s2_mp64_ship.exe</code>.</p></div></li>
       <li><div><h3>Start Steam, then run s2x.exe</h3><p>Steam has to be running. You don’t have to launch the game from it — S2x finds the rest.</p></div></li>
-      <li><div><h3>Open the browser and pick a server</h3><p>Or start a Custom Match and set <code>bot_fill 17</code>. Either way you’re in a full game inside a minute.</p></div></li>
+      <li><div><h3>Open the browser and pick a server</h3><p>Or start a Custom Match and set <code>bot_fill 17</code> — that gives you a full lobby straight away, whether or not anyone else is online.</p></div></li>
     </ol>
   </div>
 </section>
@@ -431,42 +431,42 @@ dialog#lb::backdrop{background:rgba(6,7,6,.9)}
     <div class="grid g3">
       <figure>
         <button class="shotbtn" type="button" data-full="../shots/20260919160555_1.jpg" data-cap="A daily order finished, with the next one already on the clock.">
-          <span class="shot"><img src="../shots/20260919160555_1.jpg" width="1920" height="1080" loading="lazy"
+          <span class="shot"><img src="../shots/w960/20260919160555_1.webp" srcset="../shots/w640/20260919160555_1.webp 640w, ../shots/w960/20260919160555_1.webp 960w, ../shots/w1280/20260919160555_1.webp 1280w, ../shots/20260919160555_1.jpg 1920w" sizes="(max-width:600px) calc(100vw - 30px), (max-width:880px) calc(50vw - 26px), (max-width:1190px) calc(33.3vw - 25px), 372px" width="1920" height="1080" loading="lazy"
             alt="Major Howard's orders board with a Rifle Adept daily order marked complete and a supply drop listed as the reward."></span>
         </button>
         <figcaption><b>Daily orders</b>Rifle Adept, complete. The timer is real and so is the next one.<span class="n">Reward: Supply Drop · resets in 2h 54m</span><span class="stamp">captured 2026.09.19 · 16:05</span></figcaption>
       </figure>
       <figure>
         <button class="shotbtn" type="button" data-full="../shots/20260919160543_1.jpg" data-cap="Contracts: credits up front, XP if you finish in time.">
-          <span class="shot"><img src="../shots/20260919160543_1.jpg" width="1920" height="1080" loading="lazy"
+          <span class="shot"><img src="../shots/w960/20260919160543_1.webp" srcset="../shots/w640/20260919160543_1.webp 640w, ../shots/w960/20260919160543_1.webp 960w, ../shots/w1280/20260919160543_1.webp 1280w, ../shots/20260919160543_1.jpg 1920w" sizes="(max-width:600px) calc(100vw - 30px), (max-width:880px) calc(50vw - 26px), (max-width:1190px) calc(33.3vw - 25px), 372px" width="1920" height="1080" loading="lazy"
             alt="The Contracts board showing a Headshot Contract with a six hour forty minute completion timer, its credit cost and XP reward."></span>
         </button>
         <figcaption><b>Contracts</b>Credits up front, XP if you finish in time. Your call.<span class="n">06h 40m · 250 credits · 3,000 XP</span><span class="stamp">captured 2026.09.19 · 16:05</span></figcaption>
       </figure>
       <figure>
         <button class="shotbtn" type="button" data-full="../shots/20260919160549_1.jpg" data-cap="Payroll, counting down in the Headquarters Post.">
-          <span class="shot"><img src="../shots/20260919160549_1.jpg" width="1920" height="1080" loading="lazy"
+          <span class="shot"><img src="../shots/w960/20260919160549_1.webp" srcset="../shots/w640/20260919160549_1.webp 640w, ../shots/w960/20260919160549_1.webp 960w, ../shots/w1280/20260919160549_1.webp 1280w, ../shots/20260919160549_1.jpg 1920w" sizes="(max-width:600px) calc(100vw - 30px), (max-width:880px) calc(50vw - 26px), (max-width:1190px) calc(33.3vw - 25px), 372px" width="1920" height="1080" loading="lazy"
             alt="The Headquarters Post screen with a payroll timer counting down and a mailbox."></span>
         </button>
         <figcaption><b>Headquarters Post</b>Payroll accruing, Mail wired up and waiting.<span class="n">Credits available in 3h 58m 41s</span><span class="stamp">captured 2026.09.19 · 16:05</span></figcaption>
       </figure>
       <figure>
         <button class="shotbtn" type="button" data-full="../shots/20260919160539_1.jpg" data-cap="The Quartermaster, stocked and open.">
-          <span class="shot"><img src="../shots/20260919160539_1.jpg" width="1920" height="1080" loading="lazy"
+          <span class="shot"><img src="../shots/w960/20260919160539_1.webp" srcset="../shots/w640/20260919160539_1.webp 640w, ../shots/w960/20260919160539_1.webp 960w, ../shots/w1280/20260919160539_1.webp 1280w, ../shots/20260919160539_1.jpg 1920w" sizes="(max-width:600px) calc(100vw - 30px), (max-width:880px) calc(50vw - 26px), (max-width:1190px) calc(33.3vw - 25px), 372px" width="1920" height="1080" loading="lazy"
             alt="The Headquarters Quartermaster offering a Rare Supply Drop, a Rare Zombie Supply Drop, Collections and COD Points."></span>
         </button>
         <figcaption><b>The Quartermaster</b>Drops on the shelf — the credits your duplicates converted into finally spend somewhere.<span class="n">1,000 Armory Credits</span><span class="stamp">captured 2026.09.19 · 16:05</span></figcaption>
       </figure>
       <figure>
         <button class="shotbtn" type="button" data-full="../shots/20260919172920_1.jpg" data-cap="A Legendary, mid-flip.">
-          <span class="shot"><img src="../shots/20260919172920_1.jpg" width="1920" height="1080" loading="lazy"
+          <span class="shot"><img src="../shots/w960/20260919172920_1.webp" srcset="../shots/w640/20260919172920_1.webp 640w, ../shots/w960/20260919172920_1.webp 960w, ../shots/w1280/20260919172920_1.webp 1280w, ../shots/20260919172920_1.jpg 1920w" sizes="(max-width:600px) calc(100vw - 30px), (max-width:880px) calc(50vw - 26px), (max-width:1190px) calc(33.3vw - 25px), 372px" width="1920" height="1080" loading="lazy"
             alt="A supply drop opening with three cards, the centre one glowing purple as a Legendary item is revealed."></span>
         </button>
         <figcaption><b>Supply drops</b>The whole ceremony intact — three cards face down, then the glow.<span class="n">Duplicates convert to Armory Credits</span><span class="stamp">captured 2026.09.19 · 17:29</span></figcaption>
       </figure>
       <figure>
         <button class="shotbtn" type="button" data-full="../shots/20260919191242_1.jpg" data-cap="Three Epics out of a single Rare Supply Drop.">
-          <span class="shot"><img src="../shots/20260919191242_1.jpg" width="1278" height="982" loading="lazy"
+          <span class="shot"><img src="../shots/w960/20260919191242_1.webp" srcset="../shots/w640/20260919191242_1.webp 640w, ../shots/w960/20260919191242_1.webp 960w, ../shots/20260919191242_1.jpg 1278w" sizes="(max-width:600px) calc(100vw - 30px), (max-width:880px) calc(50vw - 26px), (max-width:1190px) calc(33.3vw - 25px), 372px" width="1278" height="982" loading="lazy"
             alt="Three revealed supply drop cards: an Eastern Dragon weapon charm, a Task Force 9 uniform and a Partigiani uniform, all Epic rarity."></span>
         </button>
         <figcaption><b>A good night</b>Eastern Dragon · Task Force 9 · Partigiani<span class="n">Three Epics, one Rare drop</span><span class="stamp">captured 2026.09.19 · 19:12</span></figcaption>
@@ -476,7 +476,7 @@ dialog#lb::backdrop{background:rgba(6,7,6,.9)}
     <div class="proof" style="margin-top:46px;align-items:center">
       <figure>
         <button class="shotbtn" type="button" data-full="../shots/20260921174414_1.jpg" data-cap="The Headquarters social space, with other players in it.">
-          <span class="shot"><img src="../shots/20260921174414_1.jpg" width="1920" height="1080" loading="lazy"
+          <span class="shot"><img src="../shots/w960/20260921174414_1.webp" srcset="../shots/w640/20260921174414_1.webp 640w, ../shots/w960/20260921174414_1.webp 960w, ../shots/w1280/20260921174414_1.webp 1280w, ../shots/20260921174414_1.jpg 1920w" sizes="(max-width:940px) calc(100vw - 30px), (max-width:1190px) calc(50vw - 31px), 564px" width="1920" height="1080" loading="lazy"
             alt="The Headquarters social space with several other players standing around the parade ground, ranks shown above their heads."></span>
         </button>
         <figcaption><b>Headquarters, with people in it</b>The shared social space works too — ranks over their heads, the 1v1 pit off to the side.<span class="n">Not a menu. A place.</span><span class="stamp">captured 2026.09.21 · 17:44</span></figcaption>
@@ -503,42 +503,42 @@ dialog#lb::backdrop{background:rgba(6,7,6,.9)}
     <div class="grid g3">
       <figure>
         <button class="shotbtn" type="button" data-full="../shots/20260920023143_1.jpg" data-cap="Wave 5 on Groesten Haus.">
-          <span class="shot"><img src="../shots/20260920023143_1.jpg" width="2560" height="1352" loading="lazy"
+          <span class="shot"><img src="../shots/w960/20260920023143_1.webp" srcset="../shots/w640/20260920023143_1.webp 640w, ../shots/w960/20260920023143_1.webp 960w, ../shots/w1280/20260920023143_1.webp 1280w, ../shots/20260920023143_1.jpg 2560w" sizes="(max-width:600px) calc(100vw - 30px), (max-width:880px) calc(50vw - 26px), (max-width:1190px) calc(33.3vw - 25px), 372px" width="2560" height="1352" loading="lazy"
             alt="The Nazi Zombies wave summary on Groesten Haus showing 58 kills, 39 headshots and a score of 7,550."></span>
         </button>
         <figcaption><b>Groesten Haus · wave 5</b><span class="n">58 kills · 39 headshots · 7,550</span><span class="stamp">captured 2026.09.20 · 02:31</span></figcaption>
       </figure>
       <figure>
         <button class="shotbtn" type="button" data-full="../shots/20260920023211_1.jpg" data-cap="A weekly Zombies order, counting as you play.">
-          <span class="shot"><img src="../shots/20260920023211_1.jpg" width="2560" height="1352" loading="lazy"
+          <span class="shot"><img src="../shots/w960/20260920023211_1.webp" srcset="../shots/w640/20260920023211_1.webp 640w, ../shots/w960/20260920023211_1.webp 960w, ../shots/w1280/20260920023211_1.webp 1280w, ../shots/20260920023211_1.jpg 2560w" sizes="(max-width:600px) calc(100vw - 30px), (max-width:880px) calc(50vw - 26px), (max-width:1190px) calc(33.3vw - 25px), 372px" width="2560" height="1352" loading="lazy"
             alt="A Zombies orders board showing the Precision Week weekly order at twenty-one of two hundred headshot kills."></span>
         </button>
         <figcaption><b>Precision Week</b>Weekly order, tracking in real time.<span class="n">21/200 headshots · Rare Zombie Supply Drop</span><span class="stamp">captured 2026.09.20 · 02:32</span></figcaption>
       </figure>
       <figure>
         <button class="shotbtn" type="button" data-full="../shots/20260920025023_1.jpg" data-cap="The M1903 Guarantee consumable.">
-          <span class="shot"><img src="../shots/20260920025023_1.jpg" width="2560" height="1440" loading="lazy"
+          <span class="shot"><img src="../shots/w960/20260920025023_1.webp" srcset="../shots/w640/20260920025023_1.webp 640w, ../shots/w960/20260920025023_1.webp 960w, ../shots/w1280/20260920025023_1.webp 1280w, ../shots/20260920025023_1.jpg 2560w" sizes="(max-width:600px) calc(100vw - 30px), (max-width:880px) calc(50vw - 26px), (max-width:1190px) calc(33.3vw - 25px), 372px" width="2560" height="1440" loading="lazy"
             alt="The Zombies consumables screen showing the M1903 Guarantee, which forces the Mystery Box's next weapon."></span>
         </button>
         <figcaption><b>Consumables</b>M1903 Guarantee — forces the Mystery Box’s next weapon.<span class="n">Dropped from Zombie supply drops</span><span class="stamp">captured 2026.09.20 · 02:50</span></figcaption>
       </figure>
       <figure>
         <button class="shotbtn" type="button" data-full="../shots/20260920034956_1.jpg" data-cap="Promoted mid-round in the Artillery Bunker.">
-          <span class="shot"><img src="../shots/20260920034956_1.jpg" width="1824" height="1230" loading="lazy"
+          <span class="shot"><img src="../shots/w960/20260920034956_1.webp" srcset="../shots/w640/20260920034956_1.webp 640w, ../shots/w960/20260920034956_1.webp 960w, ../shots/w1280/20260920034956_1.webp 1280w, ../shots/20260920034956_1.jpg 1824w" sizes="(max-width:600px) calc(100vw - 30px), (max-width:880px) calc(50vw - 26px), (max-width:1190px) calc(33.3vw - 25px), 372px" width="1824" height="1230" loading="lazy"
             alt="A wave completed banner in the Artillery Bunker with a promotion notice reading new rank six."></span>
         </button>
         <figcaption><b>Promotion, wave 10</b>Zombies rank progression, live, mid-match.<span class="n">Artillery Bunker · new rank 6</span><span class="stamp">captured 2026.09.20 · 03:49</span></figcaption>
       </figure>
       <figure>
         <button class="shotbtn" type="button" data-full="../shots/20260920035108_1.jpg" data-cap="After action report, wave 11.">
-          <span class="shot"><img src="../shots/20260920035108_1.jpg" width="1824" height="1230" loading="lazy"
+          <span class="shot"><img src="../shots/w960/20260920035108_1.webp" srcset="../shots/w640/20260920035108_1.webp 640w, ../shots/w960/20260920035108_1.webp 960w, ../shots/w1280/20260920035108_1.webp 1280w, ../shots/20260920035108_1.jpg 1824w" sizes="(max-width:600px) calc(100vw - 30px), (max-width:880px) calc(50vw - 26px), (max-width:1190px) calc(33.3vw - 25px), 372px" width="1824" height="1230" loading="lazy"
             alt="A Zombies after action report showing wave eleven reached in under fourteen minutes with 224 kills and 179 headshots."></span>
         </button>
         <figcaption><b>After Action Report</b>The run, totalled up.<span class="n">224 kills · 179 headshots · 22,020</span><span class="stamp">captured 2026.09.20 · 03:51</span></figcaption>
       </figure>
       <figure>
         <button class="shotbtn" type="button" data-full="../shots/20260920031000_1.jpg" data-cap="Wave cleared in the flooded Thulian Archives.">
-          <span class="shot"><img src="../shots/20260920031000_1.jpg" width="1756" height="1232" loading="lazy"
+          <span class="shot"><img src="../shots/w960/20260920031000_1.webp" srcset="../shots/w640/20260920031000_1.webp 640w, ../shots/w960/20260920031000_1.webp 960w, ../shots/w1280/20260920031000_1.webp 1280w, ../shots/20260920031000_1.jpg 1756w" sizes="(max-width:600px) calc(100vw - 30px), (max-width:880px) calc(50vw - 26px), (max-width:1190px) calc(33.3vw - 25px), 372px" width="1756" height="1232" loading="lazy"
             alt="A wave completed banner in the flooded blue interior of the Thulian Archives."></span>
         </button>
         <figcaption><b>Further in</b>Thulian Archives, The Shadowed Throne, USS Texas.<span class="n">Progression carries across maps</span><span class="stamp">captured 2026.09.20 · 03:10</span></figcaption>
@@ -554,7 +554,7 @@ dialog#lb::backdrop{background:rgba(6,7,6,.9)}
     <div class="sh">
       <h2>A spare box and one click</h2>
       <p>The launcher is a Windows app with a mode toggle for Multiplayer and Zombies. Pick your maps, gametypes, score limits and bot settings, colour the server name with the swatch row — <code>^1</code> red, <code>^3</code> yellow, <code>^7</code> white — watch the preview, hit Launch. It finds the game folder on its own, so a spare PC with the game files copied across and no Steam installed becomes a dedicated server.</p>
-      <p>Those colours are the ones rendering in the browser captures at the top of this page. They survive the whole round trip. <strong>Two of the nine servers up there aren’t mine</strong> — that’s what this section is for.</p>
+      <p>Those colours are the ones rendering in the browser captures at the top of this page. They survive the whole round trip. <strong>Only three of the nine servers up there are mine</strong> — that’s what this section is for.</p>
     </div>
 
     <div class="fix">
@@ -573,14 +573,12 @@ dialog#lb::backdrop{background:rgba(6,7,6,.9)}
 <section id="get" class="close">
   <div class="wrap">
     <p class="kicker" style="text-align:center">08 — Go on then</p>
-    <h2>Nine servers. Nobody on them yet.</h2>
+    <h2>The servers are up. The seats are yours.</h2>
     <p>You already own the game. That’s genuinely the only hard part.</p>
     <div class="actions">
-      <a class="btn solid" href="https://github.com/ChronoRixun/S2x/releases/latest">Download latest build →</a>
-      <a class="btn ghost" href="https://discord.gg/yMPWMTyPPZ">Join the Discord</a>
-      <a class="btn ghost" href="https://github.com/ChronoRixun/S2x/issues">Report an issue</a>
+      <a class="btn solid" href="https://discord.gg/yMPWMTyPPZ">Get the build on Discord →</a>
     </div>
-    <p class="req" style="margin:22px auto 0;text-align:center">Requires a legitimate Steam copy of Call of Duty: WWII. S2x-CR is in active development — bugs, crashes and missing features are possible. If you hit one, the issue tracker is the fastest way to get it fixed.</p>
+    <p class="req" style="margin:22px auto 0;text-align:center">Requires a legitimate Steam copy of Call of Duty: WWII. S2x-CR is in active development — bugs, crashes and missing features are possible. If you hit one, say so in #server-feedback on the Discord — that’s the fastest way to get it fixed.</p>
   </div>
 </section>
 
@@ -594,9 +592,6 @@ dialog#lb::backdrop{background:rgba(6,7,6,.9)}
         <p style="margin:6px 0 0">A fork by <a href="https://github.com/ChronoRixun">ChronoRixun</a>, built on <a href="https://github.com/Brentdevent/S2x">Brentdevent/S2x</a>.</p>
       </div>
       <div style="display:flex;gap:18px;flex-wrap:wrap">
-        <a href="https://github.com/ChronoRixun/S2x">Repository</a>
-        <a href="https://github.com/ChronoRixun/S2x/releases/latest">Releases</a>
-        <a href="https://github.com/ChronoRixun/S2x/issues">Issues</a>
         <a href="https://discord.gg/yMPWMTyPPZ">Discord</a>
       </div>
     </div>
