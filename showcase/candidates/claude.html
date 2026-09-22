@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S2x-CR — Call of Duty: WWII, still running</title>
+<meta name="description" content="A community client for Call of Duty: WWII. Dedicated servers, working Headquarters progression, supply drops, Zombies — and enough bots that a lobby is never empty.">
+<meta name="theme-color" content="#0d0f0e">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="S2x-CR">
+<meta property="og:title" content="S2x-CR — Call of Duty: WWII, still running">
+<meta property="og:description" content="Dedicated servers, working progression, and enough bots that a lobby is never empty. You need the game on Steam; everything else is here.">
+<meta property="og:url" content="https://chronorixun.github.io/S2x/">
+<meta property="og:image" content="https://chronorixun.github.io/S2x/shots/20260921153435_1.jpg">
+<meta property="og:image:alt" content="A soldier advancing across mud towards a capture point on Pointe du Hoc.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="S2x-CR — Call of Duty: WWII, still running">
+<meta name="twitter:description" content="Dedicated servers, working progression, and enough bots that a lobby is never empty.">
+<meta name="twitter:image" content="https://chronorixun.github.io/S2x/shots/20260921153435_1.jpg">
+
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230d0f0e'/%3E%3Cpath d='M6 8h20L6 24h20' stroke='%23d4a54a' stroke-width='3.5' fill='none'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#0d0f0e;
+  --bg-2:#131614;
+  --panel:#181c19;
+  --line:#2c322d;
+  --line-soft:#21261f;
+  --text:#ece9e0;
+  --muted:#9aa096;
+  --dim:#6f766d;
+  --gold:#d4a54a;
+  --gold-soft:#8d7434;
+  --blood:#b4453a;
+  --measure:1180px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px;-webkit-text-size-adjust:100%}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
+  font-size:16px;line-height:1.65;overflow-x:hidden;
+}
+h1,h2,h3,.display{font-family:Oswald,'Arial Narrow',sans-serif;font-weight:500;letter-spacing:.01em;text-wrap:balance;margin:0}
+a{color:inherit}
+img{display:block;max-width:100%}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+::selection{background:var(--gold);color:var(--bg)}
+
+.wrap{width:min(100% - 32px,var(--measure));margin-inline:auto}
+.skip{position:absolute;left:-9999px;top:0;background:var(--gold);color:var(--bg);padding:10px 16px;z-index:100}
+.skip:focus{left:8px;top:8px}
+
+/* ---------- eyebrow / section numbering ---------- */
+.eyebrow{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--gold);display:flex;align-items:center;gap:12px;margin-bottom:18px;
+}
+.eyebrow::after{content:'';flex:1;height:1px;background:var(--line);min-width:20px}
+
+/* ---------- header ---------- */
+.site-head{
+  position:sticky;top:0;z-index:50;background:rgba(13,15,14,.92);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--line-soft);
+}
+.site-head .wrap{display:flex;align-items:center;gap:20px;height:60px}
+.mark{font-family:Oswald,sans-serif;font-size:23px;font-weight:600;letter-spacing:.02em;text-decoration:none;white-space:nowrap}
+.mark b{color:var(--gold);font-weight:600}
+.site-head nav{margin-left:auto;display:flex;gap:22px;font-size:13.5px}
+.site-head nav a{color:var(--muted);text-decoration:none}
+.site-head nav a:hover{color:var(--gold)}
+@media (max-width:720px){.site-head nav a[data-opt]{display:none}}
+
+/* ---------- hero ---------- */
+.hero{position:relative;min-height:min(86vh,680px);display:flex;align-items:flex-end;overflow:hidden}
+.hero-bg{position:absolute;inset:0}
+.hero-bg img{width:100%;height:100%;object-fit:cover;object-position:50% 46%}
+.hero-bg::after{
+  content:'';position:absolute;inset:0;
+  background:
+    linear-gradient(to top,var(--bg) 2%,rgba(13,15,14,.72) 38%,rgba(13,15,14,.34) 72%),
+    linear-gradient(to right,rgba(13,15,14,.86),rgba(13,15,14,.18) 62%);
+}
+.hero .wrap{position:relative;padding:56px 0 52px}
+.hero h1{font-size:clamp(2.5rem,7.4vw,4.6rem);line-height:.97;max-width:15ch;margin-bottom:20px}
+.hero h1 em{font-style:normal;color:var(--gold)}
+.hero p.lede{font-size:clamp(1rem,2.1vw,1.2rem);color:#d5d3c9;max-width:56ch;margin:0 0 30px}
+.cta-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.btn{
+  display:inline-flex;align-items:center;gap:10px;padding:13px 22px;
+  font-family:Oswald,sans-serif;font-size:15px;letter-spacing:.06em;text-transform:uppercase;
+  text-decoration:none;border:1px solid var(--gold);transition:background .16s,color .16s;
+}
+.btn-solid{background:var(--gold);color:#16180f;font-weight:500}
+.btn-solid:hover{background:#e8bd63}
+.btn-ghost{color:var(--text);border-color:var(--line);background:rgba(13,15,14,.5)}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
+.req{margin:16px 0 0;font-size:12.5px;color:var(--dim)}
+
+/* ---------- section shell ---------- */
+section{padding:84px 0;border-top:1px solid var(--line-soft)}
+section.tight{padding:64px 0}
+.sec-head{max-width:66ch;margin-bottom:40px}
+.sec-head h2{font-size:clamp(1.9rem,4vw,2.9rem);line-height:1.04;margin-bottom:14px}
+.sec-head p{color:var(--muted);font-size:1.03rem;margin:0}
+.sec-head p + p{margin-top:12px}
+
+/* ---------- figures ---------- */
+figure{margin:0}
+.shot{
+  position:relative;display:block;width:100%;border:1px solid var(--line);
+  background:var(--panel);aspect-ratio:16/9;overflow:hidden;
+}
+.shot img{width:100%;height:100%;object-fit:cover}
+.shot.tall{aspect-ratio:4/3}
+figcaption{
+  margin-top:10px;font-size:12.6px;line-height:1.5;color:var(--muted);
+}
+figcaption b{color:var(--text);font-weight:500;display:block;font-family:Oswald,sans-serif;
+  font-size:14px;letter-spacing:.03em;text-transform:uppercase;margin-bottom:2px}
+figcaption .data{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--gold-soft)}
+
+.grid{display:grid;gap:22px}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+@media (max-width:860px){.g3{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:620px){.g2,.g3{grid-template-columns:1fr}}
+
+/* ---------- the honest answer block ---------- */
+.answer{
+  display:grid;grid-template-columns:1fr 1fr;gap:34px;align-items:start;
+}
+@media (max-width:900px){.answer{grid-template-columns:1fr;gap:26px}}
+
+.browser{
+  border:1px solid var(--line);background:#14100b;
+  background-image:linear-gradient(rgba(20,16,11,.86),rgba(20,16,11,.94));
+  padding:18px 0 14px;
+}
+.browser h3{
+  font-size:18px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);
+  padding:0 18px;margin-bottom:2px;
+}
+.browser .sub{padding:0 18px;font-size:12px;color:var(--dim);font-style:italic;margin:0 0 14px}
+.browser table{width:100%;border-collapse:collapse;font-size:12.5px}
+.browser th{
+  font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--dim);font-weight:400;text-align:left;padding:0 10px 8px;border-bottom:1px solid var(--line-soft);
+}
+.browser th:nth-child(n+3),.browser td:nth-child(n+3){text-align:right}
+.browser td{padding:7px 10px;border-bottom:1px solid rgba(44,50,45,.4);color:var(--muted)}
+.browser tr:nth-child(odd) td{background:rgba(255,255,255,.017)}
+.browser td:first-child{color:var(--text)}
+.browser .host{font-weight:600}
+.h-cr{color:#d8534a}.h-gl{color:#c77ad8}.h-nn{color:#cbbf5e}
+.browser .pop{font-family:'IBM Plex Mono',monospace;color:var(--dim);white-space:nowrap}
+.browser .foot{padding:12px 18px 0;font-size:11.5px;color:var(--dim);font-family:'IBM Plex Mono',monospace}
+/* The panel sits in a half-width column on desktop and full width on mobile, so key
+   the column dropping off the panel itself rather than the viewport. */
+.browser{container-type:inline-size}
+@container (max-width:560px){
+  .browser th:nth-child(2),.browser td:nth-child(2){display:none}
+}
+@container (max-width:400px){
+  .browser th:nth-child(5),.browser td:nth-child(5){display:none}
+  .browser table{font-size:12px}
+}
+
+.callout{
+  border-left:2px solid var(--gold);padding:2px 0 2px 20px;margin:26px 0;
+  color:#d5d3c9;font-size:1.05rem;
+}
+.callout strong{color:var(--gold);font-weight:600}
+
+/* ---------- steps ---------- */
+.steps{counter-reset:s;display:grid;gap:0;border-top:1px solid var(--line-soft)}
+.steps li{
+  counter-increment:s;list-style:none;display:grid;grid-template-columns:54px 1fr;
+  gap:18px;padding:22px 0;border-bottom:1px solid var(--line-soft);align-items:baseline;
+}
+.steps li::before{
+  content:counter(s,decimal-leading-zero);font-family:Oswald,sans-serif;font-size:26px;color:var(--gold-soft);
+}
+.steps h3{font-size:18px;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px}
+.steps p{margin:0;color:var(--muted);font-size:14.5px}
+.steps code{
+  font-family:'IBM Plex Mono',monospace;font-size:12.6px;background:var(--panel);
+  border:1px solid var(--line);padding:1px 6px;color:var(--gold);
+}
+
+/* ---------- zombies tint ---------- */
+#zombies{background:linear-gradient(to bottom,var(--bg),#100c0c 40%,var(--bg))}
+#zombies .eyebrow{color:var(--blood)}
+#zombies .eyebrow::after{background:#3a2422}
+#zombies figcaption .data{color:#8a4239}
+
+/* ---------- host ---------- */
+.fix{
+  border:1px solid var(--line);background:var(--panel);padding:26px 28px;
+}
+.fix h3{font-size:19px;letter-spacing:.05em;text-transform:uppercase;margin-bottom:10px;color:var(--gold)}
+.fix p{margin:0 0 12px;color:var(--muted);font-size:14.6px}
+.fix p:last-child{margin-bottom:0}
+.stat{display:flex;gap:28px;flex-wrap:wrap;margin-top:18px;padding-top:18px;border-top:1px solid var(--line-soft)}
+.stat div{min-width:120px}
+.stat .n{font-family:Oswald,sans-serif;font-size:30px;color:var(--text);line-height:1}
+.stat .l{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-top:5px}
+
+/* ---------- close ---------- */
+.close-cta{text-align:center;padding:92px 0}
+.close-cta h2{font-size:clamp(2rem,5vw,3.2rem);margin-bottom:16px}
+.close-cta p{color:var(--muted);max-width:52ch;margin:0 auto 28px}
+.close-cta .cta-row{justify-content:center}
+
+footer{border-top:1px solid var(--line-soft);padding:42px 0 54px;font-size:12.6px;color:var(--dim)}
+footer .row{display:flex;flex-wrap:wrap;gap:20px;justify-content:space-between;align-items:flex-start}
+footer a{color:var(--muted)}
+footer a:hover{color:var(--gold)}
+footer .legal{max-width:62ch;margin-top:22px;line-height:1.6}
+
+/* ---------- lightbox ---------- */
+.shot-btn{padding:0;border:0;background:none;cursor:zoom-in;display:block;width:100%;font:inherit;text-align:left}
+dialog#lb{
+  border:0;padding:0;background:rgba(6,7,6,.97);max-width:100vw;max-height:100vh;
+  width:100vw;height:100vh;color:var(--text);
+}
+dialog#lb::backdrop{background:rgba(6,7,6,.9)}
+.lb-inner{display:flex;flex-direction:column;height:100%;padding:14px}
+.lb-inner img{flex:1;min-height:0;width:100%;object-fit:contain}
+.lb-cap{padding:12px 4px 2px;font-size:13px;color:var(--muted);text-align:center}
+.lb-close{
+  align-self:flex-end;background:none;border:1px solid var(--line);color:var(--text);
+  font-family:Oswald,sans-serif;font-size:14px;letter-spacing:.08em;text-transform:uppercase;
+  padding:7px 14px;cursor:pointer;margin-bottom:10px;
+}
+.lb-close:hover{border-color:var(--gold);color:var(--gold)}
+</style>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="mark" href="#top">S2x<b>·CR</b></a>
+    <nav>
+      <a href="#playing">Is anyone playing?</a>
+      <a href="#progress" data-opt>Progression</a>
+      <a href="#zombies" data-opt>Zombies</a>
+      <a href="#host" data-opt>Host</a>
+      <a href="#get">Get it</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- ============ HERO ============ -->
+<div class="hero" id="top">
+  <div class="hero-bg">
+    <img src="../shots/20260921153435_1.jpg" alt="A soldier advancing across open mud towards a capture point on Pointe du Hoc, bunkers and grey sky ahead." width="2560" height="1352" fetchpriority="high">
+  </div>
+  <div class="wrap">
+    <p class="eyebrow">Call of Duty: WWII · community client · v1.3.0</p>
+    <h1>The servers are up. <em>Right now.</em></h1>
+    <p class="lede">S2x-CR is a community client for Call of Duty&nbsp;: WWII — the 2017 one. Dedicated servers you can join or run, the Headquarters progression rebuilt so ranking up and supply drops work again, and enough bots that you never sit in an empty lobby waiting for a match to start.</p>
+    <div class="cta-row">
+      <a class="btn btn-solid" href="https://github.com/ChronoRixun/S2x/releases/latest">Download the build →</a>
+      <a class="btn btn-ghost" href="#playing">But is anyone playing?</a>
+    </div>
+    <p class="req">Requires a legitimate Steam copy of Call of Duty: WWII. Game files not included.</p>
+  </div>
+</div>
+
+<!-- ============ 01 — THE OBJECTION ============ -->
+<section id="playing">
+  <div class="wrap">
+    <p class="eyebrow">01 — The only question that matters</p>
+    <div class="sec-head">
+      <h2>“Isn’t it dead?”</h2>
+      <p>Fair question. Retail matchmaking is empty and the progression servers are long gone. So here is the honest answer, with the receipts, before anything else on this page tries to sell you something.</p>
+    </div>
+
+    <div class="answer">
+      <div>
+        <div class="browser">
+          <h3>Server Browser</h3>
+          <p class="sub">Browse dedicated S2x servers.</p>
+          <table>
+            <caption class="visually-hidden" style="position:absolute;left:-9999px">Dedicated S2x servers listed in the in-game browser</caption>
+            <thead>
+              <tr><th scope="col">Host</th><th scope="col">Map</th><th scope="col">Players</th><th scope="col">Type</th><th scope="col">Ping</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="host h-cr">CR’s</span> Dom/HP/TDM/KC 9v9 on Shipment</td><td>Shipment 1944</td><td class="pop">0/18</td><td>Hardpoint</td><td class="pop">19</td></tr>
+              <tr><td><span class="host h-cr">CR’s</span> Small Map Moshpit Mayhem</td><td>Shipment 1944</td><td class="pop">0/18</td><td>Kill Confirmed</td><td class="pop">30</td></tr>
+              <tr><td><span class="host h-cr">CR’s</span> Small Map Moshpit (DLC)</td><td>London Docks</td><td class="pop">0/18</td><td>Hardpoint</td><td class="pop">30</td></tr>
+              <tr><td><span class="host h-gl">Glooples</span> Prop Hunt — DLC Only</td><td>Anthropoid</td><td class="pop">0/18</td><td>Prop Hunt</td><td class="pop">73</td></tr>
+              <tr><td><span class="host h-gl">Glooples</span> Prop Hunt — Standard Maps</td><td>Aachen</td><td class="pop">0/18</td><td>Prop Hunt</td><td class="pop">74</td></tr>
+              <tr><td><span class="host h-nn">NamelessNoobs</span> Stock Maps</td><td>USS Texas</td><td class="pop">0/18</td><td>Team Deathmatch</td><td class="pop">80</td></tr>
+              <tr><td><span class="host h-gl">Glooples</span> OBJ Server — CTF &amp; DOM</td><td>Chancellery</td><td class="pop">0/18</td><td>Capture the Flag</td><td class="pop">91</td></tr>
+              <tr><td>SHIPMENT 24/7</td><td>Shipment 1944</td><td class="pop">0/18</td><td>Free-for-all</td><td class="pop">154</td></tr>
+              <tr><td>WAR 24/7 ALL MAPS</td><td>Operation Husky</td><td class="pop">0/18</td><td>War</td><td class="pop">154</td></tr>
+            </tbody>
+          </table>
+          <p class="foot">9 servers · 4 hosts · transcribed from the capture on the right</p>
+        </div>
+      </div>
+
+      <div>
+        <p style="margin-top:0;color:var(--muted)">Nine dedicated servers, run by four different people. Prop Hunt on three of them — a gametype nobody expects to see running on this engine. Host names come through in colour because the launcher’s colour codes work end to end.</p>
+
+        <p style="color:var(--muted)">And every one of them reads <strong style="color:var(--text)">0/18</strong>.</p>
+
+        <div class="callout">
+          That is the true state of it. The servers are real, they are joinable, and at the moment that screenshot was taken <strong>nobody was on any of them.</strong>
+        </div>
+
+        <p style="color:var(--muted)">Which would be the end of the story, except for the thing that makes a small community playable at all: <strong style="color:var(--text)">you are never actually alone in there.</strong></p>
+
+        <figure style="margin-top:24px">
+          <button class="shot-btn" type="button" data-full="../shots/20260921175918_1.jpg" data-cap="The in-game server browser: nine dedicated servers across four hosts.">
+            <span class="shot"><img src="../shots/20260921175918_1.jpg" alt="The in-game S2x server browser listing nine dedicated servers from hosts CR's, Glooples and NamelessNoobs, each showing zero of eighteen players." loading="lazy" width="1920" height="1080"></span>
+          </button>
+          <figcaption><b>The browser, unedited</b>Player counts left in. <span class="data">v1.3.0 · 9 servers · pings 19–154</span></figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 02 — BOTS ============ -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">02 — Why an empty server still gives you a game</p>
+    <div class="sec-head">
+      <h2>Join at 3am. Get a full 9v9.</h2>
+      <p>Set <code style="font-family:'IBM Plex Mono',monospace;color:var(--gold)">bot_fill 17</code> and every match fills to the slot count on map start — Team Deathmatch, Domination, Free-for-All, Hardpoint, Kill Confirmed, and War with complete nine-a-side teams. When a real player joins, a bot makes room for them.</p>
+      <p>This is the part most revival projects get wrong. Bots here are not a consolation prize for a dead game; they are the thing that lets a community of forty people keep nine servers worth playing on.</p>
+    </div>
+
+    <div class="grid g2">
+      <figure>
+        <button class="shot-btn" type="button" data-full="../shots/20260917225123_1.jpg" data-cap="War on Operation Husky — nine a side, every slot filled by bots.">
+          <span class="shot tall"><img src="../shots/20260917225123_1.jpg" alt="War mode scoreboard on Operation Husky with nine players on each team, all bot names from the Default pool." loading="lazy" width="1278" height="982"></span>
+        </button>
+        <figcaption><b>War · Operation Husky</b>Full 9v9 teams, every slot filled on map start. <span class="data">Default pool — Domino, Causeway, Overlord, Juno</span></figcaption>
+      </figure>
+      <figure>
+        <button class="shot-btn" type="button" data-full="../shots/20260919172800_1.jpg" data-cap="Domination on Shipment 1944 — 97 to 114, bots scoring on both sides.">
+          <span class="shot tall"><img src="../shots/20260919172800_1.jpg" alt="Domination scoreboard on Shipment 1944, Allies 97 to Axis 114, filled with modern-style bot gamertags." loading="lazy" width="1920" height="1080"></span>
+        </button>
+        <figcaption><b>Domination · Shipment 1944</b>They capture, they defend, they win if you let them. <span class="data">97–114 · Modern pool — BlindSprint, Reaver22, bleakwinter</span></figcaption>
+      </figure>
+    </div>
+
+    <div class="sec-head" style="margin-top:56px;margin-bottom:28px">
+      <h2 style="font-size:clamp(1.4rem,3vw,1.9rem)">Three name pools, so the lobby isn’t the same lobby</h2>
+      <p>54 names per pool, reshuffled every map. <strong style="color:var(--text)">Default</strong> keeps the engine’s military codenames. <strong style="color:var(--text)">Modern</strong> reads like 2016–2026. <strong style="color:var(--text)">Nostalgia</strong> is the Xbox 360 lobby you remember.</p>
+    </div>
+
+    <div class="grid g2">
+      <figure>
+        <button class="shot-btn" type="button" data-full="../shots/20260921160211_1.jpg" data-cap="Default pool: Domino, Causeway, Mike, Love, Overlord, Juno, Tare.">
+          <span class="shot"><img src="../shots/20260921160211_1.jpg" alt="Team Deathmatch scoreboard on Pointe du Hoc with eight players a side using military codename bot names." loading="lazy" width="2560" height="1352"></span>
+        </button>
+        <figcaption><b>Default</b>Domino · Causeway · Overlord · Juno · Tare · X-Ray <span class="data">TDM · Pointe du Hoc · 8v8</span></figcaption>
+      </figure>
+      <figure>
+        <button class="shot-btn" type="button" data-full="../shots/20260919174500_1.jpg" data-cap="Nostalgia pool mid-match on Shipment — 26 to 25 with nine minutes left.">
+          <span class="shot"><img src="../shots/20260919174500_1.jpg" alt="Team Deathmatch scoreboard on Shipment 1944 showing Xbox 360 era style bot gamertags with a close score." loading="lazy" width="1920" height="1080"></span>
+        </button>
+        <figcaption><b>Nostalgia</b>NoSc0pe360 · xXDarkAngelXx · CamperKing2010 <span class="data">TDM · 26–25 · 9:08 remaining</span></figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 03 — GETTING IN ============ -->
+<section class="tight">
+  <div class="wrap">
+    <p class="eyebrow">03 — From here to a match</p>
+    <div class="sec-head">
+      <h2>Four steps, about three minutes</h2>
+    </div>
+    <ol class="steps">
+      <li>
+        <div>
+          <h3>Own the game on Steam</h3>
+          <p>Call of Duty: WWII, the 2017 release. S2x ships no game content — it needs the files you already paid for.</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Download and extract</h3>
+          <p>Drop the contents of the release ZIP into the game folder, next to <code>s2_mp64_ship.exe</code>.</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Start Steam, then launch S2x</h3>
+          <p>Run <code>s2x.exe</code>. Steam has to be running; you don’t have to launch the game from it.</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Open the server browser and pick one</h3>
+          <p>Or start a Custom Match on your own and set <code>bot_fill 17</code>. Either way you are in a full game inside a minute.</p>
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ 04 — PROGRESSION ============ -->
+<section id="progress">
+  <div class="wrap">
+    <p class="eyebrow">04 — The part that was switched off</p>
+    <div class="sec-head">
+      <h2>Your unlocks work again</h2>
+      <p>Orders, contracts, payroll, the Quartermaster, Mail, supply drops — the whole Headquarters economy, re-implemented locally over the Achievement Engine protocol. It is not a cosmetic stand-in. The timers tick, the credits accrue, the drops land in your inventory.</p>
+      <p>And every soldier level-up now actually pays out the Rare Supply Drop the end-of-match screen has been promising you since 2017. The game always reported the level-up; there was simply nothing left on the other end to credit it.</p>
+    </div>
+
+    <div class="grid g3">
+      <figure>
+        <button class="shot-btn" type="button" data-full="../shots/20260919160539_1.jpg" data-cap="The Quartermaster, stocked.">
+          <span class="shot"><img src="../shots/20260919160539_1.jpg" alt="The Headquarters Quartermaster screen offering a Rare Supply Drop, a Rare Zombie Supply Drop, Collections and COD Points." loading="lazy" width="1920" height="1080"></span>
+        </button>
+        <figcaption><b>Quartermaster</b>Supply drops, Zombie drops, Collections. <span class="data">Priced in Armory Credits</span></figcaption>
+      </figure>
+      <figure>
+        <button class="shot-btn" type="button" data-full="../shots/20260919160543_1.jpg" data-cap="Contracts: timed challenges bought with Armory Credits.">
+          <span class="shot"><img src="../shots/20260919160543_1.jpg" alt="The Contracts board showing a Headshot Contract with a six hour forty minute timer and its credit and XP rewards." loading="lazy" width="1920" height="1080"></span>
+        </button>
+        <figcaption><b>Contracts</b>Headshot Contract, running. <span class="data">06h 40m · 250 credits · 3000 XP</span></figcaption>
+      </figure>
+      <figure>
+        <button class="shot-btn" type="button" data-full="../shots/20260919160549_1.jpg" data-cap="Payroll counting down in the Headquarters Post.">
+          <span class="shot"><img src="../shots/20260919160549_1.jpg" alt="The Headquarters Post screen with a payroll timer counting down and an empty mailbox." loading="lazy" width="1920" height="1080"></span>
+        </button>
+        <figcaption><b>Headquarters Post</b>Payroll accruing, mail delivering. <span class="data">Credits available in 3h 58m 41s</span></figcaption>
+      </figure>
+      <figure>
+        <button class="shot-btn" type="button" data-full="../shots/20260919160555_1.jpg" data-cap="A daily order completed, supply drop attached.">
+          <span class="shot"><img src="../shots/20260919160555_1.jpg" alt="Major Howard's orders board with a Rifle Adept daily order marked complete and a supply drop listed as the reward." loading="lazy" width="1920" height="1080"></span>
+        </button>
+        <figcaption><b>Daily Orders</b>Rifle Adept, complete. <span class="data">Reward: Supply Drop · resets in 2h 54m</span></figcaption>
+      </figure>
+      <figure>
+        <button class="shot-btn" type="button" data-full="../shots/20260919172920_1.jpg" data-cap="A Legendary pull, mid-flip.">
+          <span class="shot"><img src="../shots/20260919172920_1.jpg" alt="A supply drop opening with three cards, the centre one glowing purple as a Legendary item is revealed." loading="lazy" width="1920" height="1080"></span>
+        </button>
+        <figcaption><b>Supply Drops</b>The full card flip, rarity glow and all. <span class="data">Duplicates convert to credits</span></figcaption>
+      </figure>
+      <figure>
+        <button class="shot-btn" type="button" data-full="../shots/20260919191242_1.jpg" data-cap="Three Epics out of one Rare Supply Drop.">
+          <span class="shot"><img src="../shots/20260919191242_1.jpg" alt="Three revealed supply drop cards: an Eastern Dragon weapon charm, a Task Force 9 uniform and a Partigiani uniform, all Epic rarity." loading="lazy" width="1278" height="982"></span>
+        </button>
+        <figcaption><b>A good night</b>Eastern Dragon · Task Force 9 · Partigiani <span class="data">Three Epics, one drop</span></figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 05 — ZOMBIES ============ -->
+<section id="zombies">
+  <div class="wrap">
+    <p class="eyebrow">05 — And then there is the other game</p>
+    <div class="sec-head">
+      <h2>Nazi Zombies, with its own economy</h2>
+      <p>Not a side note. Groesten Haus and The Final Reich play through with full progression — wall buys, the mystery box, consumables, wave tracking — and the Headquarters economy extends into it with a separate set of orders, contracts and skull-backed supply drops.</p>
+      <p>Kill zombies, survive waves, land headshots; the progress bars move while you play and pay out in Armory Credits and Rare Zombie Supply Drops.</p>
+    </div>
+
+    <div class="grid g3">
+      <figure>
+        <button class="shot-btn" type="button" data-full="../shots/20260920023143_1.jpg" data-cap="Wave 5 on Groesten Haus.">
+          <span class="shot"><img src="../shots/20260920023143_1.jpg" alt="The Nazi Zombies wave summary on Groesten Haus showing 58 kills, 39 headshots and a score of 7550." loading="lazy" width="2560" height="1352"></span>
+        </button>
+        <figcaption><b>Groesten Haus · Wave 5</b><span class="data">58 kills · 39 headshots · 7,550</span></figcaption>
+      </figure>
+      <figure>
+        <button class="shot-btn" type="button" data-full="../shots/20260920023211_1.jpg" data-cap="A weekly Zombies order tracking headshots in real time.">
+          <span class="shot"><img src="../shots/20260920023211_1.jpg" alt="A Zombies orders board showing the Precision Week weekly order at 21 of 200 headshot kills." loading="lazy" width="2560" height="1352"></span>
+        </button>
+        <figcaption><b>Precision Week</b>Weekly order, counting as you play. <span class="data">21/200 headshots · Rare Zombie Supply Drop</span></figcaption>
+      </figure>
+      <figure>
+        <button class="shot-btn" type="button" data-full="../shots/20260920025023_1.jpg" data-cap="The M1903 Guarantee consumable.">
+          <span class="shot"><img src="../shots/20260920025023_1.jpg" alt="The Zombies consumables screen showing the M1903 Guarantee, which forces the Mystery Box's next weapon." loading="lazy" width="2560" height="1440"></span>
+        </button>
+        <figcaption><b>Consumables</b>M1903 Guarantee — forces the box’s next weapon. <span class="data">Dropped from Zombie supply drops</span></figcaption>
+      </figure>
+      <figure>
+        <button class="shot-btn" type="button" data-full="../shots/20260920034956_1.jpg" data-cap="Promoted mid-round on the Artillery Bunker.">
+          <span class="shot"><img src="../shots/20260920034956_1.jpg" alt="A wave completed banner on the Artillery Bunker with a promotion notice reading New Rank 6." loading="lazy" width="1824" height="1230"></span>
+        </button>
+        <figcaption><b>Promotion, wave 10</b>Zombies rank progression, live. <span class="data">Artillery Bunker · new rank 6</span></figcaption>
+      </figure>
+      <figure>
+        <button class="shot-btn" type="button" data-full="../shots/20260920035108_1.jpg" data-cap="After action report, wave 11.">
+          <span class="shot"><img src="../shots/20260920035108_1.jpg" alt="A Zombies after action report showing wave 11 reached in thirteen minutes with 224 kills and 179 headshots." loading="lazy" width="1824" height="1230"></span>
+        </button>
+        <figcaption><b>After Action Report</b>Reached wave 11. <span class="data">224 kills · 179 headshots · 22,020</span></figcaption>
+      </figure>
+      <figure>
+        <button class="shot-btn" type="button" data-full="../shots/20260920031000_1.jpg" data-cap="Thulian Archives, wave 6 cleared.">
+          <span class="shot"><img src="../shots/20260920031000_1.jpg" alt="A wave completed banner in the flooded blue interior of the Thulian Archives." loading="lazy" width="1756" height="1232"></span>
+        </button>
+        <figcaption><b>Further in</b>Thulian Archives, The Shadowed Throne, USS Texas. <span class="data">Progression carries across maps</span></figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 06 — HOSTING ============ -->
+<section id="host">
+  <div class="wrap">
+    <p class="eyebrow">06 — If you want to run one</p>
+    <div class="sec-head">
+      <h2>A spare box and one click</h2>
+      <p>The launcher is a Windows app with a mode toggle for Multiplayer and Zombies. Pick your maps, gametypes, score limits and bot settings, colour the server name with the swatch row, watch the preview, hit Launch. It finds the game folder on its own — a spare PC with the game files copied across and no Steam installed becomes a dedicated server.</p>
+    </div>
+
+    <div class="grid g2" style="align-items:start">
+      <figure>
+        <button class="shot-btn" type="button" data-full="../shots/20260921174414_1.jpg" data-cap="The Headquarters social space with other players in it.">
+          <span class="shot"><img src="../shots/20260921174414_1.jpg" alt="The Headquarters social area with several other players standing around the parade ground." loading="lazy" width="1920" height="1080"></span>
+        </button>
+        <figcaption><b>Headquarters</b>The social space works too — other players, ranks, the 1v1 pit. <span class="data">Shared HQ, not a menu</span></figcaption>
+      </figure>
+
+      <div class="fix">
+        <h3>The bug that made hosting miserable</h3>
+        <p>Roughly one launch in ten used to die a few seconds in. The cause was a repair guard inside the game’s anti-tamper layer, quietly restoring three of the client’s own patches; an integrity check then failed and the process was shut down.</p>
+        <p>The guard is now filtered like the rest of that layer.</p>
+        <div class="stat">
+          <div><div class="n">40/40</div><div class="l">cold starts reached a match</div></div>
+          <div><div class="n">9/10</div><div class="l">before the fix</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ GET IT ============ -->
+<section id="get" style="border-top:1px solid var(--line-soft)">
+  <div class="wrap close-cta">
+    <p class="eyebrow" style="justify-content:center">07 — Go on then</p>
+    <h2>It takes three minutes and you already own the game</h2>
+    <p>Grab the build, drop it in your game folder, and pick a server. If it breaks, say so — that is what the issue tracker and the Discord are for.</p>
+    <div class="cta-row">
+      <a class="btn btn-solid" href="https://github.com/ChronoRixun/S2x/releases/latest">Download latest build →</a>
+      <a class="btn btn-ghost" href="https://discord.gg/yMPWMTyPPZ">Join the Discord</a>
+      <a class="btn btn-ghost" href="https://github.com/ChronoRixun/S2x/issues">Report an issue</a>
+    </div>
+    <p class="req" style="margin-top:22px">Requires a legitimate Steam copy of Call of Duty: WWII. S2x is in active development — bugs, crashes and missing features are possible.</p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <div>
+        <div class="mark" style="font-size:20px">S2x<b>·CR</b></div>
+        <p style="margin:6px 0 0">A fork by <a href="https://github.com/ChronoRixun">ChronoRixun</a>, built on <a href="https://github.com/Brentdevent/S2x">Brentdevent/S2x</a>.</p>
+      </div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <a href="https://github.com/ChronoRixun/S2x">Repository</a>
+        <a href="https://github.com/ChronoRixun/S2x/releases/latest">Releases</a>
+        <a href="https://github.com/ChronoRixun/S2x/issues">Issues</a>
+        <a href="https://discord.gg/yMPWMTyPPZ">Discord</a>
+      </div>
+    </div>
+    <p class="legal">Independent community project. Not affiliated with Activision, Sledgehammer Games, Microsoft or xLabs. Call of Duty is a trademark of its respective owner. Every screenshot on this page is an unedited in-game capture from S2x-CR v1.3.0.</p>
+  </div>
+</footer>
+
+<dialog id="lb">
+  <div class="lb-inner">
+    <button class="lb-close" type="button" autofocus>Close ✕</button>
+    <img id="lb-img" src="" alt="">
+    <p class="lb-cap" id="lb-cap"></p>
+  </div>
+</dialog>
+
+<script>
+(function(){
+  var lb = document.getElementById('lb');
+  var img = document.getElementById('lb-img');
+  var cap = document.getElementById('lb-cap');
+  var last = null;
+
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('.shot-btn');
+    if(!btn) return;
+    last = btn;
+    img.src = btn.dataset.full;
+    img.alt = btn.querySelector('img').alt;
+    cap.textContent = btn.dataset.cap || '';
+    if(typeof lb.showModal === 'function') lb.showModal();
+  });
+
+  lb.querySelector('.lb-close').addEventListener('click', function(){ lb.close(); });
+  lb.addEventListener('click', function(e){ if(e.target === lb) lb.close(); });
+  lb.addEventListener('close', function(){
+    img.src = '';
+    if(last) { last.focus(); last = null; }
+  });
+})();
+</script>
+
+</body>
+</html>

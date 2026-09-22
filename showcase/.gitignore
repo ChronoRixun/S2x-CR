@@ -1,0 +1,8 @@
+# Source captures and everything derived from them. 45 MB of screenshots plus a copy of
+# the earlier GPT build — kept out of the repo until we decide what the published site
+# actually needs to ship. The pages reference ../shots/ and expect these present locally.
+shots/
+seq/
+thumbs/
+sheets/
+reference/

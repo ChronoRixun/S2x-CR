@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S2x-CR showcase site — the candidate lineup</title>
+<meta name="description" content="Five takes on the same brief: two earlier attempts, three competing candidates, and the synthesis built from them.">
+<meta name="theme-color" content="#0d0f0e">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#0d0f0e;--panel:#151916;--line:#2a302b;--text:#ece9e0;--muted:#9aa096;--dim:#6f766d;
+  --gold:#d4a54a;--win:#5f9e63;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',system-ui,sans-serif;line-height:1.65;overflow-x:hidden}
+h1,h2,h3{font-family:Oswald,sans-serif;font-weight:500;margin:0;text-wrap:balance}
+a{color:var(--gold)}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.wrap{width:min(100% - 32px,1240px);margin-inline:auto}
+
+header{padding:56px 0 34px;border-bottom:1px solid var(--line)}
+header h1{font-size:clamp(2rem,5vw,3.2rem);line-height:1.02;margin-bottom:14px}
+header p{color:var(--muted);max-width:74ch;margin:0 0 10px}
+.mono{font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:16px}
+
+section{padding:44px 0;border-bottom:1px solid var(--line)}
+.lede{max-width:74ch;color:var(--muted)}
+.lede strong{color:var(--text);font-weight:500}
+
+.card{
+  display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:34px;
+  padding:34px 0;border-bottom:1px solid var(--line);align-items:start;
+}
+.card:last-child{border-bottom:0}
+@media (max-width:900px){.card{grid-template-columns:1fr;gap:20px}}
+
+.frame{
+  position:relative;width:100%;aspect-ratio:16/10;overflow:hidden;
+  border:1px solid var(--line);background:#000;
+}
+.frame iframe{
+  position:absolute;top:0;left:0;width:1280px;height:800px;border:0;
+  transform-origin:0 0;pointer-events:none;
+}
+.frame .veil{position:absolute;inset:0;background:transparent}
+.frame-label{
+  position:absolute;left:0;bottom:0;background:rgba(6,8,7,.88);color:var(--muted);
+  font-family:'IBM Plex Mono',monospace;font-size:10.5px;padding:5px 9px;letter-spacing:.1em;
+}
+
+.meta h2{font-size:1.6rem;margin-bottom:2px}
+.byline{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:16px}
+.meta h3{font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin:18px 0 5px}
+.meta p{margin:0;color:var(--muted);font-size:15px}
+.meta ul{margin:6px 0 0;padding-left:18px;color:var(--muted);font-size:15px}
+.meta li{margin-bottom:5px}
+.meta li b{color:var(--text);font-weight:500}
+.open{
+  display:inline-flex;align-items:center;gap:8px;margin-top:20px;padding:9px 16px;
+  border:1px solid var(--gold);color:var(--gold);text-decoration:none;
+  font-family:Oswald,sans-serif;font-size:14px;letter-spacing:.07em;text-transform:uppercase;
+}
+.open:hover{background:var(--gold);color:#16180f}
+
+.verdict{border-left:2px solid var(--gold);padding-left:18px;margin-top:20px;color:#d5d3c9;font-size:15px}
+.verdict.keep{border-color:var(--win)}
+.verdict b{color:var(--gold);font-weight:600}
+.verdict.keep b{color:var(--win)}
+
+.tag{
+  display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;border:1px solid var(--line);color:var(--dim);padding:3px 8px;margin:0 6px 6px 0;
+}
+.tag.win{border-color:var(--win);color:var(--win)}
+
+footer{padding:48px 0 70px;color:var(--dim);font-size:13px}
+footer p{max-width:80ch}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <p class="mono">S2x-CR · showcase site · candidate lineup</p>
+    <h1>Five takes on the same brief</h1>
+    <p>Two pages already existed. Three of us then worked the same brief independently — a written spec with the audience, the factual copy, the 103 in-game captures and one hard honesty constraint. This page lines them all up so you can see what each one reached for, and what the final build takes from each.</p>
+    <p style="color:var(--dim);font-size:13.5px">Previews are live pages rendered at 1280px and scaled down. Click through to open any of them properly.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2 style="font-size:1.1rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:14px">The brief, in one paragraph</h2>
+    <p class="lede">S2x-CR is a community client that brings Call of Duty: WWII back — dedicated servers, bot-filled lobbies, the Headquarters progression economy rebuilt. The reader is a lapsed player who found the link in a Discord, owns the game on Steam, and assumes it's dead. <strong>The goal is not to impress them. It is to get them to download the build and join a server tonight.</strong> One constraint bound every entry: the server browser captures all read 0/18 players, and no design was allowed to imply otherwise.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+
+    <!-- ============ PRIOR 1 ============ -->
+    <div class="card">
+      <div>
+        <div class="frame">
+          <iframe src="/showcase/reference/gpt/index.html" title="Preview of the earlier marketing landing page" loading="lazy" scrolling="no" data-scale></iframe>
+          <div class="veil"></div>
+          <div class="frame-label">PRIOR · marketing landing page</div>
+        </div>
+      </div>
+      <div class="meta">
+        <h2>The front door</h2>
+        <p class="byline">Prior attempt · built by GPT</p>
+        <span class="tag">hero + CTA</span><span class="tag">6 screenshots</span><span class="tag">lightbox</span>
+
+        <h3>What it got right</h3>
+        <p>Someone landing cold knows what this is in five seconds and where to click. Restrained gold-on-charcoal, good typographic rhythm, real alt text, a skip link, visible focus rings. Mobile holds up. It is the handsomest of the five.</p>
+
+        <h3>Where it falls down</h3>
+        <p>The evidence is thin — six screenshots against the other page's twenty-five, and the specifics that make this project believable got flattened into taglines. It asserts rather than shows. No Open Graph tags at all, which matters when the link is pasted into Discord constantly. Full-resolution JPEGs used as grid thumbnails: 11 MB over a scroll.</p>
+
+        <div class="verdict"><b>Taken forward:</b> the typographic discipline, the CTA hierarchy, and the fact that a stranger should never have to work out what they're looking at.</div>
+
+        <a class="open" href="/showcase/reference/gpt/index.html" target="_blank" rel="noopener">Open it →</a>
+      </div>
+    </div>
+
+    <!-- ============ PRIOR 2 ============ -->
+    <div class="card">
+      <div>
+        <div class="frame">
+          <iframe src="/docs/index.html" title="Preview of the earlier documentation dossier" loading="lazy" scrolling="no" data-scale></iframe>
+          <div class="veil"></div>
+          <div class="frame-label">PRIOR · documentation dossier · live site</div>
+        </div>
+      </div>
+      <div class="meta">
+        <h2>The dossier</h2>
+        <p class="byline">Prior attempt · built by Claude · currently live at chronorixun.github.io/S2x</p>
+        <span class="tag">25 screenshots</span><span class="tag">claim → proof</span><span class="tag">no CTA</span>
+
+        <h3>What it got right</h3>
+        <p>It is <em>convincing</em>. Every claim is followed immediately by a capture proving it, and the captions are specific and unhedged — “4v3 with bots, full scoreboard and progression”, “Five level-ups in a single match, five drops credited”. That copy is the best asset this project has and it became the factual source for every other entry here.</p>
+
+        <h3>Where it falls down</h3>
+        <p>Two hard faults. It has <b style="color:var(--text)">no doctype</b>, so browsers render it in quirks mode. It has <b style="color:var(--text)">no viewport meta</b>, so a phone lays it out at 980px and scales down until the body text is unreadable — and most arrivals are on a phone, from Discord. Beyond that: no description meta, no OG tags, and no call to action anywhere until the very bottom. It documents; it never asks for anything.</p>
+
+        <div class="verdict"><b>Taken forward:</b> the evidence density and the hard-number captions. Those are the credibility engine and the final build keeps them.</div>
+
+        <a class="open" href="/docs/index.html" target="_blank" rel="noopener">Open it →</a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2 style="font-size:1.1rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:14px">The three candidates</h2>
+    <p class="lede" style="margin-bottom:8px">Same brief, same screenshots, no contact between the three. The striking result is that <strong>two of the three independently arrived at the same thesis</strong> — that the honest 0/18 server browser should be the centrepiece rather than something to bury.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+
+    <!-- ============ CANDIDATE — KIMI ============ -->
+    <div class="card">
+      <div>
+        <div class="frame">
+          <iframe src="/showcase/candidates/kimi.html" title="Preview of Kimi's candidate" loading="lazy" scrolling="no" data-scale></iframe>
+          <div class="veil"></div>
+          <div class="frame-label">CANDIDATE · Kimi K3</div>
+        </div>
+      </div>
+      <div class="meta">
+        <h2>“The empty slots are the invitation”</h2>
+        <p class="byline">Candidate · Kimi K3 via Hermes</p>
+        <span class="tag win">best line on the page</span><span class="tag">21 screenshots</span><span class="tag">10 sections</span>
+
+        <h3>Its concept, in its own words</h3>
+        <p>“Make the empty server browser the pitch instead of hiding it… the infrastructure is real, four different hosts already run it, and the empty slots are the reader’s invitation, with bot fill guaranteeing a match the second they join.”</p>
+
+        <h3>What it saw that the others didn’t</h3>
+        <ul>
+          <li><b>The stat row.</b> Nine servers · four hosts · 19–154 ms ping · <em>“0/18 players — the part that’s on you.”</em> That last line does more work than any paragraph any of us wrote. It takes the single weakest fact and turns it into a direct address.</li>
+          <li><b>“The match pays out” as its own beat</b>, placed immediately after the bots section. For a lapsed player the emotional hook isn’t that bots exist — it’s that progress counts again.</li>
+          <li><b>Discord placed next to the one screenshot with real humans in it.</b> Ask people to come and meet people at the exact moment you show them people.</li>
+        </ul>
+
+        <div class="verdict keep"><b>Taken forward:</b> the stat row almost verbatim, the payout section, and the Discord placement.</div>
+
+        <a class="open" href="/showcase/candidates/kimi.html" target="_blank" rel="noopener">Open it →</a>
+      </div>
+    </div>
+
+    <!-- ============ CANDIDATE — MINIMAX ============ -->
+    <div class="card" id="minimax-card">
+      <div>
+        <div class="frame">
+          <iframe src="/showcase/candidates/minimax.html" title="Preview of MiniMax's candidate" loading="lazy" scrolling="no" data-scale></iframe>
+          <div class="veil"></div>
+          <div class="frame-label">CANDIDATE · MiniMax</div>
+        </div>
+      </div>
+      <div class="meta">
+        <h2 id="mm-title">“The servers are empty. That’s the whole problem S2x solves.”</h2>
+        <p class="byline">Candidate · MiniMax M3 via Hermes · copy by MiniMax, markup assembled here</p>
+        <span class="tag win">best headline produced</span><span class="tag win">sharpest critique</span><span class="tag">8 screenshots</span>
+
+        <h3>Its concept, in its own words</h3>
+        <p>“A retired player’s phone is full of places that ask them to believe. The most credible thing on that screen is the server browser they can’t fake… I’ll treat the empty player counts as the headline, not the footnote.”</p>
+
+        <h3>What it saw that the others didn’t</h3>
+        <ul>
+          <li><b>That headline.</b> Nine words that name the weakness and resolve it in the same breath. Neither of the other two wrote anything close, and it is now the h1 on the final build.</li>
+          <li><b>The risk nobody else spotted.</b> All three of us independently decided to lead with the honest 0/18. MiniMax was the only one to then attack its own idea: <em>“a skeptical reader could read 0/18 as ‘dead project’ in the first second and bounce before the supporting evidence lands… if that bridge is even one beat slow, the honesty reads as weakness.”</em></li>
+          <li><b>The download block placed early</b>, and the Steam requirement stated plainly up front rather than buried — “that’s the trust collapse point if left unsaid”.</li>
+        </ul>
+
+        <div class="verdict keep"><b>Taken forward:</b> the headline verbatim, the early download block, and the Steam line. Its own risk warning is why the final build answers the objection in the headline itself rather than waiting for the reader to scroll.</div>
+
+        <p style="color:var(--dim);font-size:13px;margin-top:16px">MiniMax runs on a remote gateway and its replies were truncated above roughly 500 words, so it produced concept, structure, critique and finished copy, and the HTML was assembled here from that direction. The words on its page are its own.</p>
+
+        <a class="open" href="/showcase/candidates/minimax.html" target="_blank" rel="noopener">Open it →</a>
+      </div>
+    </div>
+
+    <!-- ============ CANDIDATE — CLAUDE ============ -->
+    <div class="card">
+      <div>
+        <div class="frame">
+          <iframe src="/showcase/candidates/claude.html" title="Preview of Claude's candidate" loading="lazy" scrolling="no" data-scale></iframe>
+          <div class="veil"></div>
+          <div class="frame-label">CANDIDATE · Claude</div>
+        </div>
+      </div>
+      <div class="meta">
+        <h2>“Isn’t it dead?”</h2>
+        <p class="byline">Candidate · Claude (Opus 5)</p>
+        <span class="tag win">server list as real text</span><span class="tag">18 screenshots</span><span class="tag">container queries</span>
+
+        <h3>Its concept</h3>
+        <p>Structure the whole page as an honest answer to the one question a skeptic actually has, and put that question in the navigation. Nothing gets sold before the objection is met.</p>
+
+        <h3>What it saw that the others didn’t</h3>
+        <ul>
+          <li><b>The server browser transcribed into a real HTML table</b>, sitting beside the screenshot. The most important evidence on the site was trapped in a JPEG that is illegible on a phone — which is where most readers are. As markup it is readable, selectable, searchable and indexable, and it keeps the colour-coded host names that prove the launcher's colour codes work end to end.</li>
+          <li><b>Column dropping keyed to the panel, not the viewport</b>, via container queries — the table sits in a half-width column on desktop and full width on mobile, so viewport breakpoints get it wrong in the middle.</li>
+          <li><b>Captions carrying the raw numbers</b> — “58 kills · 39 headshots · 7,550”, “Credits available in 3h 58m 41s” — inherited from the dossier and pushed further.</li>
+        </ul>
+
+        <div class="verdict keep"><b>Taken forward:</b> the transcribed server table, the container-query handling, and the objection-first running order.</div>
+
+        <a class="open" href="/showcase/candidates/claude.html" target="_blank" rel="noopener">Open it →</a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section style="border-bottom:0">
+  <div class="wrap">
+    <h2 style="font-size:1.1rem;letter-spacing:.14em;text-transform:uppercase;color:var(--win);margin-bottom:14px">The synthesis</h2>
+    <div class="card" style="border-bottom:0;padding-top:16px">
+      <div>
+        <div class="frame" style="border-color:var(--win)">
+          <iframe src="/showcase/master/index.html" title="Preview of the final synthesised build" loading="lazy" scrolling="no" data-scale></iframe>
+          <div class="veil"></div>
+          <div class="frame-label" style="color:var(--win)">FINAL · the build</div>
+        </div>
+      </div>
+      <div class="meta">
+        <h2>The build</h2>
+        <p class="byline">Synthesis of all five</p>
+        <h3>What it keeps</h3>
+        <ul>
+          <li><b>From the dossier:</b> evidence density and hard-number captions.</li>
+          <li><b>From the landing page:</b> a real front door and typographic discipline.</li>
+          <li><b>From Kimi:</b> the stat row, the payout beat, Discord beside the humans.</li>
+          <li><b>From Claude:</b> the transcribed server table and the objection-first order.</li>
+          <li><b>New:</b> the fixes neither prior had — doctype, viewport, description, Open Graph and Twitter cards, lazy loading and intrinsic sizing throughout.</li>
+        </ul>
+        <a class="open" href="/showcase/master/index.html" target="_blank" rel="noopener" style="border-color:var(--win);color:var(--win)">Open the build →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>Every screenshot used across these pages is an unedited in-game capture from S2x-CR v1.3.0. The server browser captures read 0/18 players and are presented that way everywhere — no entry was allowed to imply a populated playerbase.</p>
+  </div>
+</footer>
+
+<script>
+// Scale each preview iframe so a 1280px-wide render fits its card.
+function fit(){
+  document.querySelectorAll('.frame').forEach(function(f){
+    var ifr = f.querySelector('iframe[data-scale]');
+    if(!ifr) return;
+    var s = f.clientWidth / 1280;
+    ifr.style.transform = 'scale(' + s + ')';
+    ifr.style.height = (f.clientHeight / s) + 'px';
+  });
+}
+window.addEventListener('resize', fit);
+window.addEventListener('load', fit);
+fit();
+</script>
+
+</body>
+</html>

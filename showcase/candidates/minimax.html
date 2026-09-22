@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S2x — CoD: WWII multiplayer, restored</title>
+<meta name="description" content="S2x restores CoD: WWII multiplayer. Nine dedicated servers across four hosts, bots that fill lobbies, Headquarters economy rebuilt. Bring a legitimate Steam copy.">
+<meta name="theme-color" content="#0b0c0b">
+<link rel="canonical" href="https://chronorixun.github.io/S2x/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="S2x">
+<meta property="og:title" content="S2x — CoD: WWII multiplayer, restored">
+<meta property="og:description" content="The servers are empty. That's the whole problem S2x solves. Nine dedicated servers across four hosts, bots that fill every lobby, and the Headquarters economy running again.">
+<meta property="og:url" content="https://chronorixun.github.io/S2x/">
+<meta property="og:image" content="https://chronorixun.github.io/S2x/shots/20260921175918_1.jpg">
+<meta property="og:image:alt" content="The in-game S2x server browser listing nine dedicated servers across four hosts.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="S2x — CoD: WWII multiplayer, restored">
+<meta name="twitter:description" content="The servers are empty. That's the whole problem S2x solves.">
+<meta name="twitter:image" content="https://chronorixun.github.io/S2x/shots/20260921175918_1.jpg">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0c0b'/%3E%3Cpath d='M6 8h20L6 24h20' stroke='%23e0b350' stroke-width='3.5' fill='none'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#0b0c0b;--panel:#121413;--line:#262a26;--text:#e9e7e0;--muted:#989d95;--dim:#6b706a;
+  --gold:#e0b350;--red:#d05a4e;--ok:#63a06a;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Roboto,system-ui,sans-serif;line-height:1.6;overflow-x:hidden}
+h1,h2,h3{font-family:'Roboto Condensed',sans-serif;font-weight:700;margin:0;line-height:1.05;text-wrap:balance}
+img{display:block;max-width:100%}
+a{color:var(--gold)}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.wrap{width:min(100% - 28px,1120px);margin-inline:auto}
+.mono{font-family:'Roboto Mono',monospace}
+.kicker{font-family:'Roboto Mono',monospace;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin:0 0 14px}
+.skip{position:absolute;left:-9999px}.skip:focus{left:8px;top:8px;background:var(--gold);color:#111;padding:10px 14px;z-index:99}
+
+/* ---- 1. open on the browser ---- */
+.open{padding:44px 0 10px}
+.open h1{font-size:clamp(1.95rem,5.4vw,3.35rem);max-width:19ch;margin-bottom:16px}
+.open h1 span{color:var(--gold)}
+.open .stand{color:var(--muted);max-width:60ch;font-size:clamp(1rem,2vw,1.12rem);margin:0 0 26px}
+.evidence{border:1px solid var(--line);background:var(--panel)}
+.evidence img{width:100%;height:auto}
+.evidence .cap{padding:18px 20px;border-top:1px solid var(--line)}
+.evidence .cap p{margin:0 0 12px;color:var(--muted);font-size:14.5px}
+.evidence .cap p:last-child{margin-bottom:0}
+.evidence .cap .hard{color:var(--text)}
+.evidence .cap .turn{color:var(--text);font-size:15.5px;border-left:2px solid var(--gold);padding-left:14px}
+.counts{display:flex;flex-wrap:wrap;gap:0;border-top:1px solid var(--line)}
+.counts div{flex:1 1 140px;padding:14px 18px;border-right:1px solid var(--line)}
+.counts div:last-child{border-right:0}
+.counts b{display:block;font-family:'Roboto Condensed',sans-serif;font-size:23px;color:var(--text)}
+.counts span{font-family:'Roboto Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.counts .flag b{color:var(--red)}
+
+/* ---- 2. three claims ---- */
+.claims{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin:40px 0 0}
+.claims article{background:var(--bg);padding:24px 22px}
+.claims h3{font-size:17px;letter-spacing:.02em;margin-bottom:8px;color:var(--gold)}
+.claims p{margin:0;color:var(--muted);font-size:14.5px}
+.claims code{font-family:'Roboto Mono',monospace;font-size:12.5px;color:var(--gold)}
+@media (max-width:820px){.claims{grid-template-columns:1fr}}
+
+/* ---- 3. download ---- */
+.dl{margin:44px 0;border:1px solid var(--gold);background:linear-gradient(180deg,rgba(224,179,80,.07),transparent)}
+.dl .in{padding:28px 26px;display:grid;grid-template-columns:1fr auto;gap:22px;align-items:center}
+@media (max-width:760px){.dl .in{grid-template-columns:1fr}}
+.dl h2{font-size:clamp(1.5rem,3.6vw,2.1rem);margin-bottom:6px}
+.dl .sub{margin:0;color:var(--muted);font-family:'Roboto Mono',monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+.btn{display:inline-flex;align-items:center;gap:9px;padding:14px 24px;background:var(--gold);color:#14150f;
+  font-family:'Roboto Condensed',sans-serif;font-weight:700;font-size:16px;letter-spacing:.05em;
+  text-transform:uppercase;text-decoration:none;white-space:nowrap}
+.btn:hover{background:#efc767}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+.btn.ghost:hover{border-color:var(--gold);color:var(--gold);background:transparent}
+.dl .steam{margin:0;padding:16px 26px;border-top:1px solid rgba(224,179,80,.3);color:var(--muted);font-size:13.5px}
+.dl .steam b{color:var(--text);font-weight:500}
+
+/* ---- 4. steps ---- */
+section{padding:58px 0;border-top:1px solid var(--line)}
+section h2.sh{font-size:clamp(1.5rem,3.6vw,2.2rem);margin-bottom:24px}
+ol.mins{counter-reset:m;margin:0;padding:0;list-style:none;border-top:1px solid var(--line)}
+ol.mins li{counter-increment:m;display:grid;grid-template-columns:40px 1fr;gap:14px;padding:16px 0;border-bottom:1px solid var(--line);color:var(--muted);font-size:15px}
+ol.mins li::before{content:counter(m);font-family:'Roboto Condensed',sans-serif;font-weight:700;font-size:20px;color:var(--gold)}
+ol.mins code{font-family:'Roboto Mono',monospace;font-size:12.5px;background:var(--panel);border:1px solid var(--line);padding:1px 5px;color:var(--gold)}
+
+/* ---- 5. where you'll land ---- */
+.land{display:grid;grid-template-columns:1.05fr 1fr;gap:28px;align-items:center}
+@media (max-width:860px){.land{grid-template-columns:1fr}}
+.land p{color:var(--muted);margin:0 0 14px}
+.land .sw{display:flex;gap:14px;flex-wrap:wrap;font-family:'Roboto Mono',monospace;font-size:12px;margin-top:6px}
+.land .sw i{font-style:normal;display:inline-flex;align-items:center;gap:6px;color:var(--dim)}
+.land .sw i::before{content:'';width:10px;height:10px;background:currentColor}
+.sw .c1{color:#d8534a}.sw .c3{color:#cbbf5e}.sw .c7{color:#e9e7e0}
+
+/* ---- 6. carousel ---- */
+.strip{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media (max-width:880px){.strip{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:560px){.strip{grid-template-columns:1fr}}
+figure{margin:0;border:1px solid var(--line);background:var(--panel)}
+figure .f{aspect-ratio:16/9;overflow:hidden;background:#000}
+figure img{width:100%;height:100%;object-fit:cover}
+figcaption{padding:12px 14px;font-size:13px;color:var(--muted)}
+figcaption b{display:block;font-family:'Roboto Condensed',sans-serif;font-size:14.5px;color:var(--text);letter-spacing:.02em}
+figcaption .n{font-family:'Roboto Mono',monospace;font-size:11px;color:var(--gold);display:block;margin-top:3px}
+
+footer{border-top:1px solid var(--line);padding:38px 0 56px;color:var(--dim);font-size:13px}
+footer .links{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:16px}
+footer p{max-width:78ch;margin:0;line-height:1.6}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<main id="main">
+
+<!-- 1 — open on the evidence -->
+<div class="open">
+  <div class="wrap">
+    <p class="kicker">S2x · Call of Duty: WWII · community client · v1.3.0</p>
+    <h1>The servers are empty. <span>That’s the whole problem S2x solves.</span></h1>
+    <p class="stand">Nine dedicated servers across four independent hosts. Each one fills the moment you connect — bots hold the line until a real player joins, then make room.</p>
+
+    <div class="evidence">
+      <img src="../shots/20260921175918_1.jpg" width="1920" height="1080" fetchpriority="high"
+           alt="The in-game S2x server browser listing nine dedicated servers from hosts CR's, Glooples and NamelessNoobs, every row showing zero of eighteen players.">
+      <div class="cap">
+        <p>This is the browser as it stands. Nine servers across four hosts — CR’s ×3, Glooples ×3, NamelessNoobs, plus SHIPMENT 24/7 and WAR 24/7 — running Shipment 1944, London Docks, Anthropoid, Aachen, USS Texas, Chancellery and Operation Husky, in Hardpoint, Kill Confirmed, Team Deathmatch, Capture the Flag, Free-for-all, War and Prop Hunt. Pings 19–154 ms. <span class="hard">Every row reads 0/18.</span></p>
+        <p class="turn">That count isn’t a flaw in the project. It’s the reason you’re reading this page. The servers exist. Four different people run them. They’re joinable. The empty seats are the ones your client fills tonight.</p>
+      </div>
+      <div class="counts">
+        <div><b>9</b><span>dedicated servers</span></div>
+        <div><b>4</b><span>independent hosts</span></div>
+        <div><b>19–154<small style="font-size:12px"> ms</small></b><span>ping range</span></div>
+        <div class="flag"><b>0/18</b><span>players — that part is on you</span></div>
+      </div>
+    </div>
+
+    <!-- 2 — three honest claims -->
+    <div class="claims">
+      <article>
+        <h3>Bots that hold the line</h3>
+        <p><code>bot_fill 17</code> puts a full lobby on every map start — Team Deathmatch, Domination, Free-for-All, Hardpoint, and War with complete 9v9 teams — and a bot steps out the moment a real player joins.</p>
+      </article>
+      <article>
+        <h3>The whole HQ economy, rebuilt</h3>
+        <p>Orders, contracts, payroll, the Quartermaster and supply drops with the full card-flip, all running locally over the Achievement Engine protocol. The level-up your end-of-match screen always promised now actually lands.</p>
+      </article>
+      <article>
+        <h3>Reliability, fixed</h3>
+        <p>One launch in ten used to die seconds in — a repair guard restoring three of the client’s own patches. The guard is now filtered. Forty cold starts in a row reached a full match, against nine in ten before.</p>
+      </article>
+    </div>
+
+    <!-- 3 — download, early and on purpose -->
+    <div class="dl">
+      <div class="in">
+        <div>
+          <h2>Get it on your PC tonight</h2>
+          <p class="sub">Windows · v1.3.0</p>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <a class="btn" href="https://github.com/ChronoRixun/S2x/releases/latest">Download v1.3.0</a>
+          <a class="btn ghost" href="https://discord.gg/yMPWMTyPPZ">Discord</a>
+        </div>
+      </div>
+      <p class="steam"><b>Requires a legitimate Steam copy of Call of Duty: WWII.</b> S2x doesn’t ship the game files and doesn’t get around needing them — it patches and hosts what you already own. Own it on Steam first, or this build is a doorstop.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 4 — fifteen minutes -->
+<section>
+  <div class="wrap">
+    <p class="kicker">What you’ll do in fifteen minutes</p>
+    <h2 class="sh">Four steps, and none of them are a leap of faith</h2>
+    <ol class="mins">
+      <li><span>Own Call of Duty: WWII on Steam. If it’s already in your library, you’re most of the way there.</span></li>
+      <li><span>Drop the S2x release into the game folder — the one with <code>s2_mp64_ship.exe</code> in it.</span></li>
+      <li><span>Launch Steam, then run <code>s2x.exe</code>. It finds the rest.</span></li>
+      <li><span>The server browser opens. Pick a server — or start a custom match with <code>bot_fill 17</code> and fill every seat.</span></li>
+    </ol>
+  </div>
+</section>
+
+<!-- 5 — where you'll land -->
+<section>
+  <div class="wrap">
+    <p class="kicker">Where you’ll land</p>
+    <div class="land">
+      <div>
+        <h2 class="sh">This is the room you’re about to walk into</h2>
+        <p>Maps rotate through Shipment 1944, London Docks, Anthropoid, Aachen, USS Texas, Chancellery, Operation Husky and Pointe du Hoc — in Hardpoint, Kill Confirmed, Team Deathmatch, Capture the Flag, Free-for-all, War, and <strong style="color:var(--text)">Prop Hunt on a 2017 engine that was never supposed to support it</strong>.</p>
+        <p>Host names render in colour all the way through to your screen, which is the launcher’s <code class="mono" style="color:var(--gold)">^1 ^3 ^7</code> codes surviving the round trip:</p>
+        <p class="sw"><i class="c1">^1 red</i><i class="c3">^3 yellow</i><i class="c7">^7 white</i></p>
+      </div>
+      <figure>
+        <div class="f"><img src="../shots/20260921174414_1.jpg" width="1920" height="1080" loading="lazy"
+          alt="The Headquarters social space with several other players standing around, ranks shown above their heads."></div>
+        <figcaption><b>Headquarters, with players in it</b>The social space, populated.<span class="n">Shared HQ · ranks · the 1v1 pit</span></figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- 6 — proof carousel -->
+<section>
+  <div class="wrap">
+    <p class="kicker">The HQ economy in motion</p>
+    <h2 class="sh">The pieces the shutdown took with it, running again</h2>
+    <div class="strip">
+      <figure>
+        <div class="f"><img src="../shots/20260919172920_1.jpg" width="1920" height="1080" loading="lazy" alt="A supply drop opening with three cards, the centre one glowing purple as a Legendary is revealed."></div>
+        <figcaption><b>Legendary</b>Mid-flip, centre card purple.<span class="n">Full card ceremony intact</span></figcaption>
+      </figure>
+      <figure>
+        <div class="f"><img src="../shots/20260919191242_1.jpg" width="1278" height="982" loading="lazy" alt="Three revealed supply drop cards: an Eastern Dragon weapon charm, a Task Force 9 uniform and a Partigiani uniform, all Epic."></div>
+        <figcaption><b>Three Epics from one Rare</b>Duplicates convert to Armory Credits.<span class="n">Eastern Dragon · Task Force 9 · Partigiani</span></figcaption>
+      </figure>
+      <figure>
+        <div class="f"><img src="../shots/20260919160543_1.jpg" width="1920" height="1080" loading="lazy" alt="The Contracts board showing a Headshot Contract with a six hour forty minute timer, a credit cost and an XP reward."></div>
+        <figcaption><b>Contracts, on real timers</b>Bought with credits, paid in XP.<span class="n">06h 40m · 250 credits · 3,000 XP</span></figcaption>
+      </figure>
+      <figure>
+        <div class="f"><img src="../shots/20260920023143_1.jpg" width="2560" height="1352" loading="lazy" alt="The Nazi Zombies wave summary on Groesten Haus showing 58 kills, 39 headshots and a score of 7,550."></div>
+        <figcaption><b>Groesten Haus, wave 5</b>Zombies runs with full progression.<span class="n">58 kills · 39 headshots · 7,550</span></figcaption>
+      </figure>
+      <figure>
+        <div class="f"><img src="../shots/20260920034956_1.jpg" width="1824" height="1230" loading="lazy" alt="A wave completed banner with a promotion notice reading new rank 6."></div>
+        <figcaption><b>Wave-10 promotion</b>Mid-match, rank 6.<span class="n">Zombies rank progression, live</span></figcaption>
+      </figure>
+      <figure>
+        <div class="f"><img src="../shots/20260920035108_1.jpg" width="1824" height="1230" loading="lazy" alt="A Zombies after action report showing wave 11 reached with 224 kills and 179 headshots."></div>
+        <figcaption><b>After-action, wave 11</b>The run, totalled up.<span class="n">224 kills · 179 headshots · 22,020</span></figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section style="text-align:center">
+  <div class="wrap">
+    <h2 class="sh" style="margin-bottom:12px">Nine servers. Nobody on them yet.</h2>
+    <p style="color:var(--muted);max-width:48ch;margin:0 auto 24px">You already own the game. That is genuinely the only hard part.</p>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <a class="btn" href="https://github.com/ChronoRixun/S2x/releases/latest">Download v1.3.0</a>
+      <a class="btn ghost" href="https://discord.gg/yMPWMTyPPZ">Join the Discord</a>
+      <a class="btn ghost" href="https://github.com/ChronoRixun/S2x/issues">Report an issue</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="links">
+      <a href="https://github.com/ChronoRixun/S2x">Repository</a>
+      <a href="https://github.com/ChronoRixun/S2x/releases/latest">Releases</a>
+      <a href="https://github.com/ChronoRixun/S2x/issues">Issues</a>
+      <a href="https://discord.gg/yMPWMTyPPZ">Discord</a>
+    </div>
+    <p>S2x-CR is a community project by ChronoRixun, forked from and crediting <a href="https://github.com/Brentdevent/S2x">Brentdevent/S2x</a>. Not affiliated with Activision, Sledgehammer Games, Microsoft or xLabs. Call of Duty: WWII and related marks are the property of their respective owners; use of the game requires a legitimate copy. Every screenshot here is an unedited in-game capture from S2x-CR v1.3.0.</p>
+  </div>
+</footer>
+
+</body>
+</html>
