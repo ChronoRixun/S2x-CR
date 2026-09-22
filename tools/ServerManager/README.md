@@ -30,9 +30,14 @@ to ship with it: no NuGet packages, no DLLs, only framework assemblies.
 
 `--demo` takes `empty`, `one`, `three-notanswering` or `three-crashed`. `--demo-editor` takes
 `mp`, `zombies` or `empty` and renders the editor on a made-up server, no game folder read.
-`--screenshot-editor` renders the editor for a real preset, the named one or the first found.
-All of them render 1160 x 740 and exit. `--presets` points the preset folder somewhere other
-than the game folder, which is how the editor gets exercised without touching a real one.
+`--screenshot-editor` renders the editor for a real preset: the one named, or the only sensible
+one when no name is given. All of them render 1160 x 740 and exit. `--presets` points the preset
+folder somewhere other than the game folder, which is how the editor gets exercised without
+touching a real one.
+
+A render switch that cannot be honoured writes the reason to standard error and exits without
+showing a window: 2 for a missing or unreadable switch argument, 3 when the editor it was asked
+for is not there. It never writes a different screen under the name it was given.
 
 The game folder is found the way the PowerShell launcher finds it: the Steam registry entry for
 app 476600, this exe's own folder walking up, the folder a launcher remembered in
@@ -42,14 +47,27 @@ app 476600, this exe's own folder walking up, the folder a launcher remembered i
 ## The editor
 
 EDIT on a card, the roster's right pane and + New server all open the same editor for that
-preset; whichever way you got there it is one edit, and unsaved work survives going back to the
-fleet. Ctrl+S saves. Everything applies at the next launch: the model is stop, change, start.
-Nothing is sent to a server that is already running, so LAUNCH SERVER and RESTART save the
-preset first and then go through the same start the card's button does.
+preset file; whichever way you got there it is one edit, and unsaved work survives going back to
+the fleet. Ctrl+S saves whichever editor is on screen. Everything applies at the next launch: the
+model is stop, change, start. Nothing is sent to a server that is already running, so LAUNCH
+SERVER and RESTART save the preset first and then go through the same start the card's button
+does. A new server has no card to go back to, so leaving one asks whether to save or drop it.
+
+Saving writes a candidate copy and only then hands it to the fleet, so a write that fails leaves
+the card on the configuration its file still holds. The file is written beside itself and swapped
+in, so an interrupted write cannot leave half a preset. SAVE AS... refuses a name another preset
+already has: writing over it would lose it without asking.
 
 A port belongs to one server: the second one to ask for the socket never gets it. A card whose
 port another preset also claims says so, the editor's port box says so as you type, Save says so,
-and Start refuses until it is fixed. + New server proposes the next free port.
+and every launch path refuses until it is fixed — Start, Start All, Restart and the editor's
+LAUNCH SERVER. Start also refuses when the process list cannot be read at all, because a scan
+that failed looks exactly like a free port. While a server is running, its port is the one its
+process is on: STOP and RESTART act on that port, and the box refuses to move until the server is
+stopped. + New server proposes the next free port.
+
+If another launcher writes a preset while it is open here, an editor with nothing unsaved in it
+takes the new reading and one with a draft in it keeps the draft and says FILE CHANGED ON DISK.
 
 ## How it relates to the PowerShell launcher
 
@@ -69,7 +87,7 @@ state, because the state belongs to the port.
 
 The launcher's keys keep their spellings and their values. The editor's settings are new keys in
 the same file, and any key neither app knows is read into `ServerPreset.Raw` and written back
-untouched:
+untouched, on the preset and on each line of its rotation:
 
 | key | values | default |
 | --- | --- | --- |
