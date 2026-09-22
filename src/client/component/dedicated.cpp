@@ -23,6 +23,7 @@ namespace dedicated
 		utils::hook::detour cl_check_for_resend_hook;
 		utils::hook::detour com_quit_f_hook;
 		utils::hook::detour db_release_upload_record_hook;
+		utils::hook::detour gscr_set_slow_motion_hook;
 		utils::hook::detour scr_begin_load_scripts_hook;
 		utils::hook::detour worker_dispatch_hook;
 
@@ -464,6 +465,26 @@ namespace dedicated
 			// that is intentionally absent once a headless server starts a map.
 			utils::hook::set<game::BuiltinFunction>(0xAC9D310_g, dedicated_gsc_noop);
 			utils::hook::set<game::BuiltinFunction>(0xAC9DB38_g, dedicated_gsc_noop);
+		}
+
+		void gscr_set_slow_motion_stub()
+		{
+			gscr_set_slow_motion_hook.invoke<void>();
+
+			// setslowmotion only publishes configstring 9. On a listen host the local
+			// client reads it and slows the whole process for the killcam, server
+			// included. A dedicated server has no such client, so its archive walk ran
+			// at full speed while clients ran slowed. Apply the same ramp here, on the
+			// main thread where a client would, with the builtin's own defaults.
+			const auto params = game::Scr_GetNumParam();
+			const auto start = game::Scr_GetFloat(0);
+			const auto end = params > 1 ? game::Scr_GetFloat(1) : 1.0f;
+			const auto duration = params > 2 ? static_cast<int>(game::Scr_GetFloat(2) * 1000.0f) : 1000;
+
+			scheduler::once([start, end, duration]
+			{
+				utils::hook::invoke<void>(0x9B620_g, start, end, duration > 0 ? duration : 0);
+			}, scheduler::pipeline::main);
 		}
 
 		void ensure_dedicated_render_command_pool()
@@ -1228,6 +1249,7 @@ namespace dedicated
 			}
 
 			scr_begin_load_scripts_hook.create(0x6856D0_g, scr_begin_load_scripts_stub);
+			gscr_set_slow_motion_hook.create(0x58F5D0_g, gscr_set_slow_motion_stub);
 
 			// Bypass the gamestate guard
 			utils::hook::nop(0xF44F3_g, 6);
