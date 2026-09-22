@@ -434,8 +434,9 @@
           </Border>
 
           <!-- The selected row's editor, the same one EDIT opens full screen. -->
-          <views:EditorView Grid.Row="1" DataContext="{Binding DataContext.RosterEditor,
-                                                       RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+          <views:EditorView Grid.Row="1" Compact="True"
+                            DataContext="{Binding DataContext.RosterEditor,
+                                          RelativeSource={RelativeSource AncestorType=UserControl}}"/>
         </Grid>
       </Grid>
 

@@ -7,6 +7,19 @@ namespace S2x.ServerManager.Views
 {
     public partial class EditorView : UserControl
     {
+        /// <summary>
+        /// The mockup's compact editor, for the roster's pane: the same screen in a narrower
+        /// column, with the labels that do not fit dropped.
+        /// </summary>
+        public static readonly DependencyProperty CompactProperty =
+            DependencyProperty.Register("Compact", typeof(bool), typeof(EditorView), new PropertyMetadata(false));
+
+        public bool Compact
+        {
+            get { return (bool)GetValue(CompactProperty); }
+            set { SetValue(CompactProperty, value); }
+        }
+
         private EditorViewModel _editor;
 
         public EditorView()
