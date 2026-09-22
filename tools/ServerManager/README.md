@@ -4,7 +4,7 @@ A Windows desktop app for hosting several S2x dedicated servers out of one Call 
 folder. It shows one card per server, tells you what each one is doing, starts and stops them,
 and edits what each one runs. C# on WPF, .NET Framework 4.8, one exe with nothing beside it.
 
-Two slices are in: the fleet home and the editor. The console and packaging come later.
+Three slices are in: the fleet home, the editor and the console. Packaging comes last.
 
 ## Build
 
@@ -27,13 +27,22 @@ to ship with it: no NuGet packages, no DLLs, only framework assemblies.
     S2xServerManager.exe --screenshot out.png         render the window off-screen and exit
     S2xServerManager.exe --screenshot-editor out.png [preset]
     S2xServerManager.exe --demo-editor mp out.png
+    S2xServerManager.exe --screenshot-console out.png
+    S2xServerManager.exe --demo-roster out.png
 
 `--demo` takes `empty`, `one`, `three-notanswering` or `three-crashed`. `--demo-editor` takes
 `mp`, `zombies` or `empty` and renders the editor on a made-up server, no game folder read.
 `--screenshot-editor` renders the editor for a real preset: the one named, or the only sensible
-one when no name is given. All of them render 1160 x 740 and exit. `--presets` points the preset
-folder somewhere other than the game folder, which is how the editor gets exercised without
-touching a real one.
+one when no name is given. `--screenshot-console` renders the editor with the console drawer
+open, on a log it writes into the temp folder itself: a build machine has no server running, and
+the game folder's logs are not this switch's to write. `--demo-roster` renders the roster on the
+demo fleet. All of them render 1160 x 740 and exit. `--presets` points the preset folder
+somewhere other than the game folder, which is how the editor gets exercised without touching a
+real one.
+
+Keys: Ctrl+S saves the editor on screen, Esc closes the console, Ctrl+L goes to the console's
+filter box and opens it first if it is shut, F5 forces a poll round instead of waiting for the
+next three seconds.
 
 A render switch that cannot be honoured writes the reason to standard error and exits without
 showing a window: 2 for a missing or unreadable switch argument, 3 when the editor it was asked
@@ -68,6 +77,56 @@ stopped. + New server proposes the next free port.
 
 If another launcher writes a preset while it is open here, an editor with nothing unsaved in it
 takes the new reading and one with a draft in it keeps the draft and says FILE CHANGED ON DISK.
+
+## The console
+
+CONSOLE on a card, on the roster's strip or in the editor's footer opens one drawer on that
+server's log: over the cards on the fleet home, and under the editor above its footer on the
+editor screen and in the roster. It is the same drawer and the same server wherever you opened
+it from, and in the roster it follows the row you pick. Esc closes it. Drag its top edge to
+resize it; it keeps its height and whether it was open until the app is closed.
+
+It holds the last 500 lines, follows the end of the file unless FOLLOW is turned off, PAUSE
+holds what is on screen and counts what arrived behind it, the filter box keeps the lines that
+contain what you type, and COPY puts the lines on screen on the clipboard. The file is read
+once a second, only the part that is new, shared with the server that is writing it and never
+opened for writing: nothing here deletes or shortens a log. A line caught halfway through a
+write waits for the round that finishes it. When the file gets shorter than it was, the server
+started again over the top of it, and the drawer says so and carries on.
+
+### Which log
+
+Every server this app starts is launched with `+set g_consoleLog s2x\logs\server-<port>.log`,
+so it writes a log of its own. The fork's default is `s2x\logs\console.log`, which every server
+on the box appends to at once, so a line in it does not say which server wrote it.
+
+`g_consoleLog` has not been confirmed on a live server yet, so the drawer does not depend on it.
+If the per-port file has not appeared 30 seconds after the server started, the drawer reads the
+shared `console.log` instead and says `shared log; per-server log did not appear` beside the
+path in its header. A server started by the PowerShell launcher, or one that was already running
+when this app opened, has no per-port log either, and falls back the same way.
+
+## The tray
+
+The app keeps an icon in the notification area: the tooltip is how many servers are up out of
+how many, and the menu lists them with what each is doing. Clicking one opens the window on the
+roster with that server picked. Start All and Stop All are on the menu too, and Show brings the
+window back.
+
+The window's close button hides to the tray instead of quitting; `Close to tray` on the same
+menu turns that off. Exit really quits, and it says on itself what is true either way: the
+servers keep running. Nothing here stops a server except Stop All.
+
+Windows puts a tray icon it has not seen before behind the chevron in the notification area. If
+the window seems to have gone, look there first, and drag the icon out onto the taskbar.
+
+## Connect lines
+
+The copy button on a card and on the roster's strip copies `connect 127.0.0.1:<port>`, which is
+what a player sitting at this machine pastes. Right-click it for `connect <this machine's
+IPv4>:<port>`, which is what the rest of the house pastes. Neither is the public address:
+nothing here knows it, because the master heartbeat does not hand it back. A host behind a
+router swaps in their own public IP, and forwards the UDP port to this machine.
 
 ## How it relates to the PowerShell launcher
 
@@ -125,12 +184,13 @@ has not answered yet and is less than 90 s old. Not answering means alive but th
 row. Crashed means the pid file is there and the process is not.
 
 Start writes the cfg, then runs
-`s2x.exe -noupdate -dedicated[ -zombies] +set net_port <port> +exec server-<port>.cfg +map_rotate`
+`s2x.exe -noupdate -dedicated[ -zombies] +set net_port <port> +set g_consoleLog
+s2x\logs\server-<port>.log +exec server-<port>.cfg +map_rotate`
 from the game folder, then writes the pid file. Never `+map`: it runs before the dedicated party
 exists and is dropped.
 
 ## What is not here yet
 
-- Slice 3, the console: the per-server log tail, as a drawer on the cards and a panel under the
-  editor. CONSOLE is disabled.
-- Slice 4, packaging: shipping the exe in the release zip beside the launcher, and the tray icon.
+- Slice 4, packaging: shipping the exe in the release zip beside the launcher.
+- The console shows the lines as the fork writes them, which carry no timestamps, so there is no
+  time column. The mockup has one; the file has nothing to put in it.
