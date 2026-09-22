@@ -10,9 +10,8 @@
     server, named after it with the colour codes stripped, carrying map and mode, players, the
     rotation from the launcher's config and whether the server browser has it.
 
-    A server the launcher started that has stopped answering stays on the card in red until it
-    is stopped from its launcher window (which removes its pid file); one stopped that way just
-    leaves the card. -NameFilter is a regex on the raw sv_hostname, colour codes included, so
+    A server the launcher started whose process is still alive but has stopped answering shows
+    red; one that was stopped or killed just leaves the card. -NameFilter is a regex on the raw sv_hostname, colour codes included, so
     "^\^1CR's" reports only the servers whose name starts with a red CR's.
 
     Every field whose name does not start with a status light, and the title, description,
@@ -240,14 +239,17 @@ function Get-LauncherServers {
                 }
             }
         }
+        # A pid file whose process is still alive marks a server that is meant to be up;
+        # one left behind by a killed server is ignored, so a stale file cannot pin a
+        # red entry to the card.
         $pidFile = Join-Path $dir "server-$p.pid"
         if (Test-Path -LiteralPath $pidFile) {
-            $server.expected = $true
             $raw = Get-Content -LiteralPath $pidFile -Raw -ErrorAction SilentlyContinue
             if ($raw -match '^\s*(\d+)') {
                 $proc = Get-Process -Id ([int]$Matches[1]) -ErrorAction SilentlyContinue
                 $server.running = [bool]($proc -and $proc.ProcessName -eq 's2x')
             }
+            $server.expected = $server.running
         }
         $servers[$p] = $server
     }
@@ -305,7 +307,7 @@ function New-ServerField($Server, $Info, $Listed, [long]$Now) {
     $hostname = if ($Info) { [string]$Info['hostname'] } elseif ($Server) { $Server.hostname } else { '' }
     $name = Format-ServerName $hostname
     if ($null -eq $Info) {
-        $why = if ($Server -and $Server.running) { 'Not responding' } else { 'Not running' }
+        $why = 'Not responding'
         return @{ name = "🔴 $name"; value = "$why · last checked <t:${Now}:R>$EntrySpacer"; inline = $false }
     }
     $lines = @()
