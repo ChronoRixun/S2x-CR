@@ -313,7 +313,9 @@ function New-ServerField($Server, $Info, $Listed, [long]$Now) {
     $map = Format-Map $Info['mapname']
     $playing = if ($Info['sv_running'] -eq '1') { "$mode on $map" } else { "Lobby, next: $mode on $map" }
     $slots = [int]$Info['sv_maxclients']
-    $humans = [math]::Max(0, [int]$Info['clients'] - [int]$Info['bots'])
+    # The reply's clients value is the human count (bots are reported separately and
+    # clamped to it), so it is used as is; subtracting bots would zero it.
+    $humans = [int]$Info['clients']
     $people = if ($humans -eq 1) { '1 player online' } else { "$humans players online" }
     $lines += "$playing · $people, bots fill the rest of $slots"
     if ($Server -and $Server.rotation.Count -gt 0) {
