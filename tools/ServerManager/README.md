@@ -189,8 +189,23 @@ s2x\logs\server-<port>.log +exec server-<port>.cfg +map_rotate`
 from the game folder, then writes the pid file. Never `+map`: it runs before the dedicated party
 exists and is dropped.
 
+## Packaging
+
+`build\diagnostics\package-release.ps1` builds this project in Release and stages
+`S2xServerManager.exe` and its `.exe.config` into the release zip's `s2x\tools`, beside
+`server-launcher.ps1`, `ServerLauncher.xaml` and `server-status.ps1`; `tools\server-launcher.cmd`
+goes into the same folder. Nothing else ships with the exe: no DLLs, no NuGet packages.
+
+`tools\server-launcher.cmd` is the double-click way into the old launcher: `@echo off` and a
+hidden, no-profile PowerShell host running `server-launcher.ps1`, so opening it never leaves a
+console window behind. `server-launcher.ps1` itself is untouched.
+
+The version in the title bar, next to SERVER MANAGER, is this project's `<Version>` (and
+`<FileVersion>` alongside it for the exe's own file properties) — bump both here for a release.
+`<ApplicationIcon>` points at `Assets\S2xServerManager.ico`, drawn by `Assets\make-icon.ps1`; the
+tray icon is the same one, read back off the running exe rather than composed again at runtime.
+
 ## What is not here yet
 
-- Slice 4, packaging: shipping the exe in the release zip beside the launcher.
 - The console shows the lines as the fork writes them, which carry no timestamps, so there is no
   time column. The mockup has one; the file has nothing to put in it.
