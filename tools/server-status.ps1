@@ -152,6 +152,10 @@ function Get-ServerInfos([int[]]$PortList, [int]$TimeoutMs = 2000) {
     $results = @{}
     if (-not $PortList -or $PortList.Count -eq 0) { return $results }
     $udp = New-Object System.Net.Sockets.UdpClient
+    # A port nobody listens on answers with ICMP "port unreachable", which Windows raises
+    # as a ConnectionReset on the next Receive of this shared socket. SIO_UDP_CONNRESET off
+    # stops that, and the catch below skips one if it still arrives.
+    try { [void]$udp.Client.IOControl(-1744830452, [byte[]](0, 0, 0, 0), $null) } catch { }
     try {
         $challenges = @{}
         $started = @{}
@@ -169,7 +173,13 @@ function Get-ServerInfos([int[]]$PortList, [int]$TimeoutMs = 2000) {
             $left = [int](($deadline - (Get-Date)).TotalMilliseconds)
             if ($left -le 0) { break }
             $udp.Client.ReceiveTimeout = $left
-            try { [byte[]]$data = $udp.Receive([ref]$remote) } catch { break }
+            try { [byte[]]$data = $udp.Receive([ref]$remote) }
+            catch {
+                $ex = $_.Exception
+                while ($ex -and -not ($ex -is [System.Net.Sockets.SocketException])) { $ex = $ex.InnerException }
+                if ($ex -and $ex.SocketErrorCode -eq [System.Net.Sockets.SocketError]::ConnectionReset) { continue }
+                break
+            }
             $info = ConvertFrom-InfoResponse $data
             $p = $remote.Port
             if ($null -eq $info -or -not $challenges.ContainsKey($p) -or $info['challenge'] -ne $challenges[$p]) { continue }
@@ -429,6 +439,13 @@ function Test-ManagedField([string]$Name) {
     return $false
 }
 
+function Get-EmbedLength($Embed, $Fields) {
+    $length = ([string]$Embed['title']).Length + ([string]$Embed['description']).Length
+    if ($Embed['footer']) { $length += ([string]$Embed['footer'].text).Length }
+    foreach ($field in $Fields) { $length += ([string]$field.name).Length + ([string]$field.value).Length }
+    return $length
+}
+
 function Merge-Embed($Existing, $StatusFields) {
     $embed = [ordered]@{}
     foreach ($key in 'title', 'description', 'color', 'footer', 'thumbnail', 'image', 'author', 'url') {
@@ -440,7 +457,24 @@ function Merge-Embed($Existing, $StatusFields) {
         $kept = @($Existing.fields | Where-Object { -not (Test-ManagedField $_.name) -and $updatedNames -notcontains $_.name } |
             ForEach-Object { @{ name = $_.name; value = $_.value; inline = [bool]$_.inline } })
     }
-    $embed['fields'] = @($StatusFields) + $kept
+    # Discord takes at most 25 fields and 6000 characters per embed. When the box runs
+    # more servers than fit, the last entries are left off and the Status line says so.
+    $list = [System.Collections.ArrayList]::new()
+    foreach ($field in @($StatusFields) + $kept) { [void]$list.Add($field) }
+    $dropped = 0
+    while ($list.Count -gt 25 -or (Get-EmbedLength $embed $list) -gt 5900) {
+        $last = -1
+        for ($i = $list.Count - 1; $i -ge 0; $i--) {
+            if ($list[$i].name -ne 'Status' -and (Test-ManagedField $list[$i].name)) { $last = $i; break }
+        }
+        if ($last -lt 0) { break }
+        $list.RemoveAt($last)
+        $dropped++
+    }
+    if ($dropped -gt 0) {
+        foreach ($field in $list) { if ($field.name -eq 'Status') { $field.value += " · $dropped more not shown" } }
+    }
+    $embed['fields'] = @($list.ToArray())
     return $embed
 }
 
@@ -512,7 +546,7 @@ function Install-Task {
         '-ServerHost', $ServerHost, '-Port', $Port, '-ChannelId', $ChannelId, '-MessageId', $MessageId
     )
     if ($Ports) { $arguments += @('-Ports', "`"$Ports`"") }
-    if ($PSBoundParameters.ContainsKey('GameDir') -and $GameDir) { $arguments += @('-GameDir', "`"$GameDir`"") }
+    if ($GameDir) { $arguments += @('-GameDir', "`"$GameDir`"") }
     if ($NameFilter) { $arguments += @('-NameFilter', "`"$NameFilter`"") }
     if ($PublicAddress) { $arguments += @('-PublicAddress', $PublicAddress) }
     if ($TokenFile) { $arguments += @('-TokenFile', "`"$TokenFile`"") }
