@@ -170,6 +170,7 @@ namespace S2x.ServerManager.Services
             root["advertise"] = preset.Advertise;
             root["extraLines"] = preset.ExtraLines.Cast<object>().ToArray();
             root["shuffleOnLaunch"] = preset.ShuffleOnLaunch;
+            root["hidden"] = preset.Hidden;
             return root;
         }
 
@@ -201,6 +202,7 @@ namespace S2x.ServerManager.Services
                 preset.StartDelay = Clamp(Int(root, "startDelay", 60), 0, ServerPreset.MaxStartDelay);
                 preset.Advertise = Bool(root, "advertise", true);
                 preset.ShuffleOnLaunch = Bool(root, "shuffleOnLaunch", false);
+                preset.Hidden = Bool(root, "hidden", false);
 
                 var difficulty = (Str(root, "botDifficulty") ?? "regular").ToLowerInvariant();
                 preset.BotDifficulty = Array.IndexOf(GameData.BotDifficulties, difficulty) >= 0 ? difficulty : "regular";

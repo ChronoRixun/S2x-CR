@@ -41,7 +41,8 @@
 
     <!-- ── the card ──────────────────────────────────────────────────────── -->
     <DataTemplate x:Key="CardTemplate">
-      <Grid Margin="0,0,14,14">
+      <!-- A hidden card is on screen because SHOW HIDDEN is on, and it is dimmed to say so. -->
+      <Grid Margin="0,0,14,14" Opacity="{Binding CardOpacity}">
         <Border Background="{Binding CardBackground}" BorderBrush="{Binding CardEdge}" BorderThickness="1">
           <Grid ClipToBounds="True">
             <Grid.RowDefinitions>
@@ -177,6 +178,7 @@
                   <ColumnDefinition Width="Auto"/>
                   <ColumnDefinition Width="*"/>
                   <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
                   <ColumnDefinition Width="1.1*"/>
                 </Grid.ColumnDefinitions>
                 <Button Grid.Column="0" Style="{StaticResource CardStart}" Content="&#x25B6; START"
@@ -193,9 +195,19 @@
                 <Button Grid.Column="3" Style="{StaticResource CardAction}" Content="CONSOLE"
                         Command="{Binding ConsoleCommand}" ToolTip="This server's log, as it is written"
                         BorderBrush="{Binding CardEdge}" BorderThickness="0,0,1,0"/>
+                <!-- Off the fleet until it is asked for. Only with no process behind the card:
+                     hiding a server is not stopping it. -->
+                <Button Grid.Column="4" Style="{StaticResource CardAction}" Content="HIDE" Padding="10,0"
+                        Visibility="{Binding HideButton}" Command="{Binding HideCommand}"
+                        ToolTip="Off the fleet, out of Start All. The preset and its files stay."
+                        BorderBrush="{Binding CardEdge}" BorderThickness="0,0,1,0"/>
+                <Button Grid.Column="4" Style="{StaticResource CardAction}" Content="UNHIDE" Padding="10,0"
+                        Visibility="{Binding UnhideButton}" Command="{Binding UnhideCommand}"
+                        Foreground="{StaticResource Accent}" ToolTip="Put this server back on the fleet"
+                        BorderBrush="{Binding CardEdge}" BorderThickness="0,0,1,0"/>
                 <!-- The line a player on this box pastes. The one for everybody else is on the
                      right-click menu, because nothing here knows the public address. -->
-                <Button Grid.Column="4" Style="{StaticResource CardCopy}" Command="{Binding CopyCommand}"
+                <Button Grid.Column="5" Style="{StaticResource CardCopy}" Command="{Binding CopyCommand}"
                         ToolTip="Copy the connect line. Right-click for the address off this machine.">
                   <Button.ContextMenu>
                     <ContextMenu>
@@ -224,7 +236,7 @@
 
     <!-- ── roster row ────────────────────────────────────────────────────── -->
     <DataTemplate x:Key="RosterRowTemplate">
-      <Button Style="{StaticResource RosterRow}" Command="{Binding SelectCommand}"
+      <Button Style="{StaticResource RosterRow}" Command="{Binding SelectCommand}" Opacity="{Binding CardOpacity}"
               Background="{Binding RowBackground}" BorderBrush="{Binding RowMarker}" BorderThickness="2,0,0,0">
         <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="12,12">
           <StackPanel>
@@ -351,6 +363,15 @@
                       BorderBrush="{StaticResource Edge}" BorderThickness="1,0,0,0"/>
             </StackPanel>
           </Border>
+          <!-- Only when something is hidden: a toggle for a fleet with nothing behind it says
+               nothing. -->
+          <Border BorderBrush="{StaticResource Edge}" BorderThickness="1" Height="32" Margin="8,0,0,0"
+                  Visibility="{Binding ShowHiddenVisibility}">
+            <Button Style="{StaticResource Segment}" Content="{Binding ShowHiddenLabel}"
+                    Command="{Binding ToggleHiddenCommand}"
+                    Background="{Binding ShowHiddenBackground}" Foreground="{Binding ShowHiddenForeground}"
+                    ToolTip="Show the servers that are off the fleet"/>
+          </Border>
         </StackPanel>
         <Grid/>
       </DockPanel>
@@ -381,7 +402,7 @@
       <!-- ── cards ───────────────────────────────────────────────────────── -->
       <ScrollViewer Visibility="{Binding CardsVisibility}" Background="{StaticResource Desk}"
                     Padding="20,20,6,6" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-        <ItemsControl ItemsSource="{Binding Servers}" ItemTemplate="{StaticResource CardTemplate}"
+        <ItemsControl ItemsSource="{Binding Shown}" ItemTemplate="{StaticResource CardTemplate}"
                       VerticalAlignment="Top">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate><views:CardsPanel Columns="3"/></ItemsPanelTemplate>
@@ -400,7 +421,7 @@
             <TextBlock DockPanel.Dock="Top" views:TextEffects.Tracked="ROSTER" Style="{StaticResource Caps}"
                        Margin="16,12,16,8"/>
             <ScrollViewer VerticalScrollBarVisibility="Auto">
-              <ItemsControl ItemsSource="{Binding Servers}" ItemTemplate="{StaticResource RosterRowTemplate}"/>
+              <ItemsControl ItemsSource="{Binding Shown}" ItemTemplate="{StaticResource RosterRowTemplate}"/>
             </ScrollViewer>
           </DockPanel>
         </Border>

@@ -42,6 +42,8 @@ namespace S2x.ServerManager.ViewModels
             SelectCommand = new RelayCommand(() => _fleet.Selected = this);
             EditCommand = new RelayCommand(() => _fleet.OpenEditor(Preset));
             ConsoleCommand = new RelayCommand(() => _fleet.Console.Toggle(this));
+            HideCommand = new RelayCommand(() => _fleet.SetHidden(this, true));
+            UnhideCommand = new RelayCommand(() => _fleet.SetHidden(this, false));
         }
 
         /// <summary>How many other presets claim this card's port; set by the fleet's count.</summary>
@@ -72,6 +74,8 @@ namespace S2x.ServerManager.ViewModels
         public RelayCommand SelectCommand { get; private set; }
         public RelayCommand EditCommand { get; private set; }
         public RelayCommand ConsoleCommand { get; private set; }
+        public RelayCommand HideCommand { get; private set; }
+        public RelayCommand UnhideCommand { get; private set; }
 
         public void Refresh()
         {
@@ -367,6 +371,14 @@ namespace S2x.ServerManager.ViewModels
         public Visibility StartButton { get { return Show(CanStart); } }
         public Visibility StopButton { get { return Show(CanStop); } }
         public Visibility RestartButton { get { return Show(State.Status == ServerStatus.NotAnswering); } }
+
+        // Hiding a server is not stopping it, so it is only offered when there is no process to
+        // leave running behind the card. Bringing one back is always safe.
+        public Visibility HideButton { get { return Show(CanStart && !Preset.Hidden); } }
+        public Visibility UnhideButton { get { return Show(Preset.Hidden); } }
+
+        /// <summary>A hidden card is on screen because the host asked for it, so it says so.</summary>
+        public double CardOpacity { get { return Preset.Hidden ? 0.5 : 1.0; } }
 
         // ── roster ────────────────────────────────────────────────────────────────
         public bool IsSelected

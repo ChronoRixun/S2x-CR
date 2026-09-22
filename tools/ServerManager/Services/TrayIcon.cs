@@ -76,14 +76,15 @@ namespace S2x.ServerManager.Services
         private void Build(ContextMenuStrip menu)
         {
             menu.Items.Clear();
-            foreach (var card in _fleet.Servers)
+            // What the fleet is showing: a hidden server is one the host put away.
+            foreach (var card in _fleet.Shown)
             {
                 var server = card;
                 menu.Items.Add(new ToolStripMenuItem(
                     ":" + server.Preset.Port + "   " + server.PlainName + "   " + server.StateCaps,
                     null, (s, e) => Open(server)));
             }
-            if (_fleet.Servers.Count > 0) menu.Items.Add(new ToolStripSeparator());
+            if (_fleet.Shown.Count > 0) menu.Items.Add(new ToolStripSeparator());
 
             menu.Items.Add(Item("Start all", () => _fleet.StartAllCommand.Execute(null),
                                 _fleet.StartAllCommand.CanExecute(null)));

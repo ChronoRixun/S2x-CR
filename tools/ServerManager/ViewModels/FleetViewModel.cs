@@ -41,6 +41,7 @@ namespace S2x.ServerManager.ViewModels
 
         private string _presetSignature = "";
         private bool _polling;
+        private bool _showHidden;
         private string _viewMode = "cards";
         private string _screen = "fleet";
         private string _toast = "";
@@ -53,6 +54,7 @@ namespace S2x.ServerManager.ViewModels
             _controller = new ServerController(gameDir);
             _store = new PresetStore(gameDir, presetDir);
             Servers = new ObservableCollection<ServerCardViewModel>();
+            Shown = new ObservableCollection<ServerCardViewModel>();
             Console = new ConsoleViewModel(this);
             BuildCommands();
             LoadStarters();
@@ -67,6 +69,7 @@ namespace S2x.ServerManager.ViewModels
             _demo = true;
             GameDir = @"D:\Steam\steamapps\common\Call of Duty WWII";
             Servers = new ObservableCollection<ServerCardViewModel>(cards);
+            Shown = new ObservableCollection<ServerCardViewModel>();
             Starters = starters;
             Console = new ConsoleViewModel(this);
             BuildCommands();
@@ -77,7 +80,12 @@ namespace S2x.ServerManager.ViewModels
         public bool IsDemo { get { return _demo; } }
         public string PresetDir { get { return _store == null ? "(demo)" : _store.Directory; } }
 
+        /// <summary>Every preset in the folder, hidden ones included: a port belongs to all of them.</summary>
         public ObservableCollection<ServerCardViewModel> Servers { get; private set; }
+
+        /// <summary>The ones the host is looking at. The cards, the roster and the tray read this.</summary>
+        public ObservableCollection<ServerCardViewModel> Shown { get; private set; }
+
         public List<StarterViewModel> Starters { get; private set; }
 
         /// <summary>The console drawer, shared by the cards, the roster pane and the editor.</summary>
@@ -88,6 +96,7 @@ namespace S2x.ServerManager.ViewModels
         public RelayCommand NewServerCommand { get; private set; }
         public RelayCommand ShowCardsCommand { get; private set; }
         public RelayCommand ShowRosterCommand { get; private set; }
+        public RelayCommand ToggleHiddenCommand { get; private set; }
         public RelayCommand SaveEditorCommand { get; private set; }
         public RelayCommand BackCommand { get; private set; }
         public RelayCommand CloseConsoleCommand { get; private set; }
@@ -244,6 +253,40 @@ namespace S2x.ServerManager.ViewModels
             }
         }
 
+        // ── hidden servers ────────────────────────────────────────────────────────
+        /// <summary>
+        /// Hidden presets are off the fleet: out of the counts, the attention list, the roster,
+        /// the tray and Start All and Stop All. This brings them back, dimmed, until it is off
+        /// again. Start All skips them even then: a hidden server is one the host is not running.
+        /// </summary>
+        public bool ShowHidden
+        {
+            get { return _showHidden; }
+            set { if (Set(ref _showHidden, value)) Recount(); }
+        }
+
+        public int HiddenCount { get; private set; }
+        public string ShowHiddenLabel { get { return "SHOW HIDDEN (" + HiddenCount + ")"; } }
+        public Visibility ShowHiddenVisibility { get { return HiddenCount > 0 ? Visibility.Visible : Visibility.Collapsed; } }
+        public Brush ShowHiddenBackground { get { return _showHidden ? Palette.TagBg : Palette.Transparent; } }
+        public Brush ShowHiddenForeground { get { return _showHidden ? Palette.Accent : Palette.Muted; } }
+
+        /// <summary>
+        /// HIDE and UNHIDE on a card: the same preset file, one key different. Written the way
+        /// every other change is written, so a launcher reading it afterwards sees a whole preset.
+        /// </summary>
+        public void SetHidden(ServerCardViewModel card, bool hidden)
+        {
+            if (_demo) { Toast("Demo mode: nothing was written"); return; }
+            var candidate = card.Preset.Copy();
+            candidate.Hidden = hidden;
+            if (!SavePreset(candidate, false)) return;
+            // An editor open on this preset writes the same file, so it takes the new key too.
+            EditorViewModel editor;
+            if (_editors.TryGetValue(PresetStore.Key(candidate.FilePath), out editor)) editor.SetHidden(hidden);
+            Toast((hidden ? "Hid " : "Unhid ") + candidate.FileName);
+        }
+
         public Visibility EmptyVisibility { get { return Servers.Count == 0 ? Visibility.Visible : Visibility.Collapsed; } }
         public Visibility CardsVisibility { get { return Servers.Count > 0 && _viewMode == "cards" ? Visibility.Visible : Visibility.Collapsed; } }
         public Visibility RosterVisibility { get { return Servers.Count > 0 && _viewMode == "roster" ? Visibility.Visible : Visibility.Collapsed; } }
@@ -311,11 +354,12 @@ namespace S2x.ServerManager.ViewModels
         // ── commands ──────────────────────────────────────────────────────────────
         private void BuildCommands()
         {
-            StartAllCommand = new RelayCommand(StartAll, () => Servers.Any(s => s.CanStart));
-            StopAllCommand = new RelayCommand(StopAll, () => Servers.Any(s => s.CanStop));
+            StartAllCommand = new RelayCommand(StartAll, () => Startable().Any());
+            StopAllCommand = new RelayCommand(StopAll, () => Shown.Any(s => s.CanStop));
             NewServerCommand = new RelayCommand(NewServer);
             ShowCardsCommand = new RelayCommand(() => ViewMode = "cards");
             ShowRosterCommand = new RelayCommand(() => ViewMode = "roster");
+            ToggleHiddenCommand = new RelayCommand(() => ShowHidden = !_showHidden);
             // Ctrl+S saves whichever editor is on screen: the full one, or the roster's pane.
             SaveEditorCommand = new RelayCommand(() => { var editor = VisibleEditor; if (editor != null) editor.Save(); });
             BackCommand = new RelayCommand(ShowFleet);
@@ -330,7 +374,7 @@ namespace S2x.ServerManager.ViewModels
             if (!Console.IsOpen)
             {
                 var editor = VisibleEditor;
-                var card = editor != null ? CardFor(editor.Preset) : Selected ?? Servers.FirstOrDefault();
+                var card = editor != null ? CardFor(editor.Preset) : Selected ?? Shown.FirstOrDefault();
                 if (card == null) return;
                 Console.Watch(card);
             }
@@ -524,15 +568,24 @@ namespace S2x.ServerManager.ViewModels
             return name + " copy";
         }
 
+        /// <summary>
+        /// What Start All would start. A hidden server is one the host is not running, so it is
+        /// left alone even while the fleet is showing hidden cards.
+        /// </summary>
+        private IEnumerable<ServerCardViewModel> Startable()
+        {
+            return Shown.Where(s => s.CanStart && !s.Preset.Hidden);
+        }
+
         private async void StartAll()
         {
             if (_demo) return;
             // A port belongs to one server here too: a port two presets claim is left alone
             // rather than started as whichever of them came first.
-            var shared = Servers.Where(s => s.CanStart).Select(s => s.Preset.Port)
+            var shared = Startable().Select(s => s.Preset.Port)
                 .GroupBy(port => port).Where(g => Servers.Count(s => s.Preset.Port == g.Key) > 1)
                 .Select(g => g.Key).ToList();
-            var queue = Servers.Where(s => s.CanStart && !shared.Contains(s.Preset.Port))
+            var queue = Startable().Where(s => !shared.Contains(s.Preset.Port))
                 .Select(s => s.Preset.Copy()).OrderBy(p => p.Port).ToList();
             foreach (var port in shared.Distinct())
                 Toast("Two servers cannot share :" + port + ". Give one of them a free port first.");
@@ -545,7 +598,7 @@ namespace S2x.ServerManager.ViewModels
         private async void StopAll()
         {
             if (_demo) return;
-            var ports = Servers.Where(s => s.CanStop).Select(s => s.Preset.Port).Distinct().ToList();
+            var ports = Shown.Where(s => s.CanStop).Select(s => s.Preset.Port).Distinct().ToList();
             await Task.Run(() => { foreach (var port in ports) _controller.Stop(port); });
             await PollAsync();
         }
@@ -701,7 +754,7 @@ namespace S2x.ServerManager.ViewModels
 
             Servers.Clear();
             foreach (var card in wanted) Servers.Add(card);
-            if (Selected == null || !Servers.Contains(Selected)) Selected = Servers.FirstOrDefault();
+            RebuildShown();
             LoadStarters();
             Raise("EmptyVisibility"); Raise("CardsVisibility"); Raise("RosterVisibility"); Raise("RosterEditor");
         }
@@ -788,23 +841,25 @@ namespace S2x.ServerManager.ViewModels
         // ── totals ────────────────────────────────────────────────────────────────
         private void Recount()
         {
-            // A port belongs to one server. Say on the card when two presets claim the same one.
+            // A port belongs to one server. Say on the card when two presets claim the same one,
+            // hidden presets included: the file is still there and still wants that socket.
             foreach (var card in Servers)
             {
                 card.SharedPorts = PresetsOnPort(card.Preset.Port, card.Preset);
                 card.Refresh();
             }
+            RebuildShown();
 
-            FleetTotal = Servers.Count;
-            FleetUp = Servers.Count(s => s.State.IsLive);
-            FleetHumans = Servers.Where(s => s.State.Status == ServerStatus.Running).Sum(s => s.State.Humans);
-            FleetBots = Servers.Where(s => s.State.IsLive || s.State.Status == ServerStatus.NotAnswering).Sum(s => s.State.Bots);
-            FleetCap = Servers.Where(s => s.State.IsLive || s.State.Status == ServerStatus.NotAnswering).Sum(s => Math.Max(s.State.Cap, s.Preset.MaxPlayers));
-            FleetAttention = Servers.Count(s => s.State.NeedsAttention);
+            FleetTotal = Shown.Count;
+            FleetUp = Shown.Count(s => s.State.IsLive);
+            FleetHumans = Shown.Where(s => s.State.Status == ServerStatus.Running).Sum(s => s.State.Humans);
+            FleetBots = Shown.Where(s => s.State.IsLive || s.State.Status == ServerStatus.NotAnswering).Sum(s => s.State.Bots);
+            FleetCap = Shown.Where(s => s.State.IsLive || s.State.Status == ServerStatus.NotAnswering).Sum(s => Math.Max(s.State.Cap, s.Preset.MaxPlayers));
+            FleetAttention = Shown.Count(s => s.State.NeedsAttention);
 
             // Every server that wants looking at, not only the first: a fleet with two servers
             // down that names one of them sends the host to the wrong card.
-            var wanting = Servers.Where(s => s.State.NeedsAttention)
+            var wanting = Shown.Where(s => s.State.NeedsAttention)
                 .OrderBy(s => s.State.Status == ServerStatus.Crashed ? 0 : 1)
                 .ThenBy(s => s.Preset.Port).ToList();
             var worst = wanting.FirstOrDefault();
@@ -818,6 +873,23 @@ namespace S2x.ServerManager.ViewModels
             RaiseAll();
             StartAllCommand.Refresh();
             StopAllCommand.Refresh();
+        }
+
+        /// <summary>
+        /// The cards on screen. Rebuilt only when the list actually moved: replacing it every
+        /// three seconds would throw away the scroll position and the row that is selected.
+        /// </summary>
+        private void RebuildShown()
+        {
+            HiddenCount = Servers.Count(s => s.Preset.Hidden);
+            var wanted = Servers.Where(s => _showHidden || !s.Preset.Hidden).ToList();
+            if (!Shown.SequenceEqual(wanted))
+            {
+                Shown.Clear();
+                foreach (var card in wanted) Shown.Add(card);
+            }
+            // A row that is not on screen is not a selection.
+            if (Shown.Count > 0 ? !Shown.Contains(_selected) : _selected != null) Selected = Shown.FirstOrDefault();
         }
 
         // ── demo ──────────────────────────────────────────────────────────────────

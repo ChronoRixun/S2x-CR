@@ -619,6 +619,9 @@ namespace S2x.ServerManager.ViewModels
         public Visibility LaunchVisibility { get { return IsStopped ? Visibility.Visible : Visibility.Collapsed; } }
         public Visibility RunningVisibility { get { return IsStopped ? Visibility.Collapsed : Visibility.Visible; } }
 
+        /// <summary>HIDE on the card wrote this preset's file; the editor writes the same key.</summary>
+        public void SetHidden(bool hidden) { _preset.Hidden = hidden; }
+
         public bool IsDirty { get { return Snapshot() != _saved; } }
         public Visibility DirtyVisibility { get { return IsDirty ? Visibility.Visible : Visibility.Collapsed; } }
 

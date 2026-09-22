@@ -76,6 +76,8 @@ namespace S2x.ServerManager
 
             var view = Argument(e.Args, "--view");
             if (view != null) fleet.ViewMode = view;
+            if (e.Args.Any(a => string.Equals(a, "--show-hidden", StringComparison.OrdinalIgnoreCase)))
+                fleet.ShowHidden = true;
 
             var window = new MainWindow { DataContext = fleet };
             MainWindow = window;

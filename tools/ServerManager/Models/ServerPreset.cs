@@ -57,6 +57,10 @@ namespace S2x.ServerManager.Models
         public bool ShuffleOnLaunch;
         public readonly List<string> ExtraLines = new List<string>();
 
+        // Off the fleet until it is asked for. Still a preset: it keeps its port, its files and
+        // its place in the presets folder, and the PowerShell launcher ignores the key.
+        public bool Hidden;
+
         // Every key as it was read, so writing the file back does not lose anything a newer
         // launcher put there.
         public Dictionary<string, object> Raw = new Dictionary<string, object>(StringComparer.Ordinal);
@@ -97,6 +101,7 @@ namespace S2x.ServerManager.Models
                 StartDelay = StartDelay,
                 Advertise = Advertise,
                 ShuffleOnLaunch = ShuffleOnLaunch,
+                Hidden = Hidden,
                 Raw = (Dictionary<string, object>)CopyValue(Raw) ?? new Dictionary<string, object>(StringComparer.Ordinal),
             };
             foreach (var pair in ScoreLimits) copy.ScoreLimits[pair.Key] = pair.Value;

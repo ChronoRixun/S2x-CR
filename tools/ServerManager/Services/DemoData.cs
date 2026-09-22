@@ -56,6 +56,12 @@ namespace S2x.ServerManager.Services
             stale.PingMs = 0;
             stale.LastReply = DateTime.Now.AddSeconds(-47);
             fleet.Add(Pair(three, stale));
+
+            // One put away, so SHOW HIDDEN has something to count.
+            var away = Preset("^2CR's ^7Gun Game", 27019, 10, "modern",
+                "mp_shipment_s2:gun", "mp_house:gun", "mp_carentan_s2:gun");
+            away.Hidden = true;
+            fleet.Add(Pair(away, new ServerState { Port = away.Port }));
             return fleet;
         }
 
