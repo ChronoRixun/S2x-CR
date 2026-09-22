@@ -37,7 +37,8 @@ namespace S2x.ServerManager.ViewModels
             StartCommand = new RelayCommand(() => _fleet.Start(this), () => CanStart);
             StopCommand = new RelayCommand(() => _fleet.Stop(this), () => CanStop);
             RestartCommand = new RelayCommand(() => _fleet.Restart(this));
-            CopyCommand = new RelayCommand(Copy);
+            CopyCommand = new RelayCommand(() => Copy(Address));
+            CopyLanCommand = new RelayCommand(() => Copy(LanAddress));
             SelectCommand = new RelayCommand(() => _fleet.Selected = this);
             EditCommand = new RelayCommand(() => _fleet.OpenEditor(Preset));
             ConsoleCommand = new RelayCommand(() => _fleet.Console.Toggle(this));
@@ -67,6 +68,7 @@ namespace S2x.ServerManager.ViewModels
         public RelayCommand StopCommand { get; private set; }
         public RelayCommand RestartCommand { get; private set; }
         public RelayCommand CopyCommand { get; private set; }
+        public RelayCommand CopyLanCommand { get; private set; }
         public RelayCommand SelectCommand { get; private set; }
         public RelayCommand EditCommand { get; private set; }
         public RelayCommand ConsoleCommand { get; private set; }
@@ -84,6 +86,23 @@ namespace S2x.ServerManager.ViewModels
         public string Name { get { return Preset.ServerName; } }
         public string PlainName { get { return Preset.PlainName; } }
         public string Address { get { return "127.0.0.1:" + Preset.Port; } }
+
+        /// <summary>
+        /// The address the rest of the house reaches this server on. Nothing here knows the
+        /// public one: the master heartbeat does not hand it back, so a host behind a router
+        /// swaps this for their public IP before they paste it.
+        /// </summary>
+        public string LanAddress
+        {
+            get
+            {
+                var local = Services.Network.LocalAddress();
+                return (local ?? "127.0.0.1") + ":" + Preset.Port;
+            }
+        }
+
+        public string ConnectLine { get { return "connect " + Address; } }
+        public string LanConnectLine { get { return "connect " + LanAddress; } }
 
         // ── state ─────────────────────────────────────────────────────────────────
         public string StateCaps
@@ -357,12 +376,12 @@ namespace S2x.ServerManager.ViewModels
         public Brush RowMarker { get { return _isSelected ? Palette.Accent : Palette.Transparent; } }
         public Brush RowForeground { get { return _isSelected ? Palette.Ink : Palette.Label; } }
 
-        private void Copy()
+        private void Copy(string address)
         {
             try
             {
-                Clipboard.SetText("connect " + Address);
-                _fleet.Toast("Copied  connect " + Address);
+                Clipboard.SetText("connect " + address);
+                _fleet.Toast("Copied  connect " + address);
             }
             catch (Exception ex)
             {
