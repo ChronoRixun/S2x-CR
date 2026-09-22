@@ -232,7 +232,7 @@ namespace S2x.ServerManager.ViewModels
 
                 if (_tail == null || !string.Equals(_tail.Path, wanted, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (_tail != null) Append(Marker("— now reading " + wanted + " —"));
+                    if (_tail != null) Append(Marker("— now reading " + wanted + " —"), true);
                     _tail = new LogTail(wanted);
                     Raise("LogFile");
                 }
@@ -273,11 +273,15 @@ namespace S2x.ServerManager.ViewModels
 
         private void Apply(LogChunk chunk)
         {
-            if (chunk.Cleared) Append(Marker("— cleared · the server started again —"));
+            if (chunk.Cleared) Append(Marker("— cleared · the server started again —"), true);
             if (chunk.Lines.Count == 0) return;
 
+            // The first read of a shared log is thousands of lines for five hundred kept. One
+            // rebuild at the end of that, not one notification per line.
+            var bulk = chunk.Lines.Count > MaxLines / 10;
             if (_paused) { _held += chunk.Lines.Count; Raise("HeldNote"); }
-            foreach (var text in chunk.Lines) Append(new LogLine { Text = text, Fill = Colour(text) });
+            foreach (var text in chunk.Lines) Append(new LogLine { Text = text, Fill = Colour(text) }, !bulk);
+            if (bulk) { Rebuild(); return; }
             if (!_paused)
             {
                 var handler = LinesAppended;
@@ -285,10 +289,10 @@ namespace S2x.ServerManager.ViewModels
             }
         }
 
-        private void Append(LogLine line)
+        private void Append(LogLine line, bool show)
         {
             _all.Add(line);
-            if (!_paused && Matches(line)) Lines.Add(line);
+            if (show && !_paused && Matches(line)) Lines.Add(line);
             while (_all.Count > MaxLines)
             {
                 var dropped = _all[0];
