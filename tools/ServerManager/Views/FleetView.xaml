@@ -316,7 +316,7 @@
                 <TextBlock Text="{Binding FleetAttention}" Style="{StaticResource Stat}"
                            Foreground="{Binding FleetAttentionBrush}"/>
                 <TextBlock Text="{Binding FleetAttentionNote}" FontSize="11" Foreground="{StaticResource Dim}"
-                           MaxWidth="150" TextWrapping="Wrap" LineHeight="15" VerticalAlignment="Bottom"
+                           MaxWidth="240" TextWrapping="Wrap" LineHeight="15" VerticalAlignment="Bottom"
                            Margin="6,0,0,3"/>
               </StackPanel>
             </StackPanel>

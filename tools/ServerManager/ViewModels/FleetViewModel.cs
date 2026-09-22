@@ -786,12 +786,18 @@ namespace S2x.ServerManager.ViewModels
             FleetCap = Servers.Where(s => s.State.IsLive || s.State.Status == ServerStatus.NotAnswering).Sum(s => Math.Max(s.State.Cap, s.Preset.MaxPlayers));
             FleetAttention = Servers.Count(s => s.State.NeedsAttention);
 
-            var worst = Servers.FirstOrDefault(s => s.State.Status == ServerStatus.Crashed)
-                     ?? Servers.FirstOrDefault(s => s.State.Status == ServerStatus.NotAnswering);
+            // Every server that wants looking at, not only the first: a fleet with two servers
+            // down that names one of them sends the host to the wrong card.
+            var wanting = Servers.Where(s => s.State.NeedsAttention)
+                .OrderBy(s => s.State.Status == ServerStatus.Crashed ? 0 : 1)
+                .ThenBy(s => s.Preset.Port).ToList();
+            var worst = wanting.FirstOrDefault();
             FleetAttentionBrush = worst == null ? Palette.EdgeHot
                 : worst.State.Status == ServerStatus.Crashed ? Palette.Danger : Palette.Accent;
             FleetAttentionNote = worst == null ? "all quiet"
-                : ":" + worst.Preset.Port + (worst.State.Status == ServerStatus.Crashed ? " process gone" : " not answering");
+                : string.Join(", ", wanting.Take(3).Select(s => ":" + s.Preset.Port +
+                      (s.State.Status == ServerStatus.Crashed ? " process gone" : " not answering")))
+                  + (wanting.Count > 3 ? " and " + (wanting.Count - 3) + " more" : "");
 
             RaiseAll();
             StartAllCommand.Refresh();
