@@ -1056,7 +1056,10 @@ namespace party
 				mapname = party_connect_info.map_name;
 				gametype = party_connect_info.gametype;
 				max_clients = party_connect_info.max_members;
-				clients = std::clamp(party_connect_info.member_count, 0, max_clients);
+				// The party only lists humans, and bots hold slots like anyone else, so
+				// the player count carries both; a bot-only server otherwise reports 0/0.
+				// Clients validate bots <= clients, so bots stay inside the total.
+				clients = std::clamp(party_connect_info.member_count + bots, 0, max_clients);
 				bots = std::clamp(bots, 0, clients);
 				match_running = party_connect_info.match_running;
 			}
