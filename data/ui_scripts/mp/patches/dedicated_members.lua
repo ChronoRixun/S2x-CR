@@ -134,6 +134,7 @@ function S2xRefreshDedicatedPartyPresentation()
 		if avatar and avatar.xuid and avatar.xuid ~= NoXuid and
 			not IsVisibleDedicatedPartyMember( avatar.xuid ) then
 			local leavingXuid = avatar.xuid
+			filteredLoadoutXuids[leavingXuid] = true
 			if avatar.avatarHandle then
 				CharacterScene.Show( avatar.avatarHandle, false )
 				avatar.showing = false
