@@ -81,8 +81,30 @@ namespace S2x.ServerManager.Services
 
         public string PathFor(string name) { return Path.Combine(_presetDir, name + ".json"); }
 
+        /// <summary>One spelling of a preset's path, so a preset is one preset however it was named.</summary>
+        public static string Key(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return "";
+            try { return Path.GetFullPath(path); }
+            catch { return path; }
+        }
+
+        public static bool SamePath(string a, string b)
+        {
+            return string.Equals(Key(a), Key(b), StringComparison.OrdinalIgnoreCase);
+        }
+
         /// <summary>A name the launcher's preset box can also show, or the reason it cannot.</summary>
-        public static string NameProblem(string name)
+        public string NameProblem(string name, bool mustBeNew)
+        {
+            var problem = NameShape(name);
+            if (problem != null) return problem;
+            // Writing over another preset would lose it without asking, so a new name has to be new.
+            if (mustBeNew && Exists(name.Trim())) return "There is already a preset called " + name.Trim() + ".";
+            return null;
+        }
+
+        public static string NameShape(string name)
         {
             name = (name ?? "").Trim();
             if (name.Length == 0) return "A preset needs a name.";
@@ -101,11 +123,12 @@ namespace S2x.ServerManager.Services
             return 27016;
         }
 
-        public void Save(ServerPreset preset)
+        /// <summary>Writes the preset. <paramref name="create"/> refuses to write over a file.</summary>
+        public void Save(ServerPreset preset, bool create)
         {
             System.IO.Directory.CreateDirectory(_presetDir);
             if (string.IsNullOrEmpty(preset.FilePath)) preset.FilePath = PathFor(preset.FileName);
-            PresetJson.Save(preset.FilePath, Compose(preset));
+            PresetJson.Save(preset.FilePath, Compose(preset), create);
         }
 
         /// <summary>The preset as the file's keys, the launcher's spellings, unknown keys kept.</summary>
@@ -118,7 +141,10 @@ namespace S2x.ServerManager.Services
             root["mode"] = preset.IsZombies ? "zombies" : "mp";
             root["rotation"] = preset.Rotation.Select(entry =>
             {
-                var item = new Dictionary<string, object>(StringComparer.Ordinal);
+                // The entry the file had, with only the two keys this app owns updated, so a
+                // key a newer launcher put on a line survives being reordered here.
+                var item = entry.Raw ?? new Dictionary<string, object>(StringComparer.Ordinal);
+                entry.Raw = item;
                 item["gametype"] = entry.Gametype;
                 item["map"] = entry.Map;
                 return (object)item;
@@ -208,7 +234,12 @@ namespace S2x.ServerManager.Services
                         // launcher used to list Zombies maps are rewritten the same way.
                         string current;
                         if (GameData.LegacyZombieZones.TryGetValue(map, out current)) map = current;
-                        preset.Rotation.Add(new RotationEntry { Map = map, Gametype = Str(entry, "gametype") ?? "war" });
+                        preset.Rotation.Add(new RotationEntry
+                        {
+                            Map = map,
+                            Gametype = Str(entry, "gametype") ?? "war",
+                            Raw = entry,
+                        });
                     }
                 }
                 return preset;

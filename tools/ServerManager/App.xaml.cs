@@ -29,6 +29,11 @@ namespace S2x.ServerManager
             var target = shot ?? shotEditor ?? (demoEditor != null ? Argument(e.Args, "--demo-editor", 2) : null);
             var wantedPreset = Argument(e.Args, "--screenshot-editor", 2);
 
+            // A render switch that cannot render must say so and stop, not fall through and
+            // leave a window open on a machine nobody is watching.
+            var problem = Usage(demoEditor, shotEditor, target);
+            if (problem != null) { Stop(problem, 2); return; }
+
             FleetViewModel fleet;
             if (demoEditor != null)
             {
@@ -46,9 +51,8 @@ namespace S2x.ServerManager
                     const string missing = "Could not find s2x.exe. Start this from the game folder, " +
                                            "or pick the folder that holds s2x.exe.";
                     // A --screenshot run has nobody to answer a dialog.
-                    if (target != null) Console.Error.WriteLine(missing);
-                    else MessageBox.Show(missing, "S2x Server Manager", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    Shutdown(1);
+                    if (target == null) MessageBox.Show(missing, "S2x Server Manager", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    Stop(missing, 1);
                     return;
                 }
                 fleet = new FleetViewModel(gameDir, presetDir);
@@ -62,7 +66,7 @@ namespace S2x.ServerManager
 
             if (target != null)
             {
-                Capture(window, fleet, target, shotEditor != null ? () => OpenEditor(fleet, wantedPreset) : (Action)null);
+                Capture(window, fleet, target, shotEditor != null ? () => OpenEditor(fleet, wantedPreset) : (Func<string>)null);
                 return;
             }
 
@@ -71,19 +75,56 @@ namespace S2x.ServerManager
                 DispatcherPriority.Background);
         }
 
-        /// <summary>--screenshot-editor: the named preset, or the first one the fleet found.</summary>
-        private static void OpenEditor(FleetViewModel fleet, string name)
+        /// <summary>
+        /// Gives up before there is a window to close. Shutdown() only takes effect once the
+        /// dispatcher is running, and a switch that cannot be honoured must not reach that far.
+        /// </summary>
+        private static void Stop(string message, int code)
         {
-            var card = fleet.Servers.FirstOrDefault(s =>
-                           string.Equals(s.Preset.FileName, name, StringComparison.OrdinalIgnoreCase))
-                       ?? fleet.Servers.FirstOrDefault();
-            if (card == null) return;
-            fleet.OpenEditor(card.Preset);
+            Console.Error.WriteLine(message);
+            Environment.Exit(code);
+        }
+
+        /// <summary>What is wrong with the render switches, or null when they can be honoured.</summary>
+        private static string Usage(string demoEditor, string shotEditor, string target)
+        {
+            if (demoEditor != null)
+            {
+                if (Array.IndexOf(new[] { "mp", "zombies", "empty" }, demoEditor.ToLowerInvariant()) < 0)
+                    return "--demo-editor takes mp, zombies or empty.";
+                if (string.IsNullOrEmpty(target)) return "--demo-editor <state> <png>: no png was given.";
+            }
+            if (shotEditor != null && string.IsNullOrEmpty(shotEditor))
+                return "--screenshot-editor <png> [preset]: no png was given.";
+            return null;
+        }
+
+        /// <summary>
+        /// --screenshot-editor: the preset that was asked for, or the only sensible one when no
+        /// name was given. A name that is not there is an error, not the first preset instead.
+        /// </summary>
+        private static string OpenEditor(FleetViewModel fleet, string name)
+        {
+            if (!string.IsNullOrEmpty(name))
+            {
+                var wanted = fleet.Servers.FirstOrDefault(s =>
+                    string.Equals(s.Preset.FileName, name, StringComparison.OrdinalIgnoreCase));
+                if (wanted == null) return "No preset called " + name + " in " + fleet.PresetDir + ".";
+                fleet.OpenEditor(wanted.Preset);
+                return null;
+            }
+
+            var first = fleet.Servers.FirstOrDefault();
+            if (first == null) return "No presets in " + fleet.PresetDir + ", so there is no editor to render.";
+            fleet.OpenEditor(first.Preset);
+            return null;
         }
 
         /// <summary>--screenshot: render the window off-screen with real data and exit.</summary>
-        private void Capture(MainWindow window, FleetViewModel fleet, string path, Action after)
+        private void Capture(MainWindow window, FleetViewModel fleet, string path, Func<string> after)
         {
+            // The capture closes its own window; the exit code has to survive that.
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
             window.Width = ShotWidth;
             window.Height = ShotHeight;
             window.WindowStartupLocation = WindowStartupLocation.Manual;
@@ -99,11 +140,20 @@ namespace S2x.ServerManager
                 try
                 {
                     await fleet.PollAsync();
-                    if (after != null) after();
-                    window.UpdateLayout();
-                    await Dispatcher.Yield(DispatcherPriority.ContextIdle);
-                    window.UpdateLayout();
-                    Save(window, path);
+                    var failure = after == null ? null : after();
+                    if (failure != null)
+                    {
+                        // Writing the fleet under the name of an editor shot would be a lie.
+                        Console.Error.WriteLine(failure);
+                        code = 3;
+                    }
+                    else
+                    {
+                        window.UpdateLayout();
+                        await Dispatcher.Yield(DispatcherPriority.ContextIdle);
+                        window.UpdateLayout();
+                        Save(window, path);
+                    }
                 }
                 catch (Exception ex)
                 {

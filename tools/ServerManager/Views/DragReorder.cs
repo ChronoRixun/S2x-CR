@@ -25,6 +25,14 @@ namespace S2x.ServerManager.Views
         public static void SetEnabled(DependencyObject target, bool value) { target.SetValue(EnabledProperty, value); }
         public static bool GetEnabled(DependencyObject target) { return (bool)target.GetValue(EnabledProperty); }
 
+        /// <summary>The space under the last row: a drop there puts the line at the end.</summary>
+        public static readonly DependencyProperty EndZoneProperty =
+            DependencyProperty.RegisterAttached("EndZone", typeof(bool), typeof(DragReorder),
+                new PropertyMetadata(false, OnEndZoneChanged));
+
+        public static void SetEndZone(DependencyObject target, bool value) { target.SetValue(EndZoneProperty, value); }
+        public static bool GetEndZone(DependencyObject target) { return (bool)target.GetValue(EndZoneProperty); }
+
         private static void OnEnabledChanged(DependencyObject target, DependencyPropertyChangedEventArgs e)
         {
             var row = target as FrameworkElement;
@@ -37,6 +45,26 @@ namespace S2x.ServerManager.Views
             row.DragOver += Over;
             row.DragLeave += Left;
             row.Drop += Dropped;
+        }
+
+        private static void OnEndZoneChanged(DependencyObject target, DependencyPropertyChangedEventArgs e)
+        {
+            var zone = target as FrameworkElement;
+            if (zone == null || !(e.NewValue is bool) || !(bool)e.NewValue) return;
+
+            zone.AllowDrop = true;
+            zone.DragOver += (s, args) =>
+            {
+                args.Effects = Payload(args) == null ? DragDropEffects.None : DragDropEffects.Move;
+                args.Handled = true;
+            };
+            zone.Drop += (s, args) =>
+            {
+                var dragged = Payload(args);
+                if (dragged == null) return;
+                dragged.Editor.MoveTo(dragged, dragged.Editor.Rotation.Count);
+                args.Handled = true;
+            };
         }
 
         private static void Pressed(object sender, MouseButtonEventArgs e)
@@ -85,7 +113,12 @@ namespace S2x.ServerManager.Views
             var dragged = Payload(e);
             if (row != null) row.IsDropTarget = false;
             if (row == null || dragged == null || dragged == row) return;
-            row.Editor.MoveRow(dragged, row);
+
+            // The top half of a row means before it, the bottom half after it, so a line can be
+            // put on either side of its target instead of always below it.
+            var element = (FrameworkElement)sender;
+            var below = e.GetPosition(element).Y > element.ActualHeight / 2;
+            row.Editor.MoveTo(dragged, row.Index + (below ? 1 : 0));
             e.Handled = true;
         }
 

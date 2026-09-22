@@ -123,7 +123,8 @@ namespace S2x.ServerManager.Services
             var preset = new ServerPreset
             {
                 FileName = GameData.StripColorCodes(name),
-                FilePath = "(demo)",
+                // A preset is its file here, so even the demo ones need a file of their own.
+                FilePath = @"(demo)\server-" + port + ".json",
                 ServerName = name,
                 Port = port,
                 BotFill = botFill,

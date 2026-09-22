@@ -8,10 +8,24 @@ namespace S2x.ServerManager.Models
         public string Map;
         public string Gametype;
 
+        // The entry as the file had it. Rows are rebuilt on every save, so without this a key
+        // this app does not know would be dropped from the rotation it writes back.
+        public Dictionary<string, object> Raw;
+
         public string Label(bool isZombies)
         {
             return GameData.MapName(Map) + " " + GameData.MiddleDot + " " +
                    (isZombies ? "ZM" : GameData.GametypeShort(Gametype));
+        }
+
+        public RotationEntry Copy()
+        {
+            return new RotationEntry
+            {
+                Map = Map,
+                Gametype = Gametype,
+                Raw = (Dictionary<string, object>)ServerPreset.CopyValue(Raw),
+            };
         }
     }
 
@@ -61,7 +75,10 @@ namespace S2x.ServerManager.Models
             }
         }
 
-        /// <summary>A copy that shares nothing with this one, for Save as and + New server.</summary>
+        /// <summary>
+        /// A copy that shares nothing with this one: the launch snapshot, the editor's candidate,
+        /// Save as and + New server all change one without the other seeing it.
+        /// </summary>
         public ServerPreset Copy()
         {
             var copy = new ServerPreset
@@ -80,12 +97,35 @@ namespace S2x.ServerManager.Models
                 StartDelay = StartDelay,
                 Advertise = Advertise,
                 ShuffleOnLaunch = ShuffleOnLaunch,
-                Raw = new Dictionary<string, object>(Raw, StringComparer.Ordinal),
+                Raw = (Dictionary<string, object>)CopyValue(Raw) ?? new Dictionary<string, object>(StringComparer.Ordinal),
             };
             foreach (var pair in ScoreLimits) copy.ScoreLimits[pair.Key] = pair.Value;
-            foreach (var entry in Rotation) copy.Rotation.Add(new RotationEntry { Map = entry.Map, Gametype = entry.Gametype });
+            foreach (var entry in Rotation) copy.Rotation.Add(entry.Copy());
             copy.ExtraLines.AddRange(ExtraLines);
             return copy;
+        }
+
+        /// <summary>
+        /// A deep copy of what a preset file holds: nested objects and arrays included, because
+        /// writing a preset updates the dictionaries it came from.
+        /// </summary>
+        public static object CopyValue(object value)
+        {
+            var map = value as Dictionary<string, object>;
+            if (map != null)
+            {
+                var copy = new Dictionary<string, object>(StringComparer.Ordinal);
+                foreach (var pair in map) copy[pair.Key] = CopyValue(pair.Value);
+                return copy;
+            }
+            var list = value as object[];
+            if (list != null)
+            {
+                var copy = new object[list.Length];
+                for (int i = 0; i < list.Length; i++) copy[i] = CopyValue(list[i]);
+                return copy;
+            }
+            return value;
         }
     }
 }

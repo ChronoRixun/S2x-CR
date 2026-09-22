@@ -37,28 +37,38 @@ namespace S2x.ServerManager.Services
             lock (_busy) _busy.Remove(port);
         }
 
-        /// <summary>Writes the port's cfg from the preset, starts s2x.exe, then writes the pid file.</summary>
-        public string Start(ServerPreset preset)
+        /// <summary>
+        /// Writes the port's cfg from the preset, starts s2x.exe, then writes the pid file.
+        /// The caller hands over a snapshot it will not touch again: an edit landing halfway
+        /// through would otherwise write one port's cfg and start another one.
+        /// </summary>
+        public string Start(ServerPreset snapshot)
         {
-            if (preset.Rotation.Count == 0) return "Add at least one map to the rotation first.";
+            // One port for the claim, the checks, the files, the arguments and the release.
+            var port = snapshot.Port;
+            if (snapshot.Rotation.Count == 0) return "Add at least one map to the rotation first.";
             if (!File.Exists(GameFolder.ExePath(_gameDir))) return "s2x.exe is not in " + _gameDir + ".";
-            if (!Claim(preset.Port)) return "Already working on :" + preset.Port + ".";
+            if (!Claim(port)) return "Already working on :" + port + ".";
 
             try
             {
-                // One server per port: never start a second one on a port that already has one.
-                if (ProcessInspector.DedicatedServers().ContainsKey(preset.Port))
-                    return "A server is already running on :" + preset.Port + ".";
+                // One server per port: never start a second one on a port that already has one,
+                // and never guess when the process list could not be read.
+                var scan = ProcessInspector.DedicatedServers();
+                if (!scan.Complete)
+                    return "Could not read the running servers, so :" + port + " cannot be checked. Nothing was started.";
+                if (scan.Servers.ContainsKey(port))
+                    return "A server is already running on :" + port + ".";
 
-                var cfgPath = GameFolder.CfgPath(_gameDir, preset.Port);
+                var cfgPath = GameFolder.CfgPath(_gameDir, port);
                 Directory.CreateDirectory(Path.GetDirectoryName(cfgPath));
-                File.WriteAllText(cfgPath, BuildServerCfg(preset), new UTF8Encoding(false));
+                File.WriteAllText(cfgPath, BuildServerCfg(snapshot), new UTF8Encoding(false));
 
                 // Both modes start from the rotation the port's cfg carries; a command-line +map
                 // runs before the dedicated party exists and is dropped.
                 var args = string.Format(
                     "-noupdate -dedicated{0} +set net_port {1} +exec {2} +map_rotate",
-                    preset.IsZombies ? " -zombies" : "", preset.Port, Path.GetFileName(cfgPath));
+                    snapshot.IsZombies ? " -zombies" : "", port, Path.GetFileName(cfgPath));
 
                 var process = Process.Start(new ProcessStartInfo
                 {
@@ -68,7 +78,7 @@ namespace S2x.ServerManager.Services
                     UseShellExecute = false,
                 });
                 if (process == null) return "Windows did not start s2x.exe.";
-                File.WriteAllText(GameFolder.PidPath(_gameDir, preset.Port), process.Id.ToString());
+                File.WriteAllText(GameFolder.PidPath(_gameDir, port), process.Id.ToString());
                 return null;
             }
             catch (Exception ex)
@@ -79,7 +89,7 @@ namespace S2x.ServerManager.Services
             }
             finally
             {
-                Release(preset.Port);
+                Release(port);
             }
         }
 
@@ -93,7 +103,7 @@ namespace S2x.ServerManager.Services
                 var pids = new List<int>();
 
                 S2xProcess running;
-                if (ProcessInspector.DedicatedServers().TryGetValue(port, out running)) pids.Add(running.Pid);
+                if (ProcessInspector.DedicatedServers().Servers.TryGetValue(port, out running)) pids.Add(running.Pid);
 
                 var pidPath = GameFolder.PidPath(_gameDir, port);
                 var saved = ReadPid(pidPath);
@@ -209,8 +219,9 @@ namespace S2x.ServerManager.Services
             lines.Add("set master_server_enable " + (preset.Advertise ? "1" : "0"));
             lines.Add("set sv_lanOnly " + (preset.Advertise ? "0" : "1"));
 
+            // Passed through as written: a blank line is dropped, anything else goes as typed.
             foreach (var line in preset.ExtraLines)
-                if (!string.IsNullOrWhiteSpace(line)) lines.Add(line.Trim());
+                if (!string.IsNullOrWhiteSpace(line)) lines.Add(line);
 
             return string.Join("\n", lines);
         }

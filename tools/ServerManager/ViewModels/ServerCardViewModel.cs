@@ -55,6 +55,13 @@ namespace S2x.ServerManager.ViewModels
         public ServerPreset Preset { get; private set; }
         public ServerState State { get; set; }
 
+        /// <summary>The card follows its file: a fresh reading, or the one just written.</summary>
+        public void Adopt(ServerPreset preset)
+        {
+            Preset = preset;
+            Refresh();
+        }
+
         public RelayCommand StartCommand { get; private set; }
         public RelayCommand StopCommand { get; private set; }
         public RelayCommand RestartCommand { get; private set; }

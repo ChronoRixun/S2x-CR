@@ -89,7 +89,9 @@ namespace S2x.ServerManager.ViewModels
     internal sealed class EditorViewModel : Observable
     {
         private readonly FleetViewModel _fleet;
-        private readonly ServerPreset _preset;
+        private ServerPreset _preset;
+        private bool _portLocked;
+        private bool _fileChanged;
 
         private string _name;
         private bool _isZombies;
@@ -137,8 +139,8 @@ namespace S2x.ServerManager.ViewModels
             }
 
             Rotation = new ObservableCollection<RotationRowViewModel>();
-            foreach (var entry in preset.Rotation)
-                Rotation.Add(new RotationRowViewModel(this, new RotationEntry { Map = entry.Map, Gametype = entry.Gametype }));
+            // Rows edit their own copies of the entries, keys this app does not know included.
+            foreach (var entry in preset.Rotation) Rotation.Add(new RotationRowViewModel(this, entry.Copy()));
 
             Swatches = BuildSwatches();
             BuildPickers();
@@ -150,7 +152,9 @@ namespace S2x.ServerManager.ViewModels
             SetMultiplayerCommand = new RelayCommand(() => SetMode(false));
             SetZombiesCommand = new RelayCommand(() => SetMode(true));
             LaunchCommand = new RelayCommand(Launch);
-            StopCommand = new RelayCommand(() => _fleet.StopPort(Port));
+            // Stop and Restart belong to the process, which is on the port this server was saved
+            // with, never on whatever is being typed into the port box.
+            StopCommand = new RelayCommand(() => _fleet.StopPort(OwnedPort));
             RestartCommand = new RelayCommand(Restart);
             BackCommand = new RelayCommand(() => _fleet.ShowFleet());
 
@@ -209,15 +213,32 @@ namespace S2x.ServerManager.ViewModels
         public Brush ZmBackground { get { return _isZombies ? Palette.Accent : Palette.Transparent; } }
         public Brush ZmForeground { get { return _isZombies ? Palette.Bar : Palette.Muted; } }
 
+        /// <summary>
+        /// The port the running process is on: the one the preset was saved with. The box above
+        /// it is the port the next launch will use, and the two are only the same once saved.
+        /// </summary>
+        public int OwnedPort { get { return _preset.Port; } }
+
         public string PortText
         {
             get { return _portText; }
             set
             {
-                if (!Set(ref _portText, Digits(value, 5))) return;
+                var digits = Digits(value, 5);
+                if (digits == _portText) return;
+                if (!IsStopped && digits != OwnedPort.ToString())
+                {
+                    // A server is running on the port this preset holds. Moving it now would
+                    // point Stop and Restart at whatever else is on the new one.
+                    _portLocked = true;
+                    Raise("PortText"); Raise("PortWarning"); Raise("PortWarningVisibility");
+                    return;
+                }
+                _portLocked = false;
+                _portText = digits;
+                Raise("PortText");
                 Touched();
                 Raise("PortWarning"); Raise("PortWarningVisibility"); Raise("CfgPath");
-                RefreshState();
             }
         }
 
@@ -236,6 +257,7 @@ namespace S2x.ServerManager.ViewModels
         {
             get
             {
+                if (_portLocked) return "Stop the server before changing its port.";
                 int parsed;
                 if (!int.TryParse(_portText, out parsed) || parsed < 1024 || parsed > 65535)
                     return "A port between 1024 and 65535.";
@@ -401,15 +423,24 @@ namespace S2x.ServerManager.ViewModels
                 if (int.TryParse(text, out parsed)) text = Math.Max(1, Math.Min(ceiling, parsed)).ToString();
                 if (!Set(ref _capText, text)) return;
                 // A cap the party cannot hold would only be clamped by the game; clamp what
-                // depends on it here instead, so the numbers on screen agree.
+                // depends on it here instead, so the numbers on screen agree. The minimum's own
+                // text has to move too, or the box keeps a number the server will not use.
                 if (_botFill > Cap) { _botFill = Cap; Raise("BotFill"); }
-                if (MinPlayers > Cap) { _minText = Cap.ToString(); Raise("MinText"); }
+                ClampMinimum();
                 Raise("Cap"); Raise("BotPips"); Raise("BotSummary"); Raise("LobbySummary");
                 Touched();
             }
         }
 
         public string CapRange { get { return _isZombies ? "1-4" : "1-18"; } }
+
+        private void ClampMinimum()
+        {
+            int typed;
+            if (!int.TryParse(_minText, out typed) || typed <= Cap) return;
+            _minText = Cap.ToString();
+            Raise("MinText");
+        }
 
         public int MinPlayers
         {
@@ -515,10 +546,10 @@ namespace S2x.ServerManager.ViewModels
         {
             get
             {
+                // Passed through as written: blank lines go, every other line stays as typed.
                 return (_extraText ?? "")
                     .Split(new[] { "\r\n", "\n" }, StringSplitOptions.None)
-                    .Select(line => line.Trim())
-                    .Where(line => line.Length > 0)
+                    .Where(line => !string.IsNullOrWhiteSpace(line))
                     .ToList();
             }
         }
@@ -572,8 +603,8 @@ namespace S2x.ServerManager.ViewModels
             get
             {
                 if (_state.Status == ServerStatus.Stopped) return "no process";
-                if (_state.Status == ServerStatus.Crashed) return "PID " + _state.Pid + " exited " + GameData.MiddleDot + " 127.0.0.1:" + Port;
-                var live = "PID " + _state.Pid + " " + GameData.MiddleDot + " 127.0.0.1:" + Port;
+                if (_state.Status == ServerStatus.Crashed) return "PID " + _state.Pid + " exited " + GameData.MiddleDot + " 127.0.0.1:" + OwnedPort;
+                var live = "PID " + _state.Pid + " " + GameData.MiddleDot + " 127.0.0.1:" + OwnedPort;
                 if (_state.Status == ServerStatus.Running)
                     live += " " + GameData.MiddleDot + " " + _state.Humans + " humans " + GameData.MiddleDot + " " +
                             _state.Bots + " bots " + GameData.MiddleDot + " up " + ServerState.FormatSpan(_state.Uptime);
@@ -588,6 +619,18 @@ namespace S2x.ServerManager.ViewModels
 
         public bool IsDirty { get { return Snapshot() != _saved; } }
         public Visibility DirtyVisibility { get { return IsDirty ? Visibility.Visible : Visibility.Collapsed; } }
+
+        /// <summary>
+        /// Somebody else wrote this preset's file while it was being edited here. The draft is
+        /// kept, because it is work nobody else can recover, and the host is told.
+        /// </summary>
+        public bool FileChanged
+        {
+            get { return _fileChanged; }
+            set { if (Set(ref _fileChanged, value)) Raise("FileChangedVisibility"); }
+        }
+
+        public Visibility FileChangedVisibility { get { return _fileChanged ? Visibility.Visible : Visibility.Collapsed; } }
 
         /// <summary>Where the running server is in this rotation, or -1.</summary>
         public int NowIndex
@@ -607,7 +650,10 @@ namespace S2x.ServerManager.ViewModels
         /// <summary>A poll round landed: the state line, and the NOW marker, follow it.</summary>
         public void RefreshState()
         {
-            _state = _fleet.StateFor(Port);
+            // The state belongs to the process, so it is read on the owned port. Reading it on
+            // the port being typed would borrow another server's players and map.
+            _state = _fleet.StateFor(OwnedPort);
+            if (IsStopped && _portLocked) { _portLocked = false; Raise("PortWarning"); Raise("PortWarningVisibility"); }
             Raise("StateCaps"); Raise("StateBrush"); Raise("DotBrush"); Raise("StatusSub");
             Raise("LaunchVisibility"); Raise("RunningVisibility");
             foreach (var row in Rotation) row.Refresh();
@@ -646,10 +692,18 @@ namespace S2x.ServerManager.ViewModels
             RotationChanged();
         }
 
-        public void MoveRow(RotationRowViewModel row, RotationRowViewModel onto)
+        /// <summary>
+        /// A drop: <paramref name="boundary"/> is the gap between rows the pointer was over, so
+        /// dropping on the top half of a row puts the dragged line before it and the bottom half
+        /// after it. Taking the row out first shifts every gap below it up by one.
+        /// </summary>
+        public void MoveTo(RotationRowViewModel row, int boundary)
         {
-            if (row == null || onto == null) return;
-            Move(Rotation.IndexOf(row), Rotation.IndexOf(onto));
+            var from = Rotation.IndexOf(row);
+            if (from < 0) return;
+            if (boundary > from) boundary--;
+            boundary = Math.Max(0, Math.Min(Rotation.Count - 1, boundary));
+            Move(from, boundary);
         }
 
         private void Randomize()
@@ -696,26 +750,54 @@ namespace S2x.ServerManager.ViewModels
         }
 
         // ── mode ──────────────────────────────────────────────────────────────────
+        /// <summary>What one mode was holding, so switching back does not cost the rotation.</summary>
+        private sealed class ModeDraft
+        {
+            public List<RotationEntry> Rotation;
+            public string CapText;
+            public string MinText;
+            public int BotFill;
+        }
+
+        private readonly Dictionary<bool, ModeDraft> _drafts = new Dictionary<bool, ModeDraft>();
+
         private void SetMode(bool zombies)
         {
             if (_isZombies == zombies) return;
+
+            // Switch-Mode in the launcher puts the outgoing mode away and brings the incoming
+            // one back. It keeps that in its own preset files; this keeps it in the editor, so
+            // switching to look at Zombies does not throw a multiplayer rotation away.
+            _drafts[_isZombies] = new ModeDraft
+            {
+                Rotation = Rotation.Select(r => r.Entry.Copy()).ToList(),
+                CapText = _capText,
+                MinText = _minText,
+                BotFill = _botFill,
+            };
             _isZombies = zombies;
 
-            // Switch-Mode in the launcher swaps the map table and keeps only what the new table
-            // knows; no multiplayer map is a Zombies zone, so in practice the rotation empties.
+            ModeDraft draft;
             var table = GameData.MapsFor(zombies).Select(p => p.Key).ToList();
-            var kept = Rotation.Where(r => table.Contains(r.Entry.Map)).ToList();
+            var entries = _drafts.TryGetValue(zombies, out draft)
+                ? draft.Rotation
+                : Rotation.Select(r => r.Entry).ToList();
+
             Rotation.Clear();
-            foreach (var row in kept)
+            foreach (var entry in entries)
             {
-                row.Entry.Gametype = zombies ? "zombies" : (_scores.ContainsKey(row.Entry.Gametype) ? row.Entry.Gametype : "war");
-                Rotation.Add(row);
+                // The map table decides: no multiplayer map is a Zombies zone, so a rotation
+                // carried across a switch for the first time empties.
+                if (!table.Contains(entry.Map)) continue;
+                entry.Gametype = zombies ? "zombies" : (_scores.ContainsKey(entry.Gametype) ? entry.Gametype : "war");
+                Rotation.Add(new RotationRowViewModel(this, entry));
             }
 
             var ceiling = ServerPreset.CapCeiling(zombies);
-            _capText = ceiling.ToString();
-            if (_botFill > ceiling) _botFill = ceiling;
-            if (MinPlayers > ceiling) _minText = "1";
+            _capText = draft != null ? draft.CapText : ceiling.ToString();
+            _botFill = Math.Min(draft != null ? draft.BotFill : _botFill, Cap);
+            _minText = draft != null ? draft.MinText : "1";
+            ClampMinimum();
 
             BuildPickers();
             RotationChanged();
@@ -798,49 +880,61 @@ namespace S2x.ServerManager.ViewModels
             return text.ToString();
         }
 
-        /// <summary>The editor's fields onto the preset the fleet is showing.</summary>
-        public void Apply()
+        /// <summary>The editor's fields onto a preset. The one on screen is never the one written.</summary>
+        private void Apply(ServerPreset target)
         {
-            _preset.ServerName = _name;
-            _preset.Mode = _isZombies ? "zombies" : "mp";
-            _preset.Port = Port;
-            _preset.ShuffleOnLaunch = _shuffleOnLaunch;
-            _preset.SingleRoundDom = _singleRoundDom;
-            _preset.BotFill = _botFill;
-            _preset.BotNames = _botNames;
-            _preset.BotDifficulty = _botDifficulty;
-            _preset.MaxPlayers = Cap;
-            _preset.MinPlayers = MinPlayers;
-            _preset.StartDelay = StartDelay;
-            _preset.Advertise = _advertise;
-            _preset.ExtraLines.Clear();
-            _preset.ExtraLines.AddRange(ExtraLines);
-            foreach (var pair in _scores) _preset.ScoreLimits[pair.Key] = pair.Value;
-            _preset.Rotation.Clear();
-            foreach (var row in Rotation)
-                _preset.Rotation.Add(new RotationEntry { Map = row.Entry.Map, Gametype = row.Entry.Gametype });
+            target.ServerName = _name;
+            target.Mode = _isZombies ? "zombies" : "mp";
+            target.Port = Port;
+            target.ShuffleOnLaunch = _shuffleOnLaunch;
+            target.SingleRoundDom = _singleRoundDom;
+            target.BotFill = _botFill;
+            target.BotNames = _botNames;
+            target.BotDifficulty = _botDifficulty;
+            target.MaxPlayers = Cap;
+            target.MinPlayers = MinPlayers;
+            target.StartDelay = StartDelay;
+            target.Advertise = _advertise;
+            target.ExtraLines.Clear();
+            target.ExtraLines.AddRange(ExtraLines);
+            foreach (var pair in _scores) target.ScoreLimits[pair.Key] = pair.Value;
+            target.Rotation.Clear();
+            foreach (var row in Rotation) target.Rotation.Add(row.Entry.Copy());
         }
 
+        /// <summary>
+        /// Writes the editor to its file. The edits go onto a candidate copy and the fleet only
+        /// takes it once the write went through: a save that fails leaves the card, and anything
+        /// started from it, on the configuration the file still holds.
+        /// </summary>
         public bool Save()
         {
-            var shared = _fleet.PresetsOnPort(Port, _preset);
-            Apply();
-            if (!_fleet.SavePreset(_preset, IsNew)) return false;
+            var candidate = _preset.Copy();
+            Apply(candidate);
+            var shared = _fleet.PresetsOnPort(candidate.Port, candidate);
+            if (!_fleet.SavePreset(candidate, IsNew)) return false;
+
+            _preset = candidate;
             IsNew = false;
+            FileChanged = false;
             _saved = Snapshot();
-            Raise("DirtyVisibility");
+            Raise("DirtyVisibility"); Raise("OwnedPort"); Raise("StatusSub");
             _fleet.Toast(shared > 0
-                ? "Saved " + _preset.FileName + ", but :" + Port + " is used by " + shared + " other " + (shared == 1 ? "preset" : "presets")
-                : "Saved " + _preset.FileName);
+                ? "Saved " + candidate.FileName + ", but :" + candidate.Port + " is used by " + shared + " other " + (shared == 1 ? "preset" : "presets")
+                : "Saved " + candidate.FileName);
             return true;
         }
 
+        /// <summary>Save as writes a second preset. This one is left exactly as it was.</summary>
         private void SaveAs()
         {
             var name = _fleet.AskPresetName("Save preset as", _preset.FileName);
             if (name == null) return;
-            Apply();
-            _fleet.SaveCopy(this, _preset, name);
+            var copy = _preset.Copy();
+            Apply(copy);
+            copy.FileName = name;
+            copy.FilePath = _fleet.PathFor(name);
+            _fleet.SaveCopy(copy);
         }
 
         /// <summary>A server is its preset, so Launch saves first, then starts it like the card does.</summary>
@@ -853,8 +947,10 @@ namespace S2x.ServerManager.ViewModels
 
         private void Restart()
         {
+            // The process is on the owned port; the save may be moving the preset to another one.
+            var owned = OwnedPort;
             if (!Save()) return;
-            _fleet.RestartPreset(_preset);
+            _fleet.RestartPreset(_preset, owned);
         }
 
         /// <summary>Digits only, so a port or a score limit cannot be typed into nonsense.</summary>

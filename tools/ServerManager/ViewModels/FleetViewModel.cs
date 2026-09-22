@@ -36,7 +36,8 @@ namespace S2x.ServerManager.ViewModels
 
         // One editor per preset, so the roster's pane and the full screen are the same edit and
         // unsaved work survives walking back to the fleet.
-        private readonly Dictionary<ServerPreset, EditorViewModel> _editors = new Dictionary<ServerPreset, EditorViewModel>();
+        private readonly Dictionary<string, EditorViewModel> _editors =
+            new Dictionary<string, EditorViewModel>(StringComparer.OrdinalIgnoreCase);
 
         private string _presetSignature = "";
         private bool _polling;
@@ -72,6 +73,7 @@ namespace S2x.ServerManager.ViewModels
 
         public string GameDir { get; private set; }
         public bool IsDemo { get { return _demo; } }
+        public string PresetDir { get { return _store == null ? "(demo)" : _store.Directory; } }
 
         public ObservableCollection<ServerCardViewModel> Servers { get; private set; }
         public List<StarterViewModel> Starters { get; private set; }
@@ -116,13 +118,17 @@ namespace S2x.ServerManager.ViewModels
             }
         }
 
-        /// <summary>The one editor for this preset, whether the roster pane or EDIT asked for it.</summary>
+        /// <summary>
+        /// The one editor for this preset file, whether the roster pane or EDIT asked for it.
+        /// A preset is its path: the same file read twice is still one server.
+        /// </summary>
         public EditorViewModel EditorFor(ServerPreset preset, bool isNew = false)
         {
             if (preset == null) return null;
+            var key = PresetStore.Key(preset.FilePath);
             EditorViewModel editor;
-            if (!_editors.TryGetValue(preset, out editor))
-                _editors[preset] = editor = new EditorViewModel(this, preset, isNew);
+            if (!_editors.TryGetValue(key, out editor))
+                _editors[key] = editor = new EditorViewModel(this, preset, isNew);
             return editor;
         }
 
@@ -132,12 +138,45 @@ namespace S2x.ServerManager.ViewModels
             Screen = "editor";
         }
 
-        public void ShowFleet() { Screen = "fleet"; }
+        /// <summary>
+        /// Back to the fleet. A new server has no card to come back to, so it is saved or
+        /// dropped here rather than left somewhere with no way in.
+        /// </summary>
+        public void ShowFleet()
+        {
+            if (_screen == "editor" && _editor != null && _editor.IsNew)
+            {
+                var answer = MessageBox.Show(
+                    "This server has not been saved. Save it before going back?",
+                    "New server", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+                if (answer == MessageBoxResult.Cancel) return;
+                if (answer == MessageBoxResult.Yes && !_editor.Save()) return;
+                if (answer == MessageBoxResult.No) Forget(_editor);
+            }
+            Screen = "fleet";
+        }
+
+        private void Forget(EditorViewModel editor)
+        {
+            var key = _editors.FirstOrDefault(pair => pair.Value == editor).Key;
+            if (key != null) _editors.Remove(key);
+            Editor = null;
+        }
 
         /// <summary>The roster's right pane edits whatever row is selected.</summary>
         public EditorViewModel RosterEditor
         {
             get { return Selected == null ? null : EditorFor(Selected.Preset); }
+        }
+
+        /// <summary>The editor the host is actually looking at, if any.</summary>
+        public EditorViewModel VisibleEditor
+        {
+            get
+            {
+                if (_screen == "editor") return _editor;
+                return _viewMode == "roster" ? RosterEditor : null;
+            }
         }
 
         // ── view switch ───────────────────────────────────────────────────────────
@@ -223,7 +262,8 @@ namespace S2x.ServerManager.ViewModels
             NewServerCommand = new RelayCommand(NewServer);
             ShowCardsCommand = new RelayCommand(() => ViewMode = "cards");
             ShowRosterCommand = new RelayCommand(() => ViewMode = "roster");
-            SaveEditorCommand = new RelayCommand(() => { if (_screen == "editor" && _editor != null) _editor.Save(); });
+            // Ctrl+S saves whichever editor is on screen: the full one, or the roster's pane.
+            SaveEditorCommand = new RelayCommand(() => { var editor = VisibleEditor; if (editor != null) editor.Save(); });
             BackCommand = new RelayCommand(ShowFleet);
         }
 
@@ -232,17 +272,25 @@ namespace S2x.ServerManager.ViewModels
         public async void StartPreset(ServerPreset preset)
         {
             if (_demo) return;
-            // A port belongs to one server: the second one to ask for the socket never gets it,
-            // so say so instead of leaving a card that starts and dies.
-            if (PresetsOnPort(preset.Port, preset) > 0)
-            {
-                Toast("Two servers cannot share :" + preset.Port + ". Give one of them a free port first.");
-                return;
-            }
-            var failure = await Task.Run(() => _controller.Start(preset));
+            if (!PortIsOurs(preset)) return;
+            // The worker gets a copy: an edit landing while it works would otherwise change the
+            // port it has already checked, or the rotation it is halfway through writing.
+            var snapshot = preset.Copy();
+            var failure = await Task.Run(() => _controller.Start(snapshot));
             if (failure != null) Toast(failure);
-            else Toast("Starting " + preset.PlainName + " on :" + preset.Port);
+            else Toast("Starting " + snapshot.PlainName + " on :" + snapshot.Port);
             await PollAsync();
+        }
+
+        /// <summary>
+        /// A port belongs to one server: the second one to ask for the socket never gets it, so
+        /// say so instead of leaving a card that starts and dies. Every launch path asks.
+        /// </summary>
+        private bool PortIsOurs(ServerPreset preset)
+        {
+            if (PresetsOnPort(preset.Port, preset) == 0) return true;
+            Toast("Two servers cannot share :" + preset.Port + ". Give one of them a free port first.");
+            return false;
         }
 
         public void Stop(ServerCardViewModel card) { StopPort(card.Preset.Port); }
@@ -255,23 +303,36 @@ namespace S2x.ServerManager.ViewModels
             await PollAsync();
         }
 
-        public void Restart(ServerCardViewModel card) { RestartPreset(card.Preset); }
+        public void Restart(ServerCardViewModel card) { RestartPreset(card.Preset, card.Preset.Port); }
 
-        public async void RestartPreset(ServerPreset preset)
+        /// <summary>Stops the port this server owns, then starts the same snapshot on it.</summary>
+        public async void RestartPreset(ServerPreset preset, int ownedPort)
         {
             if (_demo) return;
-            Toast("Restarting " + preset.PlainName);
-            var failure = await Task.Run(() => { var stop = _controller.Stop(preset.Port); System.Threading.Thread.Sleep(1500); return stop ?? _controller.Start(preset); });
+            // Ask before stopping: a shared port would stop the other preset's server and put
+            // this configuration up in its place.
+            if (!PortIsOurs(preset)) return;
+            var snapshot = preset.Copy();
+            Toast("Restarting " + snapshot.PlainName);
+            var failure = await Task.Run(() =>
+            {
+                var stop = _controller.Stop(ownedPort);
+                System.Threading.Thread.Sleep(1500);
+                return stop ?? _controller.Start(snapshot);
+            });
             if (failure != null) Toast(failure);
             await PollAsync();
         }
 
         // ── presets the editor writes ─────────────────────────────────────────────
-        /// <summary>How many other presets claim this port.</summary>
+        /// <summary>How many other presets claim this port. A preset is its file, not its object.</summary>
         public int PresetsOnPort(int port, ServerPreset except)
         {
-            return Servers.Count(s => s.Preset != except && s.Preset.Port == port);
+            var mine = except == null ? null : except.FilePath;
+            return Servers.Count(s => s.Preset.Port == port && !PresetStore.SamePath(s.Preset.FilePath, mine));
         }
+
+        public string PathFor(string name) { return _store.PathFor(name); }
 
         public ServerState StateFor(int port)
         {
@@ -280,22 +341,29 @@ namespace S2x.ServerManager.ViewModels
             return new ServerState { Port = port };
         }
 
-        /// <summary>Writes the preset file. The signature moves with it, so our own write is not a change.</summary>
-        public bool SavePreset(ServerPreset preset, bool isNew)
+        /// <summary>
+        /// Writes a preset file and puts what was written in front of the host. The candidate is
+        /// written first and adopted afterwards, so a write that fails leaves the fleet on the
+        /// configuration its file still holds. The signature moves with our own write.
+        /// </summary>
+        public bool SavePreset(ServerPreset candidate, bool isNew)
         {
             if (_demo) { Toast("Demo mode: nothing was written"); return false; }
             try
             {
-                _store.Save(preset);
+                _store.Save(candidate, isNew);
                 _presetSignature = Signature();
-                if (isNew && !Servers.Any(s => s.Preset == preset))
+
+                var card = Servers.FirstOrDefault(s => PresetStore.SamePath(s.Preset.FilePath, candidate.FilePath));
+                if (card != null) card.Adopt(candidate);
+                else
                 {
                     ServerState state;
-                    if (!_states.TryGetValue(preset.Port, out state)) _states[preset.Port] = state = new ServerState { Port = preset.Port };
-                    Servers.Add(new ServerCardViewModel(this, preset, state));
+                    if (!_states.TryGetValue(candidate.Port, out state)) _states[candidate.Port] = state = new ServerState { Port = candidate.Port };
+                    Servers.Add(new ServerCardViewModel(this, candidate, state));
                     Raise("EmptyVisibility"); Raise("CardsVisibility"); Raise("RosterVisibility");
                 }
-                foreach (var card in Servers) card.Refresh();
+                foreach (var each in Servers) each.Refresh();
                 Recount();
                 return true;
             }
@@ -307,26 +375,26 @@ namespace S2x.ServerManager.ViewModels
         }
 
         /// <summary>Save as: a second preset file, a second server, opened in place of this one.</summary>
-        public void SaveCopy(EditorViewModel editor, ServerPreset preset, string name)
+        public void SaveCopy(ServerPreset copy)
         {
-            var copy = preset.Copy();
-            copy.FileName = name;
-            copy.FilePath = _store.PathFor(name);
             // The original keeps its port, so the copy needs one of its own.
             copy.Port = PresetStore.NextFreePort(Servers.Select(s => s.Preset.Port));
             if (!SavePreset(copy, true)) return;
-            Toast("Saved " + name + " on :" + copy.Port);
+            Toast("Saved " + copy.FileName + " on :" + copy.Port);
             OpenEditor(copy);
         }
 
-        /// <summary>The Save as prompt. Refuses what the launcher's preset box could not show.</summary>
+        /// <summary>
+        /// The Save as prompt. Refuses what the launcher's preset box could not show, and refuses
+        /// a name that is taken: writing over another preset would lose it without asking.
+        /// </summary>
         public string AskPresetName(string title, string suggestion)
         {
             while (true)
             {
                 var entered = Views.PromptDialog.Ask(title, "Preset name", suggestion);
                 if (entered == null) return null;
-                var problem = PresetStore.NameProblem(entered);
+                var problem = _store.NameProblem(entered, true);
                 if (problem == null) return entered.Trim();
                 Toast(problem);
                 suggestion = entered;
@@ -371,8 +439,7 @@ namespace S2x.ServerManager.ViewModels
                 // Update-PresetList seeds it, and never over a preset the host already has: the
                 // second server off the same starter becomes its own file.
                 var starter = (ServerPreset)picked.Source;
-                preset = starter.Copy();
-                preset.Raw = new Dictionary<string, object>(StringComparer.Ordinal);
+                preset = starter.Copy();   // keys the starter carries and this app does not know come too
                 preset.FileName = _store.Exists(starter.FileName) ? FreeName(starter.FileName) : starter.FileName;
             }
             preset.FilePath = _store.PathFor(preset.FileName);
@@ -390,10 +457,15 @@ namespace S2x.ServerManager.ViewModels
         private async void StartAll()
         {
             if (_demo) return;
-            // One server per port, so one preset per port in the queue: a second preset on the
-            // same port would only earn a "already running" failure two seconds later.
-            var queue = Servers.Where(s => s.CanStart).Select(s => s.Preset)
-                .GroupBy(p => p.Port).Select(g => g.First()).OrderBy(p => p.Port).ToList();
+            // A port belongs to one server here too: a port two presets claim is left alone
+            // rather than started as whichever of them came first.
+            var shared = Servers.Where(s => s.CanStart).Select(s => s.Preset.Port)
+                .GroupBy(port => port).Where(g => Servers.Count(s => s.Preset.Port == g.Key) > 1)
+                .Select(g => g.Key).ToList();
+            var queue = Servers.Where(s => s.CanStart && !shared.Contains(s.Preset.Port))
+                .Select(s => s.Preset.Copy()).OrderBy(p => p.Port).ToList();
+            foreach (var port in shared.Distinct())
+                Toast("Two servers cannot share :" + port + ". Give one of them a free port first.");
             if (queue.Count == 0) return;
             Toast("Starting " + queue.Count + " server" + (queue.Count == 1 ? "" : "s"));
             await _controller.StartAllAsync(queue, Toast);
@@ -421,7 +493,7 @@ namespace S2x.ServerManager.ViewModels
 
                 var round = await Task.Run(() => new Round
                 {
-                    Processes = ProcessInspector.DedicatedServers(),
+                    Scan = ProcessInspector.DedicatedServers(),
                     Replies = ServerQuery.Query("127.0.0.1", ports, QueryTimeoutMs),
                 });
 
@@ -446,7 +518,7 @@ namespace S2x.ServerManager.ViewModels
 
         private sealed class Round
         {
-            public Dictionary<int, S2xProcess> Processes;
+            public ServerScan Scan;
             public Dictionary<int, ServerInfo> Replies;
         }
 
@@ -456,7 +528,7 @@ namespace S2x.ServerManager.ViewModels
             if (!_states.TryGetValue(port, out state)) _states[port] = state = new ServerState { Port = port };
 
             S2xProcess process;
-            var alive = round.Processes.TryGetValue(port, out process);
+            var alive = round.Scan.Servers.TryGetValue(port, out process);
             ServerInfo info;
             var answered = round.Replies.TryGetValue(port, out info);
 
@@ -495,6 +567,11 @@ namespace S2x.ServerManager.ViewModels
                 if (state.LastReply == null && young) state.Status = ServerStatus.Starting;
                 else if (state.Misses >= ServerState.MissesBeforeStale) state.Status = ServerStatus.NotAnswering;
                 else if (state.Status == ServerStatus.Stopped || state.Status == ServerStatus.Crashed) state.Status = ServerStatus.Starting;
+            }
+            else if (!round.Scan.Complete && state.Status != ServerStatus.Stopped)
+            {
+                // The process list could not be read this round, so "no process" means nothing:
+                // leave the state where it was rather than call a live server gone.
             }
             else
             {
@@ -544,23 +621,36 @@ namespace S2x.ServerManager.ViewModels
             {
                 ServerState state;
                 if (!_states.TryGetValue(preset.Port, out state)) _states[preset.Port] = state = new ServerState { Port = preset.Port };
-                var existing = Servers.FirstOrDefault(s => s.Preset.FilePath == preset.FilePath);
-                wanted.Add(existing != null && Same(existing.Preset, preset)
-                    ? existing
-                    : new ServerCardViewModel(this, preset, state));
+                // Whatever the file says now is what this preset is: the card takes the new
+                // reading rather than deciding for itself which fields count as a change.
+                var existing = Servers.FirstOrDefault(s => PresetStore.SamePath(s.Preset.FilePath, preset.FilePath));
+                if (existing != null) { existing.Adopt(preset); existing.State = state; wanted.Add(existing); }
+                else wanted.Add(new ServerCardViewModel(this, preset, state));
+                Reconcile(preset);
             }
 
             Servers.Clear();
             foreach (var card in wanted) Servers.Add(card);
             if (Selected == null || !Servers.Contains(Selected)) Selected = Servers.FirstOrDefault();
             LoadStarters();
-            Raise("EmptyVisibility"); Raise("CardsVisibility"); Raise("RosterVisibility");
+            Raise("EmptyVisibility"); Raise("CardsVisibility"); Raise("RosterVisibility"); Raise("RosterEditor");
         }
 
-        private static bool Same(ServerPreset a, ServerPreset b)
+        /// <summary>
+        /// The file changed under an open editor. An editor with nothing unsaved is rebuilt on
+        /// what the file says; one with a draft in it keeps the draft and says the file moved.
+        /// </summary>
+        private void Reconcile(ServerPreset preset)
         {
-            return a.Port == b.Port && a.ServerName == b.ServerName && a.Mode == b.Mode
-                && a.BotFill == b.BotFill && a.Rotation.Count == b.Rotation.Count;
+            var key = PresetStore.Key(preset.FilePath);
+            EditorViewModel editor;
+            if (!_editors.TryGetValue(key, out editor)) return;
+            if (editor.Preset == preset) return;
+
+            if (editor.IsDirty || editor.IsNew) { editor.FileChanged = true; return; }
+            var replacement = new EditorViewModel(this, preset, false);
+            _editors[key] = replacement;
+            if (_editor == editor) Editor = replacement;
         }
 
         private string Signature()

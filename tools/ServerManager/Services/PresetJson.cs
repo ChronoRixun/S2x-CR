@@ -21,11 +21,30 @@ namespace S2x.ServerManager.Services
         private const string Nl = "\r\n";
         private static readonly JavaScriptSerializer Escaper = new JavaScriptSerializer();
 
-        public static void Save(string path, Dictionary<string, object> root)
+        /// <summary>
+        /// Writes beside the preset and swaps the file in, so a full disk or a machine that goes
+        /// down mid-write leaves the old preset rather than half of a new one. A new preset is
+        /// created, never written over: the name check cannot race another writer on its own.
+        /// </summary>
+        public static void Save(string path, Dictionary<string, object> root, bool create)
         {
             var folder = Path.GetDirectoryName(path);
             if (!string.IsNullOrEmpty(folder)) Directory.CreateDirectory(folder);
-            File.WriteAllText(path, Write(root), new UTF8Encoding(true));
+            if (create && File.Exists(path))
+                throw new IOException("There is already a preset called " + Path.GetFileNameWithoutExtension(path) + ".");
+
+            var temp = path + ".writing";
+            File.WriteAllText(temp, Write(root), new UTF8Encoding(true));
+            try
+            {
+                if (File.Exists(path)) File.Replace(temp, path, null);
+                else File.Move(temp, path);     // throws when another writer got there first
+            }
+            catch
+            {
+                try { File.Delete(temp); } catch { }
+                throw;
+            }
         }
 
         public static string Write(Dictionary<string, object> root)

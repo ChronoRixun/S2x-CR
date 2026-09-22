@@ -262,7 +262,9 @@
 
             <Grid Grid.Row="2">
               <Rectangle Width="1" Fill="{StaticResource Line}" HorizontalAlignment="Left" Margin="47,0,0,0"/>
+              <!-- A drop a row did not take is a drop into the space under the list: the end. -->
               <ListBox x:Name="lstRotation" Style="{StaticResource RotationList}"
+                       views:DragReorder.EndZone="True"
                        ItemsSource="{Binding Rotation}" SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
                        ItemTemplate="{StaticResource RotationRowTemplate}"/>
               <Grid Visibility="{Binding EmptyRotationVisibility}" VerticalAlignment="Top" Height="86">
@@ -471,6 +473,12 @@
                 Background="{StaticResource TagBg}" BorderBrush="{StaticResource TagEdge}" BorderThickness="1"
                 Padding="8,3" VerticalAlignment="Center">
           <TextBlock Text="&#x25CF; UNSAVED" FontSize="11" Foreground="{StaticResource Accent}"/>
+        </Border>
+        <!-- Somebody else wrote this preset while it was open here. -->
+        <Border DockPanel.Dock="Left" Visibility="{Binding FileChangedVisibility}" Margin="8,0,0,0"
+                Background="{StaticResource DangerBg}" BorderBrush="{StaticResource DangerEdge}" BorderThickness="1"
+                Padding="8,3" VerticalAlignment="Center">
+          <TextBlock Text="FILE CHANGED ON DISK" FontSize="11" Foreground="{StaticResource Danger}"/>
         </Border>
 
         <Button DockPanel.Dock="Right" Style="{StaticResource Primary}" Content="&#x25B6; LAUNCH SERVER"

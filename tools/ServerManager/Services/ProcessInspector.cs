@@ -14,6 +14,17 @@ namespace S2x.ServerManager.Services
     }
 
     /// <summary>
+    /// What one scan of the process list found, and whether it can be trusted. An empty result
+    /// from a scan that failed looks exactly like a box with no servers on it, and that
+    /// difference decides whether a port is free.
+    /// </summary>
+    internal sealed class ServerScan
+    {
+        public readonly Dictionary<int, S2xProcess> Servers = new Dictionary<int, S2xProcess>();
+        public bool Complete = true;
+    }
+
+    /// <summary>
     /// A pid file can outlive its server and Windows reuses pids, so a process counts as a
     /// port's server only when its command line has s2x.exe, -dedicated and net_port &lt;port&gt;.
     /// Same test as Stop-S2xServer in the PowerShell launcher, done here with WMI.
@@ -23,9 +34,10 @@ namespace S2x.ServerManager.Services
         private static readonly Regex PortArg = new Regex(@"net_port\s+(\d+)", RegexOptions.IgnoreCase);
 
         /// <summary>Every dedicated server running out of any folder, keyed by port.</summary>
-        public static Dictionary<int, S2xProcess> DedicatedServers()
+        public static ServerScan DedicatedServers()
         {
-            var found = new Dictionary<int, S2xProcess>();
+            var scan = new ServerScan();
+            var found = scan.Servers;
             try
             {
                 var query = new ObjectQuery(
@@ -37,10 +49,13 @@ namespace S2x.ServerManager.Services
                         using (row)
                         {
                             var commandLine = row["CommandLine"] as string;
+                            // An s2x.exe whose command line we cannot read could be the server
+                            // on the port somebody is about to start on.
+                            if (string.IsNullOrEmpty(commandLine)) { scan.Complete = false; continue; }
                             if (!IsDedicated(commandLine)) continue;
 
                             var match = PortArg.Match(commandLine);
-                            if (!match.Success) continue;
+                            if (!match.Success) { scan.Complete = false; continue; }
 
                             var server = new S2xProcess
                             {
@@ -58,9 +73,11 @@ namespace S2x.ServerManager.Services
             }
             catch
             {
-                // WMI off or blocked: report nothing rather than guess, so nothing gets killed.
+                // WMI off or blocked: report nothing rather than guess, so nothing gets killed,
+                // and say the scan failed so nothing gets started on a port either.
+                scan.Complete = false;
             }
-            return found;
+            return scan;
         }
 
         /// <summary>The safety check before Stop kills anything.</summary>
