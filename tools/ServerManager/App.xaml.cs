@@ -23,21 +23,35 @@ namespace S2x.ServerManager
             var demoEditor = Argument(e.Args, "--demo-editor");
             var shot = Argument(e.Args, "--screenshot");
             var shotEditor = Argument(e.Args, "--screenshot-editor");
+            var shotConsole = Argument(e.Args, "--screenshot-console");
+            var demoRoster = Argument(e.Args, "--demo-roster");
             var presetDir = Argument(e.Args, "--presets");
 
             // --demo-editor <state> <png>, --screenshot-editor <png> [preset]
-            var target = shot ?? shotEditor ?? (demoEditor != null ? Argument(e.Args, "--demo-editor", 2) : null);
+            var target = shot ?? shotEditor ?? shotConsole ?? demoRoster
+                         ?? (demoEditor != null ? Argument(e.Args, "--demo-editor", 2) : null);
             var wantedPreset = Argument(e.Args, "--screenshot-editor", 2);
 
             // A render switch that cannot render must say so and stop, not fall through and
             // leave a window open on a machine nobody is watching.
-            var problem = Usage(demoEditor, shotEditor, target);
+            var problem = Usage(demoEditor, shotEditor, shotConsole, demoRoster, target);
             if (problem != null) { Stop(problem, 2); return; }
 
             FleetViewModel fleet;
             if (demoEditor != null)
             {
                 fleet = FleetViewModel.DemoEditor(demoEditor);
+            }
+            else if (shotConsole != null)
+            {
+                // The console on a made-up server and a log written here: no game folder read,
+                // and nothing written into one.
+                fleet = FleetViewModel.DemoEditor("mp");
+            }
+            else if (demoRoster != null)
+            {
+                fleet = FleetViewModel.Demo("three-notanswering");
+                fleet.ViewMode = "roster";
             }
             else if (demo != null)
             {
@@ -66,7 +80,10 @@ namespace S2x.ServerManager
 
             if (target != null)
             {
-                Capture(window, fleet, target, shotEditor != null ? () => OpenEditor(fleet, wantedPreset) : (Func<string>)null);
+                Func<string> after = null;
+                if (shotEditor != null) after = () => OpenEditor(fleet, wantedPreset);
+                else if (shotConsole != null) after = () => OpenDemoConsole(fleet);
+                Capture(window, fleet, target, after);
                 return;
             }
 
@@ -86,7 +103,8 @@ namespace S2x.ServerManager
         }
 
         /// <summary>What is wrong with the render switches, or null when they can be honoured.</summary>
-        private static string Usage(string demoEditor, string shotEditor, string target)
+        private static string Usage(string demoEditor, string shotEditor, string shotConsole,
+                                    string demoRoster, string target)
         {
             if (demoEditor != null)
             {
@@ -96,6 +114,24 @@ namespace S2x.ServerManager
             }
             if (shotEditor != null && string.IsNullOrEmpty(shotEditor))
                 return "--screenshot-editor <png> [preset]: no png was given.";
+            if (shotConsole != null && string.IsNullOrEmpty(shotConsole))
+                return "--screenshot-console <png>: no png was given.";
+            if (demoRoster != null && string.IsNullOrEmpty(demoRoster))
+                return "--demo-roster <png>: no png was given.";
+            return null;
+        }
+
+        /// <summary>
+        /// --screenshot-console: the drawer on a log this switch writes itself, because there is
+        /// no server running and the game folder's own logs are not ours to touch.
+        /// </summary>
+        private static string OpenDemoConsole(FleetViewModel fleet)
+        {
+            var card = fleet.Servers.FirstOrDefault();
+            if (card == null) return "The demo fleet has no server to open a console on.";
+            var path = Path.Combine(Path.GetTempPath(), "s2x-server-" + card.Preset.Port + ".log");
+            File.WriteAllLines(path, Services.DemoData.ConsoleLog(card.Preset), new System.Text.UTF8Encoding(false));
+            fleet.Console.ShowFile(card, path);
             return null;
         }
 
