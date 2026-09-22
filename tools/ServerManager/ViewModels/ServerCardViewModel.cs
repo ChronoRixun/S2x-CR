@@ -204,6 +204,25 @@ namespace S2x.ServerManager.ViewModels
             }
         }
 
+        /// <summary>
+        /// The roster row's one line: what the server is doing right now, which is the map, the
+        /// humans against the cap, the bots and the ping. A stopped one has none of that, so it
+        /// says what it would run instead.
+        /// </summary>
+        public string RosterLine
+        {
+            get
+            {
+                var dot = " " + GameData.MiddleDot + " ";
+                if (State.Status == ServerStatus.Stopped) return RotationSummary;
+                if (State.Status == ServerStatus.Crashed) return "exited" + dot + "PID " + State.Pid;
+                if (State.Status == ServerStatus.Starting) return "loading" + dot + MapName;
+                var line = MapName + dot + CapText + " humans" + dot + State.Bots + " bots";
+                if (State.PingMs > 0) line += dot + State.PingMs + " ms";
+                return line;
+            }
+        }
+
         public List<SlotTick> Slots
         {
             get
