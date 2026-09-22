@@ -13,6 +13,9 @@
 
   <Window.InputBindings>
     <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveEditorCommand}"/>
+    <KeyBinding Key="Escape" Command="{Binding CloseConsoleCommand}"/>
+    <KeyBinding Key="L" Modifiers="Control" Command="{Binding FocusConsoleFilterCommand}"/>
+    <KeyBinding Key="F5" Command="{Binding PollNowCommand}"/>
   </Window.InputBindings>
 
   <Grid>

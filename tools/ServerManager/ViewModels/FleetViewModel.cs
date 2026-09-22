@@ -53,6 +53,7 @@ namespace S2x.ServerManager.ViewModels
             _controller = new ServerController(gameDir);
             _store = new PresetStore(gameDir, presetDir);
             Servers = new ObservableCollection<ServerCardViewModel>();
+            Console = new ConsoleViewModel(this);
             BuildCommands();
             LoadStarters();
 
@@ -67,6 +68,7 @@ namespace S2x.ServerManager.ViewModels
             GameDir = @"D:\Steam\steamapps\common\Call of Duty WWII";
             Servers = new ObservableCollection<ServerCardViewModel>(cards);
             Starters = starters;
+            Console = new ConsoleViewModel(this);
             BuildCommands();
             Recount();
         }
@@ -78,6 +80,9 @@ namespace S2x.ServerManager.ViewModels
         public ObservableCollection<ServerCardViewModel> Servers { get; private set; }
         public List<StarterViewModel> Starters { get; private set; }
 
+        /// <summary>The console drawer, shared by the cards, the roster pane and the editor.</summary>
+        public ConsoleViewModel Console { get; private set; }
+
         public RelayCommand StartAllCommand { get; private set; }
         public RelayCommand StopAllCommand { get; private set; }
         public RelayCommand NewServerCommand { get; private set; }
@@ -85,6 +90,9 @@ namespace S2x.ServerManager.ViewModels
         public RelayCommand ShowRosterCommand { get; private set; }
         public RelayCommand SaveEditorCommand { get; private set; }
         public RelayCommand BackCommand { get; private set; }
+        public RelayCommand CloseConsoleCommand { get; private set; }
+        public RelayCommand FocusConsoleFilterCommand { get; private set; }
+        public RelayCommand PollNowCommand { get; private set; }
 
         public void StartPolling() { if (!_demo) _timer.Start(); }
 
@@ -96,8 +104,15 @@ namespace S2x.ServerManager.ViewModels
             {
                 if (!Set(ref _screen, value)) return;
                 Raise("FleetVisibility"); Raise("EditorVisibility"); Raise("BackVisibility"); Raise("Breadcrumb");
+                Console.Placement();
             }
         }
+
+        /// <summary>
+        /// Where the drawer belongs: over the cards on the fleet home, and under the editor
+        /// everywhere else, which is the editor screen and the roster's pane.
+        /// </summary>
+        public bool OnCards { get { return _screen != "editor" && _viewMode != "roster"; } }
 
         public EditorViewModel Editor
         {
@@ -136,6 +151,24 @@ namespace S2x.ServerManager.ViewModels
         {
             Editor = EditorFor(preset, isNew);
             Screen = "editor";
+            // An open drawer follows the host to the server they are now looking at.
+            Console.Follow(CardFor(preset));
+        }
+
+        /// <summary>The card this preset's file belongs to, or the one on its port.</summary>
+        public ServerCardViewModel CardFor(ServerPreset preset)
+        {
+            if (preset == null) return null;
+            return Servers.FirstOrDefault(s => PresetStore.SamePath(s.Preset.FilePath, preset.FilePath))
+                ?? Servers.FirstOrDefault(s => s.Preset.Port == preset.Port);
+        }
+
+        /// <summary>The CONSOLE button in the editor's footer and on the roster's strip.</summary>
+        public void ToggleConsole(ServerPreset preset)
+        {
+            var card = CardFor(preset);
+            if (card == null) { Toast("Save this server first: a console needs a server to read."); return; }
+            Console.Toggle(card);
         }
 
         /// <summary>
@@ -189,6 +222,9 @@ namespace S2x.ServerManager.ViewModels
                 Raise("CardsVisibility"); Raise("RosterVisibility");
                 Raise("CardsButtonBackground"); Raise("CardsButtonForeground");
                 Raise("RosterButtonBackground"); Raise("RosterButtonForeground");
+                Console.Placement();
+                // The roster shows one server; the drawer shows the one it is showing.
+                if (_viewMode == "roster") Console.Follow(Selected);
             }
         }
 
@@ -212,6 +248,8 @@ namespace S2x.ServerManager.ViewModels
                 if (_selected != null) _selected.IsSelected = true;
                 Raise("HasSelection");
                 Raise("RosterEditor");
+                // The roster's pane and the drawer are one server between them.
+                if (_viewMode == "roster") Console.Follow(_selected);
             }
         }
 
@@ -265,6 +303,22 @@ namespace S2x.ServerManager.ViewModels
             // Ctrl+S saves whichever editor is on screen: the full one, or the roster's pane.
             SaveEditorCommand = new RelayCommand(() => { var editor = VisibleEditor; if (editor != null) editor.Save(); });
             BackCommand = new RelayCommand(ShowFleet);
+            CloseConsoleCommand = new RelayCommand(Console.Close);
+            // Ctrl+L: the filter of the drawer on screen, and the drawer first if it is shut.
+            FocusConsoleFilterCommand = new RelayCommand(FocusConsoleFilter);
+            PollNowCommand = new RelayCommand(async () => await PollAsync());
+        }
+
+        private void FocusConsoleFilter()
+        {
+            if (!Console.IsOpen)
+            {
+                var editor = VisibleEditor;
+                var card = editor != null ? CardFor(editor.Preset) : Selected ?? Servers.FirstOrDefault();
+                if (card == null) return;
+                Console.Watch(card);
+            }
+            Console.RequestFilterFocus();
         }
 
         public void Start(ServerCardViewModel card) { StartPreset(card.Preset); }

@@ -108,6 +108,7 @@
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
       <RowDefinition Height="70"/>
     </Grid.RowDefinitions>
 
@@ -458,8 +459,14 @@
       </ScrollViewer>
     </Grid>
 
+    <!-- The console drawer, under the editor and over its footer: the editor screen and the
+         roster's pane. On the fleet's cards the same drawer is the one FleetView holds. -->
+    <views:ConsoleDrawer Grid.Row="1" DataContext="{Binding Fleet.Console}"
+                         Height="{Binding Height}"
+                         Visibility="{Binding EditorVisibility, FallbackValue=Collapsed}"/>
+
     <!-- ── footer ────────────────────────────────────────────────────────── -->
-    <Border Grid.Row="1" Background="{StaticResource Bar}" BorderBrush="{StaticResource Line}"
+    <Border Grid.Row="2" Background="{StaticResource Bar}" BorderBrush="{StaticResource Line}"
             BorderThickness="0,1,0,0">
       <DockPanel Margin="20,0" LastChildFill="False">
         <Rectangle DockPanel.Dock="Left" Width="8" Height="8" Fill="{Binding DotBrush}"
@@ -494,11 +501,14 @@
         <Button DockPanel.Dock="Right" Style="{StaticResource Outline}" Content="SAVE PRESET"
                 FontSize="11" FontWeight="SemiBold" Padding="14,9" Margin="0,0,8,0"
                 ToolTip="Ctrl+S" Command="{Binding SaveCommand}"/>
+        <Button DockPanel.Dock="Right" Style="{StaticResource Outline}" Content="CONSOLE"
+                FontSize="11" FontWeight="SemiBold" Padding="14,9" Margin="0,0,14,0"
+                ToolTip="This server's log, as it is written" Command="{Binding ConsoleCommand}"/>
       </DockPanel>
     </Border>
 
     <!-- the fleet's toast, over the editor too -->
-    <Border Grid.RowSpan="2" Visibility="{Binding Fleet.ToastVisibility}" Background="{StaticResource Field}"
+    <Border Grid.RowSpan="3" Visibility="{Binding Fleet.ToastVisibility}" Background="{StaticResource Field}"
             BorderBrush="{StaticResource EdgeHot}" BorderThickness="1" Padding="14,8"
             HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,90">
       <StackPanel Orientation="Horizontal">

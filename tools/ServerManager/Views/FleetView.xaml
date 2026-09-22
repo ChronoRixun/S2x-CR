@@ -191,7 +191,7 @@
                         Command="{Binding EditCommand}" ToolTip="Name, rotation, rules, bots"
                         BorderBrush="{Binding CardEdge}" BorderThickness="0,0,1,0"/>
                 <Button Grid.Column="3" Style="{StaticResource CardAction}" Content="CONSOLE"
-                        IsEnabled="False" ToolTip="next slice"
+                        Command="{Binding ConsoleCommand}" ToolTip="This server's log, as it is written"
                         BorderBrush="{Binding CardEdge}" BorderThickness="0,0,1,0"/>
                 <Button Grid.Column="4" Style="{StaticResource CardCopy}" Command="{Binding CopyCommand}"
                         ToolTip="Copy the connect line">
@@ -412,7 +412,7 @@
                 <!-- Starting and stopping belong to the editor's footer below, so this strip is
                      only what the server is doing right now. -->
                 <Button Style="{StaticResource Outline}" Content="CONSOLE" Padding="12,6"
-                        IsEnabled="False" ToolTip="next slice" ToolTipService.ShowOnDisabled="True"/>
+                        Command="{Binding ConsoleCommand}" ToolTip="This server's log, as it is written"/>
                 <Button Style="{StaticResource Outline}" Padding="8,6" Margin="6,0,0,0" FontFamily="Consolas"
                         FontSize="11" Command="{Binding CopyCommand}" ToolTip="Copy the connect line">
                   <TextBlock Text="{Binding Address, StringFormat=&#x29C9; {0}}"/>
@@ -439,6 +439,12 @@
                                           RelativeSource={RelativeSource AncestorType=UserControl}}"/>
         </Grid>
       </Grid>
+
+      <!-- The console drawer over the fleet. In the roster and the editor the same drawer is
+           the one EditorView holds, under the editor and over its footer. -->
+      <views:ConsoleDrawer DataContext="{Binding Console}" VerticalAlignment="Bottom"
+                           Height="{Binding Height}"
+                           Visibility="{Binding CardsVisibility, FallbackValue=Collapsed}"/>
 
       <!-- ── toast ───────────────────────────────────────────────────────── -->
       <Border Visibility="{Binding ToastVisibility}" Background="{StaticResource Field}"

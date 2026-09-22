@@ -40,6 +40,7 @@ namespace S2x.ServerManager.ViewModels
             CopyCommand = new RelayCommand(Copy);
             SelectCommand = new RelayCommand(() => _fleet.Selected = this);
             EditCommand = new RelayCommand(() => _fleet.OpenEditor(Preset));
+            ConsoleCommand = new RelayCommand(() => _fleet.Console.Toggle(this));
         }
 
         /// <summary>How many other presets claim this card's port; set by the fleet's count.</summary>
@@ -68,6 +69,7 @@ namespace S2x.ServerManager.ViewModels
         public RelayCommand CopyCommand { get; private set; }
         public RelayCommand SelectCommand { get; private set; }
         public RelayCommand EditCommand { get; private set; }
+        public RelayCommand ConsoleCommand { get; private set; }
 
         public void Refresh()
         {

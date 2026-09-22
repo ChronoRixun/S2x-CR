@@ -157,6 +157,7 @@ namespace S2x.ServerManager.ViewModels
             StopCommand = new RelayCommand(() => _fleet.StopPort(OwnedPort));
             RestartCommand = new RelayCommand(Restart);
             BackCommand = new RelayCommand(() => _fleet.ShowFleet());
+            ConsoleCommand = new RelayCommand(() => _fleet.ToggleConsole(_preset));
 
             Renumber();
             _saved = isNew ? "" : Snapshot();
@@ -182,6 +183,7 @@ namespace S2x.ServerManager.ViewModels
         public RelayCommand StopCommand { get; private set; }
         public RelayCommand RestartCommand { get; private set; }
         public RelayCommand BackCommand { get; private set; }
+        public RelayCommand ConsoleCommand { get; private set; }
 
         /// <summary>The view owns the caret; the swatches drop a colour code where it sits.</summary>
         public int CaretIndex { get; set; }
