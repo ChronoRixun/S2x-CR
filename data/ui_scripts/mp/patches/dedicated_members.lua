@@ -75,6 +75,9 @@ if Character_Scene and Character_Scene.HandleUpdateVLLoadout and
 	Character_Scene.S2xStockHandleUpdateVLLoadout = Character_Scene.HandleUpdateVLLoadout
 end
 
+-- Members whose loadout the filter dropped before the lobby model listed them.
+local filteredLoadoutXuids = {}
+
 if Character_Scene and Character_Scene.S2xStockHandleUpdateVLLoadout then
 	Character_Scene.HandleUpdateVLLoadout = function( element, event )
 		if event and event.loadouts and GetDedicatedPartyMaxPlayers() then
@@ -82,6 +85,8 @@ if Character_Scene and Character_Scene.S2xStockHandleUpdateVLLoadout then
 			for _, loadout in ipairs( event.loadouts ) do
 				if IsVisibleDedicatedPartyMember( loadout.xuid, event.controller ) then
 					table.insert( filteredLoadouts, loadout )
+				else
+					filteredLoadoutXuids[loadout.xuid] = true
 				end
 			end
 
@@ -142,7 +147,16 @@ function S2xRefreshDedicatedPartyPresentation()
 		end
 	end
 
+	-- Re-send loadouts only when a member the filter dropped is now visible. An
+	-- unconditional request on every partystate rebuilt every podium avatar and
+	-- cancelled winners-circle emotes in flight.
 	if CharacterScene.RequestUpdateVLLoadout then
-		CharacterScene.RequestUpdateVLLoadout( Engine.GetFirstActiveController() )
+		for xuid in pairs( filteredLoadoutXuids ) do
+			if IsVisibleDedicatedPartyMember( xuid ) then
+				filteredLoadoutXuids = {}
+				CharacterScene.RequestUpdateVLLoadout( Engine.GetFirstActiveController() )
+				break
+			end
+		end
 	end
 end
