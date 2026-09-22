@@ -504,6 +504,11 @@
         <Button DockPanel.Dock="Right" Style="{StaticResource Outline}" Content="CONSOLE"
                 FontSize="11" FontWeight="SemiBold" Padding="14,9" Margin="0,0,14,0"
                 ToolTip="This server's log, as it is written" Command="{Binding ConsoleCommand}"/>
+        <!-- Only with nothing running on the port: the preset file is what the server is. -->
+        <Button DockPanel.Dock="Right" Style="{StaticResource DangerGhost}" Content="DELETE PRESET"
+                FontSize="11" FontWeight="SemiBold" Padding="14,9" Margin="0,0,14,0"
+                Visibility="{Binding DeleteVisibility}" Command="{Binding DeleteCommand}"
+                ToolTip="Delete this preset file, and the port's cfg and pid if nothing else claims it"/>
       </DockPanel>
     </Border>
 

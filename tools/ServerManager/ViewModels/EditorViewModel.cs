@@ -158,6 +158,7 @@ namespace S2x.ServerManager.ViewModels
             RestartCommand = new RelayCommand(Restart);
             BackCommand = new RelayCommand(() => _fleet.ShowFleet());
             ConsoleCommand = new RelayCommand(() => _fleet.ToggleConsole(_preset));
+            DeleteCommand = new RelayCommand(() => _fleet.DeletePreset(this));
 
             Renumber();
             _saved = isNew ? "" : Snapshot();
@@ -184,6 +185,7 @@ namespace S2x.ServerManager.ViewModels
         public RelayCommand RestartCommand { get; private set; }
         public RelayCommand BackCommand { get; private set; }
         public RelayCommand ConsoleCommand { get; private set; }
+        public RelayCommand DeleteCommand { get; private set; }
 
         /// <summary>The view owns the caret; the swatches drop a colour code where it sits.</summary>
         public int CaretIndex { get; set; }
@@ -619,6 +621,12 @@ namespace S2x.ServerManager.ViewModels
         public Visibility LaunchVisibility { get { return IsStopped ? Visibility.Visible : Visibility.Collapsed; } }
         public Visibility RunningVisibility { get { return IsStopped ? Visibility.Collapsed : Visibility.Visible; } }
 
+        /// <summary>
+        /// Delete takes the preset's file away, so it is only offered with nothing running on its
+        /// port. A new server has no file yet: leaving the editor already asks about that one.
+        /// </summary>
+        public Visibility DeleteVisibility { get { return IsStopped && !IsNew ? Visibility.Visible : Visibility.Collapsed; } }
+
         /// <summary>HIDE on the card wrote this preset's file; the editor writes the same key.</summary>
         public void SetHidden(bool hidden) { _preset.Hidden = hidden; }
 
@@ -660,7 +668,7 @@ namespace S2x.ServerManager.ViewModels
             _state = _fleet.StateFor(OwnedPort);
             if (IsStopped && _portLocked) { _portLocked = false; Raise("PortWarning"); Raise("PortWarningVisibility"); }
             Raise("StateCaps"); Raise("StateBrush"); Raise("DotBrush"); Raise("StatusSub");
-            Raise("LaunchVisibility"); Raise("RunningVisibility");
+            Raise("LaunchVisibility"); Raise("RunningVisibility"); Raise("DeleteVisibility");
             foreach (var row in Rotation) row.Refresh();
         }
 
@@ -923,7 +931,7 @@ namespace S2x.ServerManager.ViewModels
             IsNew = false;
             FileChanged = false;
             _saved = Snapshot();
-            Raise("DirtyVisibility"); Raise("OwnedPort"); Raise("StatusSub");
+            Raise("DirtyVisibility"); Raise("OwnedPort"); Raise("StatusSub"); Raise("DeleteVisibility");
             _fleet.Toast(shared > 0
                 ? "Saved " + candidate.FileName + ", but :" + candidate.Port + " is used by " + shared + " other " + (shared == 1 ? "preset" : "presets")
                 : "Saved " + candidate.FileName);

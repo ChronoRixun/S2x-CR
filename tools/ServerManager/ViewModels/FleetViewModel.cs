@@ -499,6 +499,67 @@ namespace S2x.ServerManager.ViewModels
         }
 
         /// <summary>
+        /// Deletes a preset from the editor. The preset file is this preset's; the port's cfg and
+        /// pid belong to the port, so they only go when no other preset claims it. Nothing else is
+        /// touched, and a server alive on the port means the preset is still in use: the process
+        /// list is read again here, because the last poll round is up to three seconds old.
+        /// </summary>
+        public async void DeletePreset(EditorViewModel editor)
+        {
+            if (_demo) { Toast("Demo mode: nothing was deleted"); return; }
+            var preset = editor.Preset;
+            var port = preset.Port;
+            var portIsOnlyMine = PresetsOnPort(port, preset) == 0;
+            if (!ConfirmDialog.Ask("Delete preset", "Delete " + preset.FileName + "?",
+                    "The preset file goes" + (portIsOnlyMine
+                        ? ", and server-" + port + ".cfg and server-" + port + ".pid with it: those belong to :" + port + "."
+                        : ". :" + port + " is claimed by another preset, so its cfg and pid stay.") +
+                    " Nothing else is touched. This cannot be undone.", "DELETE"))
+                return;
+
+            var scan = await Task.Run(() => ProcessInspector.DedicatedServers());
+            if (!scan.Complete)
+            {
+                Toast("Could not read the running servers, so :" + port + " cannot be checked. Nothing was deleted.");
+                return;
+            }
+            if (scan.Servers.ContainsKey(port))
+            {
+                Toast("A server is running on :" + port + ". Stop it before deleting the preset.");
+                return;
+            }
+
+            try
+            {
+                File.Delete(preset.FilePath);
+                if (portIsOnlyMine)
+                {
+                    File.Delete(GameFolder.CfgPath(GameDir, port));
+                    File.Delete(GameFolder.PidPath(GameDir, port));
+                }
+            }
+            catch (Exception ex)
+            {
+                Toast("Could not delete the preset: " + ex.Message);
+                return;
+            }
+
+            // By path, never by port: another preset on the same port is another server.
+            var card = Servers.FirstOrDefault(s => PresetStore.SamePath(s.Preset.FilePath, preset.FilePath));
+            if (card != null)
+            {
+                if (Console.Card == card) Console.Close();
+                Servers.Remove(card);
+            }
+            Forget(editor);
+            Screen = "fleet";
+            _presetSignature = Signature();
+            Recount();
+            Raise("EmptyVisibility"); Raise("CardsVisibility"); Raise("RosterVisibility");
+            Toast("Deleted " + preset.FileName);
+        }
+
+        /// <summary>
         /// The Save as prompt. Refuses what the launcher's preset box could not show, and refuses
         /// a name that is taken: writing over another preset would lose it without asking.
         /// </summary>
