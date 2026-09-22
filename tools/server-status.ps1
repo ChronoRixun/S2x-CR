@@ -67,6 +67,9 @@ $TaskName = 'S2x Server Status'
 $ManagedFields = @('Status', 'Now playing', 'Players', 'Server browser')
 # A field whose name starts with one of these is a server entry this script wrote.
 $StatusLights = @('🟢', '🔴', '🟡')
+# Discord drops trailing whitespace but keeps a zero-width space, so this closing line
+# puts a blank line between one server entry and the next.
+$EntrySpacer = "`n" + [char]0x200B
 
 function Write-Log([string]$Text) {
     $line = '{0:yyyy-MM-dd HH:mm:ss} {1}' -f (Get-Date), $Text
@@ -303,7 +306,7 @@ function New-ServerField($Server, $Info, $Listed, [long]$Now) {
     $name = Format-ServerName $hostname
     if ($null -eq $Info) {
         $why = if ($Server -and $Server.running) { 'Not responding' } else { 'Not running' }
-        return @{ name = "🔴 $name"; value = "$why · last checked <t:${Now}:R>"; inline = $false }
+        return @{ name = "🔴 $name"; value = "$why · last checked <t:${Now}:R>$EntrySpacer"; inline = $false }
     }
     $lines = @()
     $mode = Format-Gametype $Info['gametype']
@@ -322,8 +325,9 @@ function New-ServerField($Server, $Info, $Listed, [long]$Now) {
         $lines += if ($Listed) { '🟢 In the server browser' } else { '🟡 Not in the browser list right now, hit Refresh again in a minute' }
     }
     $value = $lines -join "`n"
-    if ($value.Length -gt 1024) { $value = $value.Substring(0, 1021) + '...' }
-    return @{ name = "🟢 $name"; value = $value; inline = $false }
+    $room = 1024 - $EntrySpacer.Length
+    if ($value.Length -gt $room) { $value = $value.Substring(0, $room - 3) + '...' }
+    return @{ name = "🟢 $name"; value = $value + $EntrySpacer; inline = $false }
 }
 
 function New-StatusField([int]$Online, [int]$Down, [long]$Now) {
