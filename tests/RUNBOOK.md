@@ -410,10 +410,14 @@ host, and this is what a tester checks once the zip carries it.
    `set bot_DifficultyDefault veteran`.
 5. STOP it.
 6. START ALL with two presets on different ports; both come up. STOP ALL; both go down.
-7. Close the window: it goes to the tray, and a server started again first keeps running.
+7. HIDE on a stopped card: it leaves the fleet and `SHOW HIDDEN (1)` appears in the top bar. Turn
+   that on and the card is back, dimmed, with UNHIDE on it; START ALL still skips it.
+8. EDIT a preset you are finished with, DELETE PRESET in the footer, confirm: the editor closes,
+   the card is gone and so is `s2x\presets\<name>.json`.
+9. Close the window: it goes to the tray, and a server started again first keeps running.
    Exit from the tray menu; the server is still up.
-8. `s2x\tools\server-launcher.cmd`: the old launcher still opens, no console window, and it
-   reads the same presets folder.
+10. `s2x\tools\server-launcher.cmd`: the old launcher still opens, no console window, and it
+    reads the same presets folder.
 
 ## Checklist
 
@@ -423,5 +427,7 @@ host, and this is what a tester checks once the zip carries it.
 - [ ] Edit veteran + Restart: cfg carries `set bot_DifficultyDefault veteran`
 - [ ] Stop
 - [ ] Start All / Stop All with two presets on different ports
+- [ ] Hide a stopped preset: it leaves the fleet, SHOW HIDDEN brings it back dimmed
+- [ ] Delete a preset: the card goes and its `.json` is gone from `s2x\presets`
 - [ ] Close to tray keeps the server running; Exit from the tray
 - [ ] `server-launcher.cmd` opens the old launcher with no console window, same presets

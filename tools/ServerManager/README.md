@@ -24,6 +24,7 @@ to ship with it: no NuGet packages, no DLLs, only framework assemblies.
     S2xServerManager.exe --view roster                open on the roster instead of the cards
     S2xServerManager.exe --presets <dir>              read and write presets somewhere else
     S2xServerManager.exe --demo three-notanswering    the mockup's demo fleet, no game folder read
+    S2xServerManager.exe --show-hidden                open with the hidden servers already shown
     S2xServerManager.exe --screenshot out.png         render the window off-screen and exit
     S2xServerManager.exe --screenshot-editor out.png [preset]
     S2xServerManager.exe --demo-editor mp out.png
@@ -77,6 +78,23 @@ stopped. + New server proposes the next free port.
 
 If another launcher writes a preset while it is open here, an editor with nothing unsaved in it
 takes the new reading and one with a draft in it keeps the draft and says FILE CHANGED ON DISK.
+
+## Hiding and deleting a server
+
+HIDE on a card takes a server off the fleet: out of the counts, out of the attention line, out of
+the roster and the tray menu, and skipped by Start All and Stop All. It changes one key in the
+preset file, `hidden`, and nothing else — the preset keeps its name, its port and its files, and
+the PowerShell launcher ignores the key. It is only offered with no process behind the card,
+because hiding a server is not stopping it. `SHOW HIDDEN (n)` appears in the top bar while
+something is hidden; with it on they come back dimmed, each with UNHIDE, and Start All still
+skips them.
+
+DELETE PRESET, in the editor's footer, is only there with nothing running on the port. It asks
+first and names the preset. It deletes that preset file, and `server-<port>.cfg` and
+`server-<port>.pid` with it when no other preset claims that port: those two belong to the port,
+not to this preset. The process list is read again on the way through, because the last poll
+round is up to three seconds old; a scan that cannot be read, or a server found on the port,
+deletes nothing and says so.
 
 ## The console
 
@@ -157,6 +175,7 @@ untouched, on the preset and on each line of its rotation:
 | `advertise` | true, false | true |
 | `extraLines` | the advanced block, one dvar per entry | empty |
 | `shuffleOnLaunch` | true, false | false |
+| `hidden` | true, false | false |
 
 The file is written the way `Save-Preset` writes it under Windows PowerShell: `ConvertTo-Json`
 escaping, four-space indents measured from the column the block opened at, CRLF, a closing
