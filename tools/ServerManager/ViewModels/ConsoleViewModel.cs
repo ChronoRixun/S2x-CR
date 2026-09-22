@@ -55,7 +55,7 @@ namespace S2x.ServerManager.ViewModels
         private bool _shared;
         private bool _reading;
         private int _held;
-        private double _height = 264;
+        private double _height = 220;
         private string _filter = "";
 
         public ConsoleViewModel(FleetViewModel fleet)

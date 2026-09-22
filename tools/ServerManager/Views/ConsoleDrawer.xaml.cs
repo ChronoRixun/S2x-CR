@@ -17,6 +17,9 @@ namespace S2x.ServerManager.Views
             InitializeComponent();
             DataContextChanged += Rebind;
             grip.DragDelta += (s, e) => { if (_console != null) _console.Height -= e.VerticalChange; };
+            // Opened on a log that is already long, the newest line is the one wanted.
+            Loaded += (s, e) => Appended();
+            IsVisibleChanged += (s, e) => Appended();
         }
 
         private void Rebind(object sender, DependencyPropertyChangedEventArgs e)
