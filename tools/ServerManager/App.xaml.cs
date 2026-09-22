@@ -20,27 +20,38 @@ namespace S2x.ServerManager
             base.OnStartup(e);
 
             var demo = Argument(e.Args, "--demo");
+            var demoEditor = Argument(e.Args, "--demo-editor");
             var shot = Argument(e.Args, "--screenshot");
+            var shotEditor = Argument(e.Args, "--screenshot-editor");
+            var presetDir = Argument(e.Args, "--presets");
+
+            // --demo-editor <state> <png>, --screenshot-editor <png> [preset]
+            var target = shot ?? shotEditor ?? (demoEditor != null ? Argument(e.Args, "--demo-editor", 2) : null);
+            var wantedPreset = Argument(e.Args, "--screenshot-editor", 2);
 
             FleetViewModel fleet;
-            if (demo != null)
+            if (demoEditor != null)
+            {
+                fleet = FleetViewModel.DemoEditor(demoEditor);
+            }
+            else if (demo != null)
             {
                 fleet = FleetViewModel.Demo(demo);
             }
             else
             {
-                var gameDir = GameFolder.Find() ?? (shot == null ? GameFolder.Ask() : null);
+                var gameDir = GameFolder.Find() ?? (target == null ? GameFolder.Ask() : null);
                 if (gameDir == null)
                 {
                     const string missing = "Could not find s2x.exe. Start this from the game folder, " +
                                            "or pick the folder that holds s2x.exe.";
                     // A --screenshot run has nobody to answer a dialog.
-                    if (shot != null) Console.Error.WriteLine(missing);
+                    if (target != null) Console.Error.WriteLine(missing);
                     else MessageBox.Show(missing, "S2x Server Manager", MessageBoxButton.OK, MessageBoxImage.Warning);
                     Shutdown(1);
                     return;
                 }
-                fleet = new FleetViewModel(gameDir);
+                fleet = new FleetViewModel(gameDir, presetDir);
             }
 
             var view = Argument(e.Args, "--view");
@@ -49,15 +60,29 @@ namespace S2x.ServerManager
             var window = new MainWindow { DataContext = fleet };
             MainWindow = window;
 
-            if (shot != null) { Capture(window, fleet, shot); return; }
+            if (target != null)
+            {
+                Capture(window, fleet, target, shotEditor != null ? () => OpenEditor(fleet, wantedPreset) : (Action)null);
+                return;
+            }
 
             window.Show();
             Dispatcher.InvokeAsync(async () => { await fleet.PollAsync(); fleet.StartPolling(); },
                 DispatcherPriority.Background);
         }
 
-        /// <summary>--screenshot: render the fleet window off-screen with real data and exit.</summary>
-        private void Capture(MainWindow window, FleetViewModel fleet, string path)
+        /// <summary>--screenshot-editor: the named preset, or the first one the fleet found.</summary>
+        private static void OpenEditor(FleetViewModel fleet, string name)
+        {
+            var card = fleet.Servers.FirstOrDefault(s =>
+                           string.Equals(s.Preset.FileName, name, StringComparison.OrdinalIgnoreCase))
+                       ?? fleet.Servers.FirstOrDefault();
+            if (card == null) return;
+            fleet.OpenEditor(card.Preset);
+        }
+
+        /// <summary>--screenshot: render the window off-screen with real data and exit.</summary>
+        private void Capture(MainWindow window, FleetViewModel fleet, string path, Action after)
         {
             window.Width = ShotWidth;
             window.Height = ShotHeight;
@@ -74,6 +99,7 @@ namespace S2x.ServerManager
                 try
                 {
                     await fleet.PollAsync();
+                    if (after != null) after();
                     window.UpdateLayout();
                     await Dispatcher.Yield(DispatcherPriority.ContextIdle);
                     window.UpdateLayout();
@@ -100,11 +126,14 @@ namespace S2x.ServerManager
             using (var file = File.Create(path)) png.Save(file);
         }
 
-        private static string Argument(string[] args, string name)
+        /// <summary>The token after a switch, or the one after that when <paramref name="offset"/> is 2.</summary>
+        private static string Argument(string[] args, string name, int offset = 1)
         {
             var index = Array.FindIndex(args, a => string.Equals(a, name, StringComparison.OrdinalIgnoreCase));
             if (index < 0) return null;
-            return index + 1 < args.Length ? args[index + 1] : "";
+            var at = index + offset;
+            if (at >= args.Length) return offset > 1 ? null : "";
+            return args[at].StartsWith("--", StringComparison.Ordinal) && offset > 1 ? null : args[at];
         }
     }
 }
