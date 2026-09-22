@@ -69,10 +69,10 @@ powershell -ExecutionPolicy Bypass -File s2x\tools\server-launcher.ps1
 
 It finds the game folder on its own (Steam registry, its own location, or a remembered choice) and works on a box without Steam if it is run from the game folder or given `-GameDir`. Forward the server's UDP port (the launcher defaults to 27016) and the server appears in everyone's browser through the master list; nothing else needs registering.
 
-`tools\server-status.ps1` keeps a Discord embed current with what the server is doing: online or not, map and mode, players, and whether the master list has it. It queries the server the way the client does and edits four fields on an existing bot message, leaving the rest of the card alone. `-Install` registers a scheduled task that runs every two minutes with no window; `-DryRun` shows what it would write; `-Uninstall` removes the task.
+`tools\server-status.ps1` keeps a Discord embed current with what the box's servers are doing: one entry per server with map and mode, players, its rotation and whether the master list has it. It finds the servers the launcher started from the same folder on its own, queries them the way the client does and rewrites only its own fields on an existing bot message, so the rest of the card stays as you wrote it. `-NameFilter` limits the card to servers whose name matches, for example `\"^\^1CR's\"` for a red CR's; `-Ports` adds servers started some other way. `-Install` registers a scheduled task that runs every two minutes with no window; `-DryRun` shows what it would write; `-Uninstall` removes the task.
 
 ```text
-powershell -ExecutionPolicy Bypass -File s2x\tools\server-status.ps1 -ChannelId <channel> -MessageId <message> -PublicAddress <ip>:<port> -TokenFile C:\s2x-status\token.txt -Install
+powershell -ExecutionPolicy Bypass -File s2x\tools\server-status.ps1 -ChannelId <channel> -MessageId <message> -PublicAddress <public ip> -TokenFile C:\s2x-status\token.txt -Install
 ```
 
 For server-side scripting, drop `.gsc` files into `s2x\scripts\mp\` on the server. Players need nothing. The [server scripting guide](tools/server-scripts/README.md) covers the chat event, persistence, addresses and the optional Discord arrivals feed.
