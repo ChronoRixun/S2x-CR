@@ -255,7 +255,8 @@ namespace S2x.ServerManager.ViewModels
 
         /// <summary>
         /// The server's own log if it is there, and the shared one once it is clear it is not
-        /// coming: thirty seconds from the later of the server starting and this drawer opening.
+        /// coming: thirty seconds from the server starting, or from this drawer opening when
+        /// nothing knows of a start.
         /// </summary>
         private string WantedPath()
         {
@@ -265,8 +266,10 @@ namespace S2x.ServerManager.ViewModels
             var own = GameFolder.ServerLogPath(_fleet.GameDir, _card.Preset.Port);
             if (File.Exists(own)) return own;
 
-            var start = _card.State.ProcessStart;
-            var since = start.HasValue && start.Value > _watchingSince ? start.Value : _watchingSince;
+            // The wait is the server's, not the drawer's: opening the console on a server that
+            // has been up an hour waits for nothing. The open time only stands in for a start
+            // no poll round has seen.
+            var since = _card.State.ProcessStart ?? _watchingSince;
             if ((DateTime.Now - since).TotalSeconds < FallbackSeconds) return own;
             return GameFolder.SharedLogPath(_fleet.GameDir);
         }
