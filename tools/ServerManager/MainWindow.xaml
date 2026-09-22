@@ -42,6 +42,8 @@
                    views:TextEffects.Tracked="{Binding Breadcrumb}"
                    FontSize="10.5" FontWeight="SemiBold" Foreground="#FF7C858C"
                    TextTrimming="CharacterEllipsis"/>
+        <TextBlock x:Name="txtVersion" DockPanel.Dock="Left" VerticalAlignment="Center"
+                   FontSize="9.5" Foreground="{StaticResource Dim}"/>
 
         <Button DockPanel.Dock="Right" x:Name="btnClose" Style="{StaticResource CaptionClose}" Content="&#x2715;"/>
         <Button DockPanel.Dock="Right" x:Name="btnMaximize" Style="{StaticResource Caption}" Content="&#x2610;" FontSize="11"/>

@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Windows;
 using System.Windows.Input;
 
@@ -12,6 +13,7 @@ namespace S2x.ServerManager
             btnMinimize.Click += (s, e) => WindowState = WindowState.Minimized;
             btnMaximize.Click += (s, e) => ToggleMaximized();
             btnClose.Click += (s, e) => Close();
+            txtVersion.Text = "v" + Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
         }
 
         private void TitleBarPressed(object sender, MouseButtonEventArgs e)

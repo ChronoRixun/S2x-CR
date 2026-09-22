@@ -14,7 +14,10 @@
     <LangVersion>latest</LangVersion>
     <AssemblyTitle>S2x Server Manager</AssemblyTitle>
     <Product>S2x Server Manager</Product>
-    <Version>0.1.0</Version>
+    <Company>S2x community</Company>
+    <Version>1.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <ApplicationIcon>Assets\S2xServerManager.ico</ApplicationIcon>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <DebugType>portable</DebugType>
   </PropertyGroup>

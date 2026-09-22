@@ -1,8 +1,6 @@
 using System;
 using System.ComponentModel;
 using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using S2x.ServerManager.ViewModels;
 
@@ -119,24 +117,12 @@ namespace S2x.ServerManager.Services
             System.Windows.Application.Current.Shutdown();
         }
 
-        /// <summary>The title bar's amber mark, drawn at icon size.</summary>
+        /// <summary>The exe's own icon: the amber mark Assets\make-icon.ps1 drew, embedded by
+        /// &lt;ApplicationIcon&gt; at build time rather than composed again here.</summary>
         private static Icon Mark()
         {
-            using (var bitmap = new Bitmap(32, 32))
-            using (var canvas = Graphics.FromImage(bitmap))
-            using (var amber = new SolidBrush(Color.FromArgb(0xE8, 0xA3, 0x3D)))
-            {
-                canvas.SmoothingMode = SmoothingMode.AntiAlias;
-                canvas.Clear(Color.Transparent);
-                canvas.FillPolygon(amber, new[] { new Point(4, 3), new Point(28, 3), new Point(28, 27) });
-                var handle = bitmap.GetHicon();
-                try { return (Icon)Icon.FromHandle(handle).Clone(); }
-                finally { DestroyIcon(handle); }
-            }
+            return Icon.ExtractAssociatedIcon(Application.ExecutablePath);
         }
-
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern bool DestroyIcon(IntPtr handle);
 
         public void Dispose()
         {
