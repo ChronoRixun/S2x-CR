@@ -12,6 +12,8 @@ namespace S2x.ServerManager
 {
     public partial class App : Application
     {
+        private TrayIcon _tray;
+
         private const int ShotWidth = 1160;
         private const int ShotHeight = 740;
 
@@ -88,6 +90,10 @@ namespace S2x.ServerManager
             }
 
             window.Show();
+            // The tray is the app while the window is shut. Never on a render run: a screenshot
+            // has nobody to click it and nothing to say.
+            _tray = new TrayIcon(window, fleet);
+            Exit += (s, e) => _tray.Dispose();
             Dispatcher.InvokeAsync(async () => { await fleet.PollAsync(); fleet.StartPolling(); },
                 DispatcherPriority.Background);
         }

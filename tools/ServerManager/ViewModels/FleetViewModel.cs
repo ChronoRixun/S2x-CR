@@ -163,6 +163,22 @@ namespace S2x.ServerManager.ViewModels
                 ?? Servers.FirstOrDefault(s => s.Preset.Port == preset.Port);
         }
 
+        /// <summary>
+        /// The tray menu's way back in: the roster, on the server that was clicked. An unsaved
+        /// new server is asked about on the way out of the editor, the same as FLEET asks.
+        /// </summary>
+        public void ShowServer(ServerCardViewModel card)
+        {
+            if (card == null) return;
+            if (_screen == "editor")
+            {
+                ShowFleet();
+                if (_screen == "editor") return;
+            }
+            ViewMode = "roster";
+            Selected = card;
+        }
+
         /// <summary>The CONSOLE button in the editor's footer and on the roster's strip.</summary>
         public void ToggleConsole(ServerPreset preset)
         {
