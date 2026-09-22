@@ -65,10 +65,13 @@ namespace S2x.ServerManager.Services
                 File.WriteAllText(cfgPath, BuildServerCfg(snapshot), new UTF8Encoding(false));
 
                 // Both modes start from the rotation the port's cfg carries; a command-line +map
-                // runs before the dedicated party exists and is dropped.
+                // runs before the dedicated party exists and is dropped. g_consoleLog gives this
+                // server a log of its own: the default is s2x\logs\console.log, which every
+                // server on the box appends to at once, so nothing in it says which one wrote it.
                 var args = string.Format(
-                    "-noupdate -dedicated{0} +set net_port {1} +exec {2} +map_rotate",
-                    snapshot.IsZombies ? " -zombies" : "", port, Path.GetFileName(cfgPath));
+                    "-noupdate -dedicated{0} +set net_port {1} +set g_consoleLog {2} +exec {3} +map_rotate",
+                    snapshot.IsZombies ? " -zombies" : "", port,
+                    GameFolder.ServerLogDvar(port), Path.GetFileName(cfgPath));
 
                 var process = Process.Start(new ProcessStartInfo
                 {

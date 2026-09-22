@@ -105,6 +105,15 @@ namespace S2x.ServerManager.Services
             return null;
         }
 
+        /// <summary>
+        /// The log this server writes on its own, and the one every server on the box shares.
+        /// g_consoleLog takes a path relative to the game folder, so the dvar and the file this
+        /// app reads have to be spelled from the same place.
+        /// </summary>
+        public static string ServerLogDvar(int port) { return @"s2x\logs\server-" + port + ".log"; }
+        public static string ServerLogPath(string gameDir, int port) { return Path.Combine(gameDir, ServerLogDvar(port)); }
+        public static string SharedLogPath(string gameDir) { return Path.Combine(gameDir, @"s2x\logs\console.log"); }
+
         public static string PresetDir(string gameDir) { return Path.Combine(gameDir, @"s2x\presets"); }
         public static string CfgPath(string gameDir, int port) { return Path.Combine(gameDir, @"s2x\server-" + port + ".cfg"); }
         public static string PidPath(string gameDir, int port) { return Path.Combine(gameDir, @"s2x\server-" + port + ".pid"); }
