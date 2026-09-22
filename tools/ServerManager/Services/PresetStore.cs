@@ -92,7 +92,7 @@ namespace S2x.ServerManager.Services
                     BotNames = Str(root, "botNames") ?? "nostalgia",
                 };
                 preset.Port = Clamp(Int(root, "port", 27016), 1024, 65535);
-                preset.BotFill = Math.Max(0, Int(root, "botFill", 12));
+                preset.BotFill = Clamp(Int(root, "botFill", 12), 0, 18);   // Set-Config clamps both ends
                 preset.SingleRoundDom = Bool(root, "singleRoundDom", true);
 
                 var scores = Get(root, "scoreLimits") as Dictionary<string, object>;

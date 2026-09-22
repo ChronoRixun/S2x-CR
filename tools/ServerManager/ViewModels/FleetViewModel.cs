@@ -189,7 +189,10 @@ namespace S2x.ServerManager.ViewModels
         private async void StartAll()
         {
             if (_demo) return;
-            var queue = Servers.Where(s => s.CanStart).Select(s => s.Preset).OrderBy(p => p.Port).ToList();
+            // One server per port, so one preset per port in the queue: a second preset on the
+            // same port would only earn a "already running" failure two seconds later.
+            var queue = Servers.Where(s => s.CanStart).Select(s => s.Preset)
+                .GroupBy(p => p.Port).Select(g => g.First()).OrderBy(p => p.Port).ToList();
             if (queue.Count == 0) return;
             Toast("Starting " + queue.Count + " server" + (queue.Count == 1 ? "" : "s"));
             await _controller.StartAllAsync(queue, Toast);
@@ -225,6 +228,13 @@ namespace S2x.ServerManager.ViewModels
                 foreach (var card in Servers) { card.State = _states[card.Preset.Port]; card.Refresh(); }
                 Recount();
             }
+            catch (Exception ex)
+            {
+                // Drop the round and try again in three seconds. A poll that throws must not
+                // take the app down with it.
+                System.Diagnostics.Debug.WriteLine("poll round failed: " + ex);
+                Toast("Could not read the servers: " + ex.Message);
+            }
             finally
             {
                 _polling = false;
@@ -249,6 +259,13 @@ namespace S2x.ServerManager.ViewModels
 
             if (alive)
             {
+                // A different pid on the port is a different server: forget what the old one
+                // answered, or a restart would burn its 90 s of starting grace in nine seconds.
+                if (state.Pid != process.Pid)
+                {
+                    state.LastReply = null;
+                    state.Misses = 0;
+                }
                 state.Pid = process.Pid;
                 state.ProcessStart = process.Started;
                 state.NoticedGone = null;
