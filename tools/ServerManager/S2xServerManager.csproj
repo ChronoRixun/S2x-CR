@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    One exe, no DLLs beside it: nothing here but the framework.
+    Build:  dotnet build tools/ServerManager/S2xServerManager.csproj -c Release
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>S2xServerManager</AssemblyName>
+    <RootNamespace>S2x.ServerManager</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <AssemblyTitle>S2x Server Manager</AssemblyTitle>
+    <Product>S2x Server Manager</Product>
+    <Version>0.1.0</Version>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <DebugType>portable</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- In-box only: WMI for the command line behind a pid, JavaScriptSerializer for presets. -->
+    <Reference Include="System.Management" />
+    <!-- JavaScriptSerializer lives in System.Web.Extensions; the XAML compiler wants the
+         assembly it references too. Both are in the framework, so nothing ships beside the exe. -->
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.Web" />
+  </ItemGroup>
+
+</Project>

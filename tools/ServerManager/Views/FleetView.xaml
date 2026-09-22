@@ -1,0 +1,455 @@
+<UserControl x:Class="S2x.ServerManager.Views.FleetView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:S2x.ServerManager.Views"
+             FontFamily="Segoe UI" FontSize="13" Foreground="{StaticResource Ink}">
+
+  <UserControl.Resources>
+
+    <!-- one slot on the player bar: human, bot or free -->
+    <DataTemplate x:Key="SlotTemplate">
+      <Rectangle Height="8" Fill="{Binding Fill}" Stroke="{Binding Stroke}" StrokeThickness="1" Margin="0,0,3,0"/>
+    </DataTemplate>
+
+    <DataTemplate x:Key="PingBarTemplate">
+      <Rectangle Width="3" Height="{Binding Height}" Fill="{Binding Fill}" VerticalAlignment="Bottom" Margin="0,0,2,0"/>
+    </DataTemplate>
+
+    <DataTemplate x:Key="NextTemplate">
+      <StackPanel Orientation="Horizontal">
+        <TextBlock Text="&#x25B8;" Foreground="#FF3A4147" Margin="6,0"/>
+        <TextBlock Text="{Binding}" Foreground="{StaticResource Label}" FontSize="11" TextTrimming="CharacterEllipsis"/>
+      </StackPanel>
+    </DataTemplate>
+
+    <!-- the rotation preview, shared by the running and the stopped card -->
+    <DataTemplate x:Key="NextRowTemplate">
+      <StackPanel Margin="12,12,12,0" Visibility="{Binding NextRow}">
+        <Line X1="0" Y1="0" X2="1" Y2="0" Stretch="Fill" Stroke="{StaticResource Line}"
+              StrokeThickness="1" StrokeDashArray="2 2" Margin="0,0,0,10"/>
+        <DockPanel>
+          <TextBlock views:TextEffects.Tracked="{Binding NextLabel}" FontSize="9.5" FontWeight="Bold"
+                     Foreground="{StaticResource Dim}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+          <ItemsControl ItemsSource="{Binding NextThree}" ItemTemplate="{StaticResource NextTemplate}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+        </DockPanel>
+      </StackPanel>
+    </DataTemplate>
+
+    <!-- ── the card ──────────────────────────────────────────────────────── -->
+    <DataTemplate x:Key="CardTemplate">
+      <Grid Margin="0,0,14,14">
+        <Border Background="{Binding CardBackground}" BorderBrush="{Binding CardEdge}" BorderThickness="1">
+          <Grid ClipToBounds="True">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+              <RowDefinition Height="38"/>
+            </Grid.RowDefinitions>
+
+            <!-- head: port, name, state -->
+            <Border Grid.Row="0" BorderBrush="{Binding CardEdge}" BorderThickness="0,0,0,1">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="74"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border BorderBrush="{Binding CardEdge}" BorderThickness="0,0,1,0" Padding="0,10">
+                  <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding PortText}" FontFamily="Consolas" FontSize="15"
+                               Foreground="{StaticResource Ink}" HorizontalAlignment="Center"/>
+                    <Border Background="{StaticResource TagBg}" BorderBrush="{StaticResource TagEdge}"
+                            BorderThickness="1" Padding="5,1" Margin="0,3,0,0" HorizontalAlignment="Center">
+                      <TextBlock views:TextEffects.Tracked="{Binding ModeBadge}" FontSize="9"
+                                 FontWeight="Bold" Foreground="{StaticResource Accent}"/>
+                    </Border>
+                  </StackPanel>
+                </Border>
+                <StackPanel Grid.Column="1" Margin="12,10" VerticalAlignment="Center">
+                  <TextBlock views:TextEffects.ColorName="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                             TextTrimming="CharacterEllipsis"/>
+                  <DockPanel Margin="0,5,0,0">
+                    <Rectangle Width="7" Height="7" Fill="{Binding DotBrush}" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding UptimeLine}" Style="{StaticResource Mono}"
+                               VerticalAlignment="Center"/>
+                    <TextBlock views:TextEffects.Tracked="{Binding StateCaps}" FontSize="10.5" FontWeight="Bold"
+                               Foreground="{Binding StateBrush}" VerticalAlignment="Center"/>
+                  </DockPanel>
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <StackPanel Grid.Row="1">
+
+              <!-- running: map plate, slots, counts -->
+              <StackPanel Visibility="{Binding LivePlate}">
+                <Border Margin="12,12,12,0" Height="74" BorderBrush="{StaticResource Line}"
+                        BorderThickness="1" Background="{StaticResource Hatch}">
+                  <Grid ClipToBounds="True">
+                    <TextBlock views:TextEffects.Tracked="MAP ART" FontFamily="Consolas" FontSize="9.5"
+                               Foreground="#FF3A4147" HorizontalAlignment="Right" VerticalAlignment="Top"
+                               Margin="0,8,10,0"/>
+                    <DockPanel VerticalAlignment="Bottom" Margin="12,0,12,8" LastChildFill="False">
+                      <TextBlock Text="{Binding MapName}" FontSize="17" FontWeight="Bold"
+                                 Foreground="{StaticResource Ink}" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock views:TextEffects.Tracked="{Binding GametypeCaps}" FontSize="10.5" FontWeight="Bold"
+                                 Foreground="{StaticResource Accent}" Margin="10,0,0,3" VerticalAlignment="Bottom"/>
+                    </DockPanel>
+                  </Grid>
+                </Border>
+
+                <ItemsControl ItemsSource="{Binding Slots}" ItemTemplate="{StaticResource SlotTemplate}"
+                              Margin="12,10,9,0">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                </ItemsControl>
+
+                <DockPanel Margin="12,6,12,0" LastChildFill="False">
+                  <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
+                    <Rectangle Width="7" Height="7" Fill="{StaticResource Accent}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <TextBlock Text="{Binding HumansText}" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource Ink}"/>
+                    <TextBlock Text=" humans" FontSize="11" Foreground="{StaticResource Muted}"/>
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
+                    <Rectangle Width="7" Height="7" Fill="{StaticResource EdgeHot}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <TextBlock Text="{Binding BotsText}" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource Ink}"/>
+                    <TextBlock Text=" bots" FontSize="11" Foreground="{StaticResource Muted}"/>
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal">
+                    <Rectangle Width="7" Height="7" Stroke="{StaticResource Edge}" StrokeThickness="1"
+                               VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <TextBlock Text="{Binding FreeText}" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource Ink}"/>
+                    <TextBlock Text=" free" FontSize="11" Foreground="{StaticResource Muted}"/>
+                  </StackPanel>
+                  <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <TextBlock Text="{Binding PingText}" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource Ink}"/>
+                    <TextBlock Text=" ms" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource Faint}"/>
+                  </StackPanel>
+                  <ItemsControl DockPanel.Dock="Right" ItemsSource="{Binding PingBars}" Margin="0,0,7,1"
+                                ItemTemplate="{StaticResource PingBarTemplate}" VerticalAlignment="Bottom">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate><StackPanel Orientation="Horizontal" VerticalAlignment="Bottom"/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                  </ItemsControl>
+                </DockPanel>
+              </StackPanel>
+
+              <!-- stopped: what it would run -->
+              <Grid Margin="12,12,12,0" Height="74" Visibility="{Binding StoppedPlate}">
+                <Rectangle Stroke="{StaticResource Edge}" StrokeThickness="1" StrokeDashArray="3 3"/>
+                <TextBlock Text="{Binding RotationSummary}" FontSize="12.5" Foreground="{StaticResource Muted}"
+                           VerticalAlignment="Bottom" Margin="12,0,12,10" TextTrimming="CharacterEllipsis"/>
+              </Grid>
+
+              <!-- not answering / process gone -->
+              <Border Visibility="{Binding HealthPlate}" Margin="12,12,12,0" Padding="14,12"
+                      Background="{StaticResource Panel}" BorderBrush="{Binding CardEdge}" BorderThickness="1">
+                <StackPanel>
+                  <DockPanel>
+                    <TextBlock views:TextEffects.Tracked="{Binding HealthCaps}" FontSize="10.5" FontWeight="Bold"
+                               Foreground="{Binding StateBrush}"/>
+                    <Rectangle Height="1" Fill="{Binding CardEdge}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                  </DockPanel>
+                  <TextBlock Text="{Binding HealthLine}" FontSize="12.5" Foreground="{StaticResource Ink}"
+                             TextWrapping="Wrap" LineHeight="18" Margin="0,8,0,0"/>
+                  <TextBlock Text="{Binding HealthMono}" Style="{StaticResource Mono}" Foreground="{StaticResource Dim}"
+                             TextWrapping="Wrap" Margin="0,8,0,0"/>
+                </StackPanel>
+              </Border>
+
+              <ContentPresenter ContentTemplate="{StaticResource NextRowTemplate}" Content="{Binding}"/>
+            </StackPanel>
+
+            <!-- actions -->
+            <Border Grid.Row="3" BorderBrush="{Binding CardEdge}" BorderThickness="0,1,0,0" Margin="0,12,0,0">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="1.3*"/>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="1.1*"/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Style="{StaticResource CardStart}" Content="&#x25B6; START"
+                        Visibility="{Binding StartButton}" Command="{Binding StartCommand}"/>
+                <Button Grid.Column="0" Style="{StaticResource CardStop}" Content="&#x25A0; STOP"
+                        Visibility="{Binding StopButton}" Command="{Binding StopCommand}"
+                        BorderBrush="{Binding CardEdge}" BorderThickness="0,0,1,0"/>
+                <Button Grid.Column="1" Style="{StaticResource CardRestart}" Content="&#x21BB; RESTART"
+                        Visibility="{Binding RestartButton}" Command="{Binding RestartCommand}"
+                        BorderBrush="{Binding CardEdge}" BorderThickness="0,0,1,0"/>
+                <Button Grid.Column="2" Style="{StaticResource CardAction}" Content="EDIT"
+                        IsEnabled="False" ToolTip="next slice"
+                        BorderBrush="{Binding CardEdge}" BorderThickness="0,0,1,0"/>
+                <Button Grid.Column="3" Style="{StaticResource CardAction}" Content="CONSOLE"
+                        IsEnabled="False" ToolTip="next slice"
+                        BorderBrush="{Binding CardEdge}" BorderThickness="0,0,1,0"/>
+                <Button Grid.Column="4" Style="{StaticResource CardCopy}" Command="{Binding CopyCommand}"
+                        ToolTip="Copy the connect line">
+                  <TextBlock Text="{Binding Address, StringFormat=&#x29C9; {0}}" TextTrimming="CharacterEllipsis"/>
+                </Button>
+              </Grid>
+            </Border>
+          </Grid>
+        </Border>
+
+        <!-- HUD corners -->
+        <Border Width="9" Height="9" HorizontalAlignment="Left" VerticalAlignment="Top"
+                BorderBrush="{Binding CornerBrush}" BorderThickness="2,2,0,0"/>
+        <Border Width="9" Height="9" HorizontalAlignment="Right" VerticalAlignment="Top"
+                BorderBrush="{Binding CornerBrush}" BorderThickness="0,2,2,0"/>
+        <Border Width="9" Height="9" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                BorderBrush="{Binding CornerBrush}" BorderThickness="2,0,0,2"/>
+        <Border Width="9" Height="9" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                BorderBrush="{Binding CornerBrush}" BorderThickness="0,0,2,2"/>
+      </Grid>
+    </DataTemplate>
+
+    <!-- ── roster row ────────────────────────────────────────────────────── -->
+    <DataTemplate x:Key="RosterRowTemplate">
+      <Button Style="{StaticResource RosterRow}" Command="{Binding SelectCommand}"
+              Background="{Binding RowBackground}" BorderBrush="{Binding RowMarker}" BorderThickness="2,0,0,0">
+        <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="12,12">
+          <StackPanel>
+            <DockPanel>
+              <Rectangle Width="7" Height="7" Fill="{Binding DotBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+              <TextBlock DockPanel.Dock="Right" Text="{Binding PortText, StringFormat=:{0}}"
+                         Style="{StaticResource Mono}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+              <TextBlock Text="{Binding PlainName}" FontSize="12.5" FontWeight="SemiBold"
+                         Foreground="{Binding RowForeground}" TextTrimming="CharacterEllipsis"/>
+            </DockPanel>
+            <ItemsControl ItemsSource="{Binding Slots}" Margin="0,7,0,0">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Rectangle Height="4" Fill="{Binding Fill}" Stroke="{Binding Stroke}" StrokeThickness="1" Margin="0,0,2,0"/>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <DockPanel Margin="0,7,0,0">
+              <TextBlock views:TextEffects.Tracked="{Binding StateCaps}" FontSize="10.5" FontWeight="Bold"
+                         Foreground="{Binding StateBrush}" Margin="0,0,8,0"/>
+              <TextBlock Text="{Binding NowLine}" FontSize="10.5" Foreground="{StaticResource Dim}"
+                         TextTrimming="CharacterEllipsis"/>
+            </DockPanel>
+          </StackPanel>
+        </Border>
+      </Button>
+    </DataTemplate>
+
+    <!-- ── starter preset ────────────────────────────────────────────────── -->
+    <DataTemplate x:Key="StarterTemplate">
+      <Button Style="{StaticResource Starter}" Width="224" MinHeight="150" Margin="0,0,12,0"
+              Command="{Binding AddCommand}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+        <Grid Margin="16">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
+          <TextBlock Grid.Row="0" Text="{Binding Index}" FontFamily="Consolas" FontSize="10.5"
+                     Foreground="{StaticResource Accent}"/>
+          <TextBlock Grid.Row="1" Text="{Binding Title}" FontSize="14" FontWeight="SemiBold"
+                     Margin="0,8,0,0" TextWrapping="Wrap"/>
+          <TextBlock Grid.Row="2" Text="{Binding Description}" FontSize="11.5" Foreground="{StaticResource Muted}"
+                     Margin="0,8,0,8" TextWrapping="Wrap" LineHeight="17"/>
+          <TextBlock Grid.Row="3" Text="{Binding Meta}" Style="{StaticResource Mono}"/>
+        </Grid>
+      </Button>
+    </DataTemplate>
+
+  </UserControl.Resources>
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="72"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <!-- ── fleet strip ───────────────────────────────────────────────────── -->
+    <Border Background="{StaticResource Bar}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,0">
+          <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0" Padding="0,0,22,0">
+            <StackPanel>
+              <TextBlock views:TextEffects.Tracked="FLEET" Style="{StaticResource Caps}"/>
+              <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                <TextBlock Text="{Binding FleetUp}" Style="{StaticResource Stat}" Foreground="{Binding FleetUpBrush}"/>
+                <TextBlock Text="{Binding FleetTotal, StringFormat=/ {0} up}" FontFamily="Consolas" FontSize="13"
+                           Foreground="{StaticResource Faint}" VerticalAlignment="Bottom" Margin="6,0,0,3"/>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+          <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0" Padding="22,0">
+            <StackPanel>
+              <TextBlock views:TextEffects.Tracked="HUMANS" Style="{StaticResource Caps}"/>
+              <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                <TextBlock Text="{Binding FleetHumans}" Style="{StaticResource Stat}"/>
+                <TextBlock Text="{Binding FleetCap, StringFormat=/ {0}}" FontFamily="Consolas" FontSize="13"
+                           Foreground="{StaticResource Faint}" VerticalAlignment="Bottom" Margin="6,0,0,3"/>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+          <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0" Padding="22,0">
+            <StackPanel>
+              <TextBlock views:TextEffects.Tracked="BOTS" Style="{StaticResource Caps}"/>
+              <TextBlock Text="{Binding FleetBots}" Style="{StaticResource Stat}"
+                         Foreground="{StaticResource Label}" Margin="0,2,0,0"/>
+            </StackPanel>
+          </Border>
+          <Border Padding="22,0">
+            <StackPanel>
+              <TextBlock views:TextEffects.Tracked="ATTENTION" Style="{StaticResource Caps}"/>
+              <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                <TextBlock Text="{Binding FleetAttention}" Style="{StaticResource Stat}"
+                           Foreground="{Binding FleetAttentionBrush}"/>
+                <TextBlock Text="{Binding FleetAttentionNote}" FontSize="11" Foreground="{StaticResource Dim}"
+                           MaxWidth="150" TextWrapping="Wrap" LineHeight="15" VerticalAlignment="Bottom"
+                           Margin="6,0,0,3"/>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,20,0">
+          <Button Style="{StaticResource Primary}" Content="&#x25B6; START ALL" Command="{Binding StartAllCommand}"/>
+          <Button Style="{StaticResource DangerGhost}" Content="&#x25A0; STOP ALL" Command="{Binding StopAllCommand}"
+                  Margin="8,0,0,0"/>
+          <Button Style="{StaticResource Outline}" Content="+ New server" Command="{Binding NewServerCommand}"
+                  ToolTip="next slice" ToolTipService.ShowOnDisabled="True" Margin="14,0,0,0"/>
+          <Border BorderBrush="{StaticResource Edge}" BorderThickness="1" Height="32" Margin="10,0,0,0">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Segment}" Content="&#x25A6; CARDS" Command="{Binding ShowCardsCommand}"
+                      Background="{Binding CardsButtonBackground}" Foreground="{Binding CardsButtonForeground}"/>
+              <Button Style="{StaticResource Segment}" Content="&#x2630; ROSTER" Command="{Binding ShowRosterCommand}"
+                      Background="{Binding RosterButtonBackground}" Foreground="{Binding RosterButtonForeground}"
+                      BorderBrush="{StaticResource Edge}" BorderThickness="1,0,0,0"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+        <Grid/>
+      </DockPanel>
+    </Border>
+
+    <Grid Grid.Row="1">
+
+      <!-- ── empty ───────────────────────────────────────────────────────── -->
+      <Grid Background="{StaticResource Desk}" Visibility="{Binding EmptyVisibility}">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+          <TextBlock views:TextEffects.Tracked="NO SERVERS YET" FontSize="10.5" FontWeight="SemiBold"
+                     Foreground="{StaticResource Accent}" HorizontalAlignment="Center"/>
+          <TextBlock Text="Pick a starter, or build one from scratch." FontSize="20" FontWeight="SemiBold"
+                     HorizontalAlignment="Center" Margin="0,8,0,0"/>
+          <TextBlock Text="Each server gets its own port. You can edit everything afterwards."
+                     FontSize="12.5" Foreground="{StaticResource Muted}" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+          <ItemsControl ItemsSource="{Binding Starters}" ItemTemplate="{StaticResource StarterTemplate}"
+                        HorizontalAlignment="Center" Margin="12,26,0,0">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+          <TextBlock Text="or build one in the PowerShell launcher and it shows up here"
+                     FontSize="11.5" Foreground="{StaticResource Dim}" HorizontalAlignment="Center" Margin="0,26,0,0"/>
+        </StackPanel>
+      </Grid>
+
+      <!-- ── cards ───────────────────────────────────────────────────────── -->
+      <ScrollViewer Visibility="{Binding CardsVisibility}" Background="{StaticResource Desk}"
+                    Padding="20,20,6,6" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ItemsControl ItemsSource="{Binding Servers}" ItemTemplate="{StaticResource CardTemplate}"
+                      VerticalAlignment="Top">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate><views:CardsPanel Columns="3"/></ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+      </ScrollViewer>
+
+      <!-- ── roster ──────────────────────────────────────────────────────── -->
+      <Grid Visibility="{Binding RosterVisibility}">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="210"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Border Background="{StaticResource Bar}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Top" views:TextEffects.Tracked="ROSTER" Style="{StaticResource Caps}"
+                       Margin="16,12,16,8"/>
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <ItemsControl ItemsSource="{Binding Servers}" ItemTemplate="{StaticResource RosterRowTemplate}"/>
+            </ScrollViewer>
+          </DockPanel>
+        </Border>
+
+        <Grid Grid.Column="1" Background="{StaticResource Panel}" DataContext="{Binding Selected}">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="54"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+          <Border Background="{Binding CardBackground}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+            <DockPanel Margin="20,0">
+              <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center" MinWidth="170">
+                <Rectangle Width="8" Height="8" Fill="{Binding DotBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <StackPanel>
+                  <TextBlock views:TextEffects.Tracked="{Binding StateCaps}" FontSize="10.5" FontWeight="Bold"
+                             Foreground="{Binding StateBrush}"/>
+                  <TextBlock Text="{Binding StatusSub}" Style="{StaticResource Mono}" Margin="0,2,0,0"/>
+                </StackPanel>
+              </StackPanel>
+              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Style="{StaticResource Primary}" Content="&#x25B6; START" Padding="12,7"
+                        Visibility="{Binding StartButton}" Command="{Binding StartCommand}"/>
+                <Button Style="{StaticResource DangerGhost}" Content="&#x25A0; STOP" Padding="12,6"
+                        Visibility="{Binding StopButton}" Command="{Binding StopCommand}"/>
+                <Button Style="{StaticResource Outline}" Content="CONSOLE" Padding="12,6" Margin="6,0,0,0"
+                        IsEnabled="False" ToolTip="next slice" ToolTipService.ShowOnDisabled="True"/>
+                <Button Style="{StaticResource Outline}" Padding="8,6" Margin="6,0,0,0" FontFamily="Consolas"
+                        FontSize="11" Command="{Binding CopyCommand}" ToolTip="Copy the connect line">
+                  <TextBlock Text="{Binding Address, StringFormat=&#x29C9; {0}}"/>
+                </Button>
+              </StackPanel>
+              <TextBlock VerticalAlignment="Center" Margin="20,0" FontSize="12" Foreground="{StaticResource Label}"
+                         TextTrimming="CharacterEllipsis">
+                <Run Text="{Binding NowLine, Mode=OneWay}" Foreground="{StaticResource Ink}" FontWeight="SemiBold"/>
+                <Run Text=" &#xB7; " Foreground="#FF3A4147"/>
+                <Run Text="{Binding CapText, Mode=OneWay}" FontFamily="Consolas"/><Run Text=" humans"/>
+                <Run Text=" &#xB7; " Foreground="#FF3A4147"/>
+                <Run Text="{Binding BotsText, Mode=OneWay}" FontFamily="Consolas"/><Run Text=" bots"/>
+                <Run Text=" &#xB7; " Foreground="#FF3A4147"/>
+                <Run Text="{Binding PingText, Mode=OneWay}" FontFamily="Consolas"/><Run Text=" ms"/>
+                <Run Text=" &#xB7; " Foreground="#FF3A4147"/>
+                <Run Text="{Binding UptimeText, Mode=OneWay}" FontFamily="Consolas"/>
+              </TextBlock>
+            </DockPanel>
+          </Border>
+
+          <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <TextBlock views:TextEffects.Tracked="EDITOR" FontSize="10.5" FontWeight="SemiBold"
+                       Foreground="{StaticResource Accent}" HorizontalAlignment="Center"/>
+            <TextBlock Text="The rotation builder lands in the next slice." FontSize="16" Margin="0,8,0,0"
+                       HorizontalAlignment="Center"/>
+            <TextBlock Text="Until then, change a preset in the PowerShell launcher and it shows up here."
+                       FontSize="12.5" Foreground="{StaticResource Muted}" Margin="0,6,0,0" HorizontalAlignment="Center"/>
+          </StackPanel>
+        </Grid>
+      </Grid>
+
+      <!-- ── toast ───────────────────────────────────────────────────────── -->
+      <Border Visibility="{Binding ToastVisibility}" Background="{StaticResource Field}"
+              BorderBrush="{StaticResource EdgeHot}" BorderThickness="1" Padding="14,8"
+              HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,24">
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Text="&#x2713;" Foreground="{StaticResource Ok}" Margin="0,0,10,0"/>
+          <TextBlock Text="{Binding ToastText}" FontSize="12"/>
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>
