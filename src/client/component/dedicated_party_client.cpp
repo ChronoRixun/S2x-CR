@@ -56,6 +56,9 @@ namespace dedicated_party_client
 			unsigned limits_generation{};
 			game::PartyData* game_lobby{};
 			int max_players{};
+			int score_limit{};
+			int win_limit{};
+			int round_limit{};
 			bool sync_after_next_go{};
 			bool limits_known{};
 		};
@@ -445,16 +448,25 @@ namespace dedicated_party_client
 			}
 		}
 
+		void reapply_hosted_limits()
+		{
+			const auto& state = hosted_dedicated_party_state;
+			set_client_limit_dvar("scr_" + state.gametype + "_scorelimit", state.score_limit);
+			set_client_limit_dvar("scr_" + state.gametype + "_winlimit", state.win_limit);
+			set_client_limit_dvar("scr_" + state.gametype + "_roundlimit", state.round_limit);
+			disable_match_rules_recipe();
+		}
+
 		void apply_hosted_limits(const int score_limit, const int win_limit, const int round_limit)
 		{
-			const auto& gametype = hosted_dedicated_party_state.gametype;
-			set_client_limit_dvar("scr_" + gametype + "_scorelimit", score_limit);
-			set_client_limit_dvar("scr_" + gametype + "_winlimit", win_limit);
-			set_client_limit_dvar("scr_" + gametype + "_roundlimit", round_limit);
-			hosted_dedicated_party_state.limits_known = true;
-			disable_match_rules_recipe();
+			auto& state = hosted_dedicated_party_state;
+			state.score_limit = score_limit;
+			state.win_limit = win_limit;
+			state.round_limit = round_limit;
+			state.limits_known = true;
+			reapply_hosted_limits();
 			console::info("Hosted dedicated lobby: %s limits %d/%d/%d.\n",
-				gametype.data(), score_limit, win_limit, round_limit);
+				state.gametype.data(), score_limit, win_limit, round_limit);
 		}
 
 		void request_hosted_limits()
@@ -543,10 +555,11 @@ namespace dedicated_party_client
 					game::environment::is_multiplayer());
 			}
 
-			// The same playlist step turns the recipe back on with every partystate.
+			// The same playlist step turns the recipe back on with every partystate and
+			// runs the stock configs again, which reset the limit dvars to stock values.
 			if (!in_virtual_lobby && hosted_dedicated_party_state.limits_known)
 			{
-				disable_match_rules_recipe();
+				reapply_hosted_limits();
 			}
 
 			if (in_virtual_lobby)
