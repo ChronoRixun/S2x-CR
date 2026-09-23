@@ -531,6 +531,9 @@ namespace hq_native
 		// otherwise the diagnostic itself stalls the frame it is diagnosing.
 		void conversion_success(void* task)
 		{
+			// A redeemed reward must be in the native cache before 27A4C0 raises the
+			// success event: the Collections screen re-reads ownership from it.
+			sync_inventory();
 			conversion_success_hook.invoke<void>(task);
 			++conversion_successes;
 			const auto round_trip = conversion_round_trip();

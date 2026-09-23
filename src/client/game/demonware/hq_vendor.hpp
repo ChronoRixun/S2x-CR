@@ -42,6 +42,11 @@ namespace demonware::hq_vendor
 		return id;
 	}
 
+	// Collection redeem rule ids ("Collection_<id>", 276780) to reward GUIDs, from
+	// mp/itemscollections.csv; load_loot_catalog fills it on the main thread.
+	inline std::mutex collections_mutex;
+	inline std::map<std::string, std::uint32_t> collection_rewards;
+
 	// Task 242 is applyConversionRule. Native response reader A4C850 expects
 	// transaction string, uint64, rule object, then repeated currency/item records.
 	inline bool reply_body(const std::string& request, std::string& response, std::uint32_t& error)
@@ -60,7 +65,24 @@ namespace demonware::hq_vendor
 		}
 		const auto count = request.size() == at + 2 && request[at] == '\x20' ? static_cast<unsigned char>(request[at + 1]) : 0u;
 		if (fields[0] != "s2_steam" || fields[2].empty() || fields[2].size() > 24 || !count || count > 127) return false;
-		if (fields[1] != "3cf6ce39-7313-4bd0-1fcf-c8ba7b0eecd6")
+		std::uint32_t reward{};
+		{
+			std::lock_guard lock{collections_mutex};
+			const auto found = collection_rewards.find(fields[1]);
+			if (found != collection_rewards.end()) reward = found->second;
+		}
+		if (reward)
+		{
+			// The redeem keeps the collection's items. Owning the reward makes a replay succeed
+			// without a second copy.
+			if (!hq_economy::transact([&](auto& data)
+			{
+				const auto owned = data.inventory.find({reward, 0});
+				return (owned != data.inventory.end() && hq_economy::live(owned->second, time(nullptr))) ||
+					hq_economy::grant(data, {"GRANT_PRODUCT", reward, 1});
+			})) return false;
+		}
+		else if (fields[1] != "3cf6ce39-7313-4bd0-1fcf-c8ba7b0eecd6")
 		{
 			// The duplicate pump (276C20) sends "Pawnable_Uniform_<GUID>" to pawn `count` spare
 			// copies of an "Any"-division uniform (652250 returns 0). Pay them at the supply-drop
@@ -87,7 +109,7 @@ namespace demonware::hq_vendor
 			})) return false;
 		}
 		response.clear();
-		// The startup rule grants nothing; a pawn reaches the native cache through the store sync.
+		// The startup rule grants nothing; a redeem or pawn reaches the native cache through the store sync.
 		// Scalar semantics are provisional; field types/limits are native-confirmed.
 		response += '\x0A'; response += static_cast<char>(fields[2].size()); response += fields[2];
 		response.append("\x10\x00", 2);
