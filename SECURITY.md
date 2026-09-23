@@ -7,7 +7,7 @@ S2x patches a game's anti-tamper so the client can run at all. Code like that is
 Please do not open a public issue for it. Report privately:
 
 - **Discord:** send a direct message to **chrono** on the CoD WWII Community server (invite in the [README](README.md#community)).
-- **GitHub:** once this repository is public, use *Report a vulnerability* on the Security tab.
+- **GitHub:** use *Report a vulnerability* on the [Security tab](https://github.com/ChronoRixun/S2x-CR/security/advisories/new).
 
 Include what you found, how to reproduce it, and the build (release tag or commit). Expect an acknowledgement within a few days. Fixes ship as a release, and reports are credited in the release notes if you want them to be.
 
