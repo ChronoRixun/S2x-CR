@@ -757,8 +757,9 @@ namespace S2x.ServerManager.ViewModels
                 state.LastReply = DateTime.Now;
                 state.PingMs = info.RttMs;
                 state.Cap = Math.Max(1, info.Int("sv_maxclients", Math.Max(1, state.Cap)));
-                state.Bots = Math.Max(0, info.Int("bots", 0));
-                state.Humans = Math.Max(0, info.Int("clients", 0) - state.Bots);
+                // clients is humans only; bots is clamped to it, so the real count is s2x_bots.
+                state.Bots = Math.Max(0, info.Int("s2x_bots", info.Int("bots", 0)));
+                state.Humans = Math.Max(0, info.Int("clients", 0));
                 state.SvRunning = info.Get("sv_running") == "1";
                 // In the lobby between maps the reply carries the next map as party_*.
                 state.MapKey = Pick(info, "mapname", "party_mapname");
