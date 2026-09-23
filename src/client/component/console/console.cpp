@@ -125,7 +125,13 @@ namespace console
 			out.push_back('\n');
 		}
 
-		if (console_log && console_log->current.string)
+		// A path given on the command line (+set g_consoleLog <path>, how the launcher
+		// gives each server its own file) wins over the dvar: the dvar is registered
+		// late and saved, so the native +set never reaches it.
+		static const auto flag_path = utils::flags::get_set_value("g_consoleLog");
+		if (flag_path)
+			utils::io::write_file(*flag_path, out, true);
+		else if (console_log && console_log->current.string)
 			utils::io::write_file(console_log->current.string, out, true);
 
 		if (console::is_enabled())
