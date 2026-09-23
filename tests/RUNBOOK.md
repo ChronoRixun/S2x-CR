@@ -70,7 +70,7 @@ Copy-Item D:\S2x\build\release\v1.3.0-rc7\stage\* $game -Recurse -Force
 Two things that have bitten before: `%LOCALAPPDATA%\s2x\data\ui_scripts_off` must stay renamed off (it outranks the game folder), and the `patches` folder must hold all seven files, not just the changed one.
 
 - [ ] Release build succeeded (`client.vcxproj -> ...\s2x.exe`, no errors)
-- [ ] Packager listed 27 files in the shape above (24 before the Server Manager), including the two `.gsc` files, `server-status.ps1` and `server-launcher.cmd`
+- [ ] Packager listed 28 files in the shape above (27 with four presets, 24 before the Server Manager), including the two `.gsc` files, `server-status.ps1` and `server-launcher.cmd`
 - [ ] Stage copied over the game folder; `s2x.exe` timestamp is today's
 
 ## 0.2 Back up the profile and the economy store
