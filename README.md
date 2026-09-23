@@ -32,7 +32,7 @@ S2x is a custom client project for Call of Duty®: WWII, focused on preserving a
 
 ## What this fork adds
 
-Each item says where it stands upstream: **Fork only**; **Ready to offer**, where a branch shaped for upstream is waiting on [ChronoRixun/S2x-upstream](https://github.com/ChronoRixun/S2x-upstream) for its pull request; or **Offered upstream**, with the pull request linked. Once an item is merged into [Brentdevent/S2x](https://github.com/Brentdevent/S2x), it comes off this list.
+Where an item carries a status, it says where the item stands upstream: **Fork only**; **Ready to offer**, where a branch shaped for upstream is waiting on [ChronoRixun/S2x-upstream](https://github.com/ChronoRixun/S2x-upstream) for its pull request; or **Offered upstream**, with the pull request linked. Once an item is merged into [Brentdevent/S2x](https://github.com/Brentdevent/S2x), it comes off this list.
 
 ### Dedicated servers
 
