@@ -61,7 +61,9 @@ Loose files load from `%LOCALAPPDATA%\s2x\data\` and `<game folder>\s2x\` ahead 
 
 ## Hosting a server
 
-`tools\server-launcher.ps1` is a GUI for running a dedicated server without writing configs. A mode toggle switches between Multiplayer and Zombies, each with its own maps, settings and saved presets. It handles the server name (with `^0`–`^7` colour codes and a live preview), the rotation, per-gametype score limits, bot fill and names, and the port. Maps that need a DLC pack are labelled so a rotation can stick to what everyone owns.
+`tools\S2xServerManager.exe` runs a fleet from one window: a card per preset and port, start and stop, an editor for presets, a console drawer with each server's own log, a roster, a tray icon and connect lines to copy. It shares the launcher's presets and finds the game folder the same way; its own [README](tools/ServerManager/README.md) covers the switches and the build.
+
+`tools\server-launcher.ps1` is a GUI for running a dedicated server without writing configs; `server-launcher.cmd` opens it with a double-click and no console window left behind. A mode toggle switches between Multiplayer and Zombies, each with its own maps, settings and saved presets. It handles the server name (with `^0`–`^7` colour codes and a live preview), the rotation, per-gametype score limits, bot fill and names, and the port. Maps that need a DLC pack are labelled so a rotation can stick to what everyone owns.
 
 ```text
 powershell -ExecutionPolicy Bypass -File s2x\tools\server-launcher.ps1
