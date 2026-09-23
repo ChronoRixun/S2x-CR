@@ -32,19 +32,23 @@ S2x is a custom client project for Call of Duty®: WWII, focused on preserving a
 
 ## What this fork adds
 
+Each item says where it stands upstream: **Fork only**; **Ready to offer**, where a branch shaped for upstream is waiting on [ChronoRixun/S2x-upstream](https://github.com/ChronoRixun/S2x-upstream) for its pull request; or **Offered upstream**, with the pull request linked. Once an item is merged into [Brentdevent/S2x](https://github.com/Brentdevent/S2x), it comes off this list.
+
 ### Dedicated servers
 
-- **Startup crash fixed.** Upstream dedicated servers died on roughly one launch in ten with `0xC0000409`. An Arxan repair guard that the client did not patch was restoring three regions the client relies on; it is now filtered like the others. ([#2](https://github.com/ChronoRixun/S2x-CR/issues/2))
-- **Settings that stick.** Score limits and other gameplay settings from `server.cfg` used to last one map, because the engine re-ran its 497 gameplay defaults every time the lobby came back. The defaults now run once at startup, ahead of the server config.
-- **Bots that fill the server.** `bot_fill 17` adds bots on every map start; they make room as people join. `bot_names` picks a name pool: `default`, `modern` (2016-2026 gamertags) or `nostalgia` (2005-2015 Xbox 360 era). Both are saved dvars.
-- **Gun Game bots keep their bodies.** Gun Game rebuilt bot outfits from profile data bots don't have, leaving them legless. A server-side script restores the generated uniform after each weapon change. ([#4](https://github.com/ChronoRixun/S2x-CR/issues/4))
-- **Server scripting.** Scripts on the server can watch chat (`level waittill("say", player, message, team_chat)`), keep small text files, read a player's address and take a roster snapshot. See [tools/server-scripts](tools/server-scripts/README.md). ([#9](https://github.com/ChronoRixun/S2x-CR/issues/9))
+- **Ready to offer:** startup crash fixed. Dedicated servers died on roughly one launch in ten with `0xC0000409`. An Arxan repair guard that the client did not patch was restoring three regions the client relies on; it is now filtered like the others. ([#2](https://github.com/ChronoRixun/S2x-CR/issues/2))
+- **Ready to offer:** final killcams play smoothly. The slow-motion stretch never slowed a dedicated server's clock, so the replay skipped frames; the server now slows with it. ([#14](https://github.com/ChronoRixun/S2x-CR/issues/14))
+- **Ready to offer:** podium emotes play. The dedicated lobby re-requested every loadout on each update, which rebuilt the podium soldiers and cut the emote short. ([#15](https://github.com/ChronoRixun/S2x-CR/issues/15))
+- **Ready to offer:** Gun Game bots keep their bodies. Gun Game rebuilt bot outfits from profile data bots don't have, leaving them legless. A server-side script restores the generated uniform after each weapon change. ([#4](https://github.com/ChronoRixun/S2x-CR/issues/4))
+- **Ready to offer:** a console log per server. `+set g_consoleLog <path>` on the command line now takes effect, so several servers from one folder no longer share `s2x\logs\console.log`.
+- **Ready to offer:** chat for server scripts, `level waittill("say", player, message, team_chat)`. **Fork only:** the rest of [server scripting](tools/server-scripts/README.md): small text files, a player's address and a roster snapshot. ([#9](https://github.com/ChronoRixun/S2x-CR/issues/9))
+- **Fork only:** bots that fill the server. `bot_fill 17` adds bots on every map start; they make room as people join. `bot_names` picks a name pool: `default`, `modern` (2016-2026 gamertags) or `nostalgia` (2005-2015 Xbox 360 era). Both are saved dvars.
 
 ### Progression
 
-- **Rank and prestige.** `setrank <level> [prestige]` and `setprestige <prestige>` in Multiplayer and Zombies, plus a Prestige and Rank chooser in the UNLOCKS tab. Past reward XP is rebaselined so the requested level is the level you get. ([#7](https://github.com/ChronoRixun/S2x-CR/issues/7))
-- **Zombies progression.** A saved toggle unlocks Groesten Haus; Tortured Path chapters, the DLC3 survival unlock, the Easter eggs and the red skull are recorded from the game's own reward events, including for remote players. `unlockzmeastereggs confirm` completes the main quest outright.
-- **Custom Match bots.** `bot_fill` works in offline Custom Matches too, and `spawnBot 2` adds more mid-match. ([#1](https://github.com/ChronoRixun/S2x-CR/issues/1))
+- **Ready to offer:** rank and prestige. `setrank <level> [prestige]` and `setprestige <prestige>` in Multiplayer and Zombies, plus a Prestige and Rank chooser in the UNLOCKS tab. Past reward XP is rebaselined so the requested level is the level you get. ([#7](https://github.com/ChronoRixun/S2x-CR/issues/7))
+- **Ready to offer:** Zombies progression. A saved toggle unlocks Groesten Haus; Tortured Path chapters, the DLC3 survival unlock, the Easter eggs and the red skull are recorded from the game's own reward events, including for remote players. `unlockzmeastereggs confirm` completes the main quest outright.
+- **Fork only:** Local Play bots. `bot_fill` works in Local Play too, and `spawnBot 2` adds more mid-match. ([#1](https://github.com/ChronoRixun/S2x-CR/issues/1))
 
 ### Headquarters economy
 
@@ -57,7 +61,9 @@ Upstream stubs the Achievement Engine, so Orders, contracts, payroll, supply dro
 
 ### Modding
 
-Loose files load from `%LOCALAPPDATA%\s2x\data\` and `<game folder>\s2x\` ahead of the packaged assets: GSC under `scripts\mp\` and `scripts\sp\`, UI scripts under `ui_scripts\`, and string tables at their asset path (`mp\botDivisionTable.csv` replaces `mp/botDivisionTable.csv`). `dumpstringtable <name>` exports a loaded table to `s2x\dump\`, `reloadstringtables` drops the cache, and `listassetpool 59 <filter>` lists what is loaded. Loose tables follow RFC 4180 quoting and are capped at 8 MiB, 65,535 rows and 1,024 columns; anything outside that is reported and the packaged table is used. The search paths print once at startup as an `[FS]` line.
+Loose GSC and UI scripts are upstream's: the client loads `scripts\` (with its per-map and per-gametype folders) and `ui_scripts\` from `%LOCALAPPDATA%\s2x\data\` and `<game folder>\s2x\`, and loose UI scripts add to the packaged ones rather than replacing them.
+
+- **Ready to offer:** string tables from the same folders, at their asset path (`mp\botDivisionTable.csv` replaces `mp/botDivisionTable.csv`). `dumpstringtable <name>` exports a loaded table to `s2x\dump\`, `reloadstringtables` drops the cache, and `listassetpool 59 <filter>` lists what is loaded. Loose tables follow RFC 4180 quoting and are capped at 8 MiB, 65,535 rows and 1,024 columns; anything outside that is reported and the packaged table is used.
 
 ## Hosting a server
 
