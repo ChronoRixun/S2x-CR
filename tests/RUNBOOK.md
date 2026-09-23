@@ -53,11 +53,12 @@ The packager prints every file it staged. Expect exactly this shape, and stop if
 | In the zip | Count |
 |---|---|
 | `s2x.exe`, `s2x.pdb` | 2 |
-| `s2x\tools\`: `server-launcher.ps1`, `ServerLauncher.xaml`, `server-status.ps1` | 3 |
+| `s2x\tools\`: `server-launcher.ps1`, `ServerLauncher.xaml`, `server-status.ps1`, `server-launcher.cmd` | 4 |
 | `s2x\ui_scripts\mp\find_match\*.lua` | 6 |
 | `s2x\ui_scripts\mp\patches\*.lua` (`__init__`, `cwl_currency`, `dedicated_gametype`, `dedicated_lobby`, `dedicated_members`, `dedicated_party`, `unlocks`) | 7 |
 | `s2x\scripts\mp\`: `s2x_gungame_bots.gsc`, `s2x_server_events.gsc` | 2 |
 | `s2x\tools\presets\*.json` (starter presets, since the multi-server launcher) | 4 |
+| `s2x\tools\`: `S2xServerManager.exe`, `S2xServerManager.exe.config` (the Server Manager) | 2 |
 
 Install by copying the stage over the game folder:
 
@@ -69,7 +70,7 @@ Copy-Item D:\S2x\build\release\v1.3.0-rc7\stage\* $game -Recurse -Force
 Two things that have bitten before: `%LOCALAPPDATA%\s2x\data\ui_scripts_off` must stay renamed off (it outranks the game folder), and the `patches` folder must hold all seven files, not just the changed one.
 
 - [ ] Release build succeeded (`client.vcxproj -> ...\s2x.exe`, no errors)
-- [ ] Packager listed 24 files in the shape above (20 before the starter presets), including the two `.gsc` files and `server-status.ps1`
+- [ ] Packager listed 27 files in the shape above (24 before the Server Manager), including the two `.gsc` files, `server-status.ps1` and `server-launcher.cmd`
 - [ ] Stage copied over the game folder; `s2x.exe` timestamp is today's
 
 ## 0.2 Back up the profile and the economy store
@@ -386,3 +387,47 @@ Only after sections 1–6 are ticked. Box 4 has no Steam and runs the launcher f
 | 8 Release | pass | tag v1.3.0 at 76790e0; s2x-cr-v1.3.0.zip; notes in build/research/release-notes-v1.3.0.md |
 
 Not tested in this pass: co-op and specialist Zombies objectives, a remote player's `getip`, the roster file for the Discord card, Gun Game after rotating back from Domination.
+
+---
+
+# Server Manager
+
+**What it is:** the WPF app from slice 4, one card per server, in the release zip's `s2x\tools`
+next to the PowerShell launcher. Both read and write the same presets folder, so either one can
+host, and this is what a tester checks once the zip carries it.
+
+**Time:** 15 minutes, with two presets on different ports.
+
+## What to test
+
+1. Double-click `s2x\tools\S2xServerManager.exe`. The fleet shows every preset in
+   `s2x\tools\presets`, each with its port.
+2. START on one card: it goes Starting, then Running with the live map, mode and player counts
+   once the server answers.
+3. CONSOLE on that card: the drawer shows the per-server log, or says `shared log; per-server
+   log did not appear` if the per-port file never showed up.
+4. EDIT that server, set bot difficulty to veteran, RESTART. `s2x\server-<port>.cfg` now carries
+   `set bot_DifficultyDefault veteran`.
+5. STOP it.
+6. START ALL with two presets on different ports; both come up. STOP ALL; both go down.
+7. HIDE on a stopped card: it leaves the fleet and `SHOW HIDDEN (1)` appears in the top bar. Turn
+   that on and the card is back, dimmed, with UNHIDE on it; START ALL still skips it.
+8. EDIT a preset you are finished with, DELETE PRESET in the footer, confirm: the editor closes,
+   the card is gone and so is `s2x\presets\<name>.json`.
+9. Close the window: it goes to the tray, and a server started again first keeps running.
+   Exit from the tray menu; the server is still up.
+10. `s2x\tools\server-launcher.cmd`: the old launcher still opens, no console window, and it
+    reads the same presets folder.
+
+## Checklist
+
+- [ ] Fleet shows every preset with its port
+- [ ] Start: card goes Starting then Running, live map and player counts
+- [ ] Console: per-server log, or the shared-log notice
+- [ ] Edit veteran + Restart: cfg carries `set bot_DifficultyDefault veteran`
+- [ ] Stop
+- [ ] Start All / Stop All with two presets on different ports
+- [ ] Hide a stopped preset: it leaves the fleet, SHOW HIDDEN brings it back dimmed
+- [ ] Delete a preset: the card goes and its `.json` is gone from `s2x\presets`
+- [ ] Close to tray keeps the server running; Exit from the tray
+- [ ] `server-launcher.cmd` opens the old launcher with no console window, same presets
