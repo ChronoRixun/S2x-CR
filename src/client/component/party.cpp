@@ -1043,6 +1043,7 @@ namespace party
 			const auto hostname = get_current_hostname();
 			auto clients = get_connected_client_count();
 			auto bots = get_bot_count();
+			auto real_bots = bots;
 			const auto& mode = game::environment::get_online_mode_info();
 			auto max_clients = *game::sv_maxclients > 0
 				? std::min(*game::sv_maxclients, mode.max_players)
@@ -1057,6 +1058,7 @@ namespace party
 				gametype = party_connect_info.gametype;
 				max_clients = party_connect_info.max_members;
 				clients = std::clamp(party_connect_info.member_count, 0, max_clients);
+				real_bots = std::clamp(bots, 0, max_clients);
 				bots = std::clamp(bots, 0, clients);
 				match_running = party_connect_info.match_running;
 			}
@@ -1074,6 +1076,8 @@ namespace party
 			info.set("sv_running", match_running ? "1" : "0");
 			info.set("protocol", std::to_string(PROTOCOL));
 			info.set("s2x", "1");
+			// Stock clients validate bots <= clients, so bots stays clamped and the real count rides on its own key.
+			info.set("s2x_bots", std::to_string(real_bots));
 
 			if (has_party_session && response_command == "s2x_infoResponse")
 			{
