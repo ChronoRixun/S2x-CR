@@ -15,8 +15,15 @@ $testRoot = Join-Path $repo ('build\tests\status-' + [Guid]::NewGuid().ToString(
 $RosterFile = Join-Path $testRoot 'roster.json'
 $PresenceStateFile = Join-Path $testRoot 'state.json'
 $ManagedFields = @('Status', 'Now playing', 'Players', 'Server browser')
+$StatusLights = @(0x1F7E2, 0x1F534, 0x1F7E1 | ForEach-Object { [char]::ConvertFromUtf32($_) })
+$EntrySpacer = "`n" + [char]0x200B
 $GametypeNames = @{ gun = 'Gun Game' }
-$info = @{ sv_running = '1'; mapname = 'mp_london'; gametype = 'gun'; clients = '1'; sv_maxclients = '8'; _rtt_ms = 1 }
+$MapNames = @{ mp_london = 'London Docks' }
+# The param block never runs here, so set what the script derives from -Port 27016 -PublicAddress 203.0.113.7.
+$Port = 27016
+$PublicHost = '203.0.113.7'
+$QueryPorts = @($Port)
+$info = @{ hostname = '^1Test ^7Server'; sv_running = '1'; mapname = 'mp_london'; gametype = 'gun'; clients = '1'; bots = '7'; sv_maxclients = '8'; _port = $Port; _rtt_ms = 1 }
 function Roster($Players, [long]$Age = 0, [string]$Map = 'mp_london') {
     @{ generated_utc = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - $Age; mapname = $Map; players = @($Players) } |
         ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $RosterFile -Encoding UTF8
@@ -50,13 +57,14 @@ Check ((Get-PresenceUpdate $info).state.events.Count -eq 8) 'History must stay b
 $before = [IO.File]::ReadAllText($PresenceStateFile)
 $ChannelId = ''; $MessageId = ''; $TokenFile = ''; $DryRun = $true
 $script:discordCalls = 0
-function Get-ServerInfo { return $script:info }
-function Test-MasterListing { return $null }
+function Get-ServerInfos([int[]]$PortList) { return @{ $Port = $script:info } }
+function Get-MasterListing { return @{ "${PublicHost}:$Port" = $true } }
 function Invoke-Discord([string]$Method, [string]$Path, $Body) {
     $script:discordCalls++
     if ($Method -eq 'GET') { return @{ embeds = @(@{ title = 'Keep me'; fields = @() }) } }
     Check ($Body.allowed_mentions.parse.Count -eq 0) 'Updates must suppress mentions'
     if ($script:failPatch) { throw 'Synthetic PATCH failure' }
+    $script:published = $Body.embeds[0]
 }
 Update-Card | Out-Null
 Check ($script:discordCalls -eq 0) 'Offline dry run must not contact Discord'
@@ -69,8 +77,13 @@ Check ([IO.File]::ReadAllText($PresenceStateFile) -eq $before) 'Failed publicati
 $script:failPatch = $false
 Update-Card | Out-Null
 Check ([IO.File]::ReadAllText($PresenceStateFile) -ne $before) 'Successful publication must save baseline'
+$fields = @($script:published.fields)
+Check ($fields[0].name -eq 'Status' -and $fields[0].value.StartsWith($StatusLights[0] + ' 1 server online')) 'Status must count the answering server'
+$entries = @($fields | Where-Object { $_.name.StartsWith($StatusLights[0]) })
+Check ($entries.Count -eq 1 -and $entries[0].name -eq ($StatusLights[0] + ' Test Server') -and $entries[0].value.Contains('Gun Game on London Docks') -and $entries[0].value.Contains('In the server browser')) 'The server must get one green entry named after it'
+Check (@($fields | Where-Object name -eq 'Recent arrivals / departures').Count -eq 1) 'The roster must add the presence field'
 $existing = @{ title = 'Keep me'; fields = @(@{ name = 'Rules'; value = 'Keep'; inline = $false }, @{ name = 'Recent arrivals / departures'; value = 'Old'; inline = $false }) }
 $merged = Merge-Embed $existing @($join.field)
 Check ($merged.title -eq 'Keep me' -and @($merged.fields | Where-Object name -eq 'Rules').Count -eq 1) 'Unmanaged embed fields must survive'
 Check (@($merged.fields | Where-Object name -eq 'Recent arrivals / departures').Count -eq 1) 'Presence field must replace itself'
-Write-Output 'PASS: roster joins/leaves, stale/offline/map guards, bounded history, escaping, dry run, failed/successful publication and embed merge'
+Write-Output 'PASS: roster joins/leaves, stale/offline/map guards, bounded history, escaping, dry run, failed/successful publication, published card layout and embed merge'
