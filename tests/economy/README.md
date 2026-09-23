@@ -33,7 +33,7 @@ Owner testing confirmed Orders, Quartermaster Deals and Mail, and claiming with 
 
 For a live smoke test, verify the lobby shows six daily, three weekly and eight contract offers, and accepting a fourth contract is refused. Try one general kill contract, one compound predicate (airborne throwing knives), and one map-specific Ripsaw objective. Confirm ordinary kills do not advance the specialist objective, timers pause in the lobby, and a claimed reward survives restart. Repeat with a remote co-op client.
 
-Revive, purchase and wave objectives are tracked in [CR issue #8](https://github.com/ChronoRixun/S2x/issues/8). Their unfiltered table rows need action and counter interpretation. Two other retail rows are deliberately excluded: 1078's wave-10 shovel text conflicts with its electrical-kill flag, and 1104's bit 31 lacks a producer in the inspected reporting scripts.
+Revive, purchase and wave objectives are tracked in [CR issue #8](https://github.com/ChronoRixun/S2x-CR/issues/8). Their unfiltered table rows need action and counter interpretation. Two other retail rows are deliberately excluded: 1078's wave-10 shovel text conflicts with its electrical-kill flag, and 1104's bit 31 lacks a producer in the inspected reporting scripts.
 
 
 ## Reveal and active Orders regressions

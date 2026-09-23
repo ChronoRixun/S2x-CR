@@ -7,5 +7,5 @@ contact_links:
     url: https://github.com/Brentdevent/S2x/issues
     about: Bugs in S2x itself that this fork does not change belong upstream.
   - name: Security reports
-    url: https://github.com/ChronoRixun/S2x/blob/integration/SECURITY.md
+    url: https://github.com/ChronoRixun/S2x-CR/blob/integration/SECURITY.md
     about: Anything that could enable cheating or expose player data. Report privately, not here.

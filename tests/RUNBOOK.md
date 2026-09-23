@@ -123,7 +123,7 @@ Typing into a server console from a script: `D:\S2x\build\backups\syscon2.ps1 -T
 
 Until rc2, every launch without `-noupdate` ran upstream's updater, which downloaded upstream's UI scripts into `%LOCALAPPDATA%\s2x\data\ui_scripts`; the loader runs every `ui_scripts` folder it finds, so those loaded after ours and replaced the fork's `unlocks.lua`. It happened at 09:11 on 2026-09-21. rc2 makes the download opt-in. Launch `s2x.exe` directly for this check, without any flags, because the desktop shortcuts still pass `-noupdate` and that flag is now ignored.
 
-- [ ] Console prints `[Updater] Automatic updates are off in this fork; new builds are at https://github.com/ChronoRixun/S2x/releases`
+- [ ] Console prints `[Updater] Automatic updates are off in this fork; new builds are at https://github.com/ChronoRixun/S2x-CR/releases`
 - [ ] No `ui_scripts` folder under `%LOCALAPPDATA%\s2x\data` after the launch (only the renamed `ui_scripts_off-*` folders)
 
 ## 0.5 Baseline pass

@@ -64,4 +64,4 @@ Bestiary Bounty uses the native five-species milestone flag; the UI counts one c
 
 The catalog retains the exact filters from `dwgamechallenges.csv`. Descriptions were checked against locally extracted `_events_z` and `_achievement_engine_z_utils` reporting functions: weapon/enemy classes, bit flags, map IDs and the five-species milestone. Extracted game assets are not distributed here. Synthetic C++ tests exercise every rule through the production achievement engine; the Lua suite checks menu data against extracted tables. Live specialist-event delivery and co-op gameplay still need confirmation.
 
-Revive, purchase and wave objectives, plus inconsistent retail predicates, are tracked in [CR issue #8](https://github.com/ChronoRixun/S2x/issues/8). No unfiltered wave, spending or special event has been added as a generic increment.
+Revive, purchase and wave objectives, plus inconsistent retail predicates, are tracked in [CR issue #8](https://github.com/ChronoRixun/S2x-CR/issues/8). No unfiltered wave, spending or special event has been added as a generic increment.

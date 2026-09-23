@@ -127,7 +127,7 @@ namespace updater
 			}
 			else
 			{
-				console::info("[Updater] Automatic updates are off in this fork; new builds are at https://github.com/ChronoRixun/S2x/releases\n");
+				console::info("[Updater] Automatic updates are off in this fork; new builds are at https://github.com/ChronoRixun/S2x-CR/releases\n");
 			}
 
 			if (binary_was_replaced)

@@ -12,7 +12,7 @@ S2x is a custom client project for Call of Duty®: WWII, focused on preserving a
 ## Get it
 
 1. Own **Call of Duty®: WWII** on Steam. S2x does not include game files.
-2. Download the latest zip from [Releases](https://github.com/ChronoRixun/S2x/releases).
+2. Download the latest zip from [Releases](https://github.com/ChronoRixun/S2x-CR/releases).
 3. Extract it into your game folder, next to `s2_mp64_ship.exe`.
 4. Start Steam, then run `s2x.exe`.
 
@@ -27,31 +27,31 @@ S2x is a custom client project for Call of Duty®: WWII, focused on preserving a
 
 - **CoD WWII Community** on Discord: <https://discord.gg/yMPWMTyPPZ>. Our servers, looking-for-game, and the place to report anything that's wrong with them.
 - **S2x** on Discord: <https://discord.gg/wdC8Jpc2cC>. The upstream project's server, run by Brentdevent.
-- Bugs and ideas for this fork go in [Issues](https://github.com/ChronoRixun/S2x/issues).
-- The [showcase](https://chronorixun.github.io/S2x/) is a screenshot tour of what the fork adds.
+- Bugs and ideas for this fork go in [Issues](https://github.com/ChronoRixun/S2x-CR/issues).
+- The [showcase](https://chronorixun.github.io/S2x-CR/) is a screenshot tour of what the fork adds.
 
 ## What this fork adds
 
 ### Dedicated servers
 
-- **Startup crash fixed.** Upstream dedicated servers died on roughly one launch in ten with `0xC0000409`. An Arxan repair guard that the client did not patch was restoring three regions the client relies on; it is now filtered like the others. ([#2](https://github.com/ChronoRixun/S2x/issues/2))
+- **Startup crash fixed.** Upstream dedicated servers died on roughly one launch in ten with `0xC0000409`. An Arxan repair guard that the client did not patch was restoring three regions the client relies on; it is now filtered like the others. ([#2](https://github.com/ChronoRixun/S2x-CR/issues/2))
 - **Settings that stick.** Score limits and other gameplay settings from `server.cfg` used to last one map, because the engine re-ran its 497 gameplay defaults every time the lobby came back. The defaults now run once at startup, ahead of the server config.
 - **Bots that fill the server.** `bot_fill 17` adds bots on every map start; they make room as people join. `bot_names` picks a name pool: `default`, `modern` (2016-2026 gamertags) or `nostalgia` (2005-2015 Xbox 360 era). Both are saved dvars.
-- **Gun Game bots keep their bodies.** Gun Game rebuilt bot outfits from profile data bots don't have, leaving them legless. A server-side script restores the generated uniform after each weapon change. ([#4](https://github.com/ChronoRixun/S2x/issues/4))
-- **Server scripting.** Scripts on the server can watch chat (`level waittill("say", player, message, team_chat)`), keep small text files, read a player's address and take a roster snapshot. See [tools/server-scripts](tools/server-scripts/README.md). ([#9](https://github.com/ChronoRixun/S2x/issues/9))
+- **Gun Game bots keep their bodies.** Gun Game rebuilt bot outfits from profile data bots don't have, leaving them legless. A server-side script restores the generated uniform after each weapon change. ([#4](https://github.com/ChronoRixun/S2x-CR/issues/4))
+- **Server scripting.** Scripts on the server can watch chat (`level waittill("say", player, message, team_chat)`), keep small text files, read a player's address and take a roster snapshot. See [tools/server-scripts](tools/server-scripts/README.md). ([#9](https://github.com/ChronoRixun/S2x-CR/issues/9))
 
 ### Progression
 
-- **Rank and prestige.** `setrank <level> [prestige]` and `setprestige <prestige>` in Multiplayer and Zombies, plus a Prestige and Rank chooser in the UNLOCKS tab. Past reward XP is rebaselined so the requested level is the level you get. ([#7](https://github.com/ChronoRixun/S2x/issues/7))
+- **Rank and prestige.** `setrank <level> [prestige]` and `setprestige <prestige>` in Multiplayer and Zombies, plus a Prestige and Rank chooser in the UNLOCKS tab. Past reward XP is rebaselined so the requested level is the level you get. ([#7](https://github.com/ChronoRixun/S2x-CR/issues/7))
 - **Zombies progression.** A saved toggle unlocks Groesten Haus; Tortured Path chapters, the DLC3 survival unlock, the Easter eggs and the red skull are recorded from the game's own reward events, including for remote players. `unlockzmeastereggs confirm` completes the main quest outright.
-- **Custom Match bots.** `bot_fill` works in offline Custom Matches too, and `spawnBot 2` adds more mid-match. ([#1](https://github.com/ChronoRixun/S2x/issues/1))
+- **Custom Match bots.** `bot_fill` works in offline Custom Matches too, and `spawnBot 2` adds more mid-match. ([#1](https://github.com/ChronoRixun/S2x-CR/issues/1))
 
 ### Headquarters economy
 
 Upstream stubs the Achievement Engine, so Orders, contracts, payroll, supply drops, the Quartermaster and Mail did nothing. This fork answers those requests from a local store (`players2/user/hq_economy.json`):
 
 - Retail-shaped Orders and contracts priced in Armory Credits, payroll, and supply drops that open with the full card flip. Every soldier level-up awards a Rare Supply Drop, as the end-of-match screen promises.
-- Duplicate cards convert to Armory Credits at the game's own pawn values, in Multiplayer and Zombies. ([#6](https://github.com/ChronoRixun/S2x/issues/6))
+- Duplicate cards convert to Armory Credits at the game's own pawn values, in Multiplayer and Zombies. ([#6](https://github.com/ChronoRixun/S2x-CR/issues/6))
 - Zombies has its own rotation: 20 daily and 7 weekly orders (six and three offered at a time) and eight timed contracts, tracked from the game's kill events. Rare Zombie Supply Drops reward consumables like Self-Revives and Elektromagnet alongside cosmetics.
 - `hqeconomy reload` reloads the store; deleting the file with every instance closed resets the economy and nothing else.
 
@@ -92,7 +92,7 @@ Everything on `integration` is built and exercised in play before a release: ded
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) first: it is short, and it is the standard every change here is held to. Security reports go through [SECURITY.md](SECURITY.md), not the issue tracker. Longer guides live in the [wiki](https://github.com/ChronoRixun/S2x/wiki).
+Read [CONTRIBUTING.md](CONTRIBUTING.md) first: it is short, and it is the standard every change here is held to. Security reports go through [SECURITY.md](SECURITY.md), not the issue tracker. Longer guides live in the [wiki](https://github.com/ChronoRixun/S2x-CR/wiki).
 
 ## Credits
 
