@@ -1,0 +1,121 @@
+{
+  "serverName": "^1CR's ^7Ground War TDM/KC w/ DLC",
+  "mode": "mp",
+  "rotation": [
+    {
+      "map": "mp_shipment_s2",
+      "gametype": "war"
+    },
+    {
+      "map": "mp_d_day",
+      "gametype": "conf"
+    },
+    {
+      "map": "mp_aachen_v2",
+      "gametype": "war"
+    },
+    {
+      "map": "mp_carentan_s2",
+      "gametype": "conf"
+    },
+    {
+      "map": "mp_carentan_s2_winter",
+      "gametype": "war"
+    },
+    {
+      "map": "mp_canon_farm",
+      "gametype": "conf"
+    },
+    {
+      "map": "mp_flak_tower",
+      "gametype": "war"
+    },
+    {
+      "map": "mp_forest_01",
+      "gametype": "conf"
+    },
+    {
+      "map": "mp_london",
+      "gametype": "war"
+    },
+    {
+      "map": "mp_france_village",
+      "gametype": "conf"
+    },
+    {
+      "map": "mp_battleship_2",
+      "gametype": "war"
+    },
+    {
+      "map": "mp_gibraltar_02",
+      "gametype": "conf"
+    },
+    {
+      "map": "mp_house",
+      "gametype": "war"
+    },
+    {
+      "map": "mp_paris_s2",
+      "gametype": "conf"
+    },
+    {
+      "map": "mp_prague",
+      "gametype": "war"
+    },
+    {
+      "map": "mp_wolfslair",
+      "gametype": "conf"
+    },
+    {
+      "map": "mp_dunkirk",
+      "gametype": "war"
+    },
+    {
+      "map": "mp_egypt_02",
+      "gametype": "conf"
+    },
+    {
+      "map": "mp_v2_rocket_02",
+      "gametype": "war"
+    },
+    {
+      "map": "mp_stalingrad",
+      "gametype": "conf"
+    },
+    {
+      "map": "mp_market_garden",
+      "gametype": "war"
+    },
+    {
+      "map": "mp_monte_cassino_v2",
+      "gametype": "conf"
+    },
+    {
+      "map": "mp_tank_graveyard_2",
+      "gametype": "war"
+    },
+    {
+      "map": "mp_airship",
+      "gametype": "conf"
+    },
+    {
+      "map": "mp_fuhrerbunker",
+      "gametype": "war"
+    }
+  ],
+  "scoreLimits": {
+    "war": 100,
+    "dom": 200,
+    "hp": 250,
+    "dm": 30,
+    "conf": 75,
+    "sd": 4,
+    "ctf": 3,
+    "gun": 18,
+    "ball": 28
+  },
+  "singleRoundDom": true,
+  "botFill": 18,
+  "botNames": "nostalgia",
+  "port": 27020
+}

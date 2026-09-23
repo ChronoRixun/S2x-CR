@@ -1,0 +1,37 @@
+{
+  "serverName": "^1CR's ^7Shipment 24/7",
+  "mode": "mp",
+  "rotation": [
+    {
+      "map": "mp_shipment_s2",
+      "gametype": "dom"
+    },
+    {
+      "map": "mp_shipment_s2",
+      "gametype": "hp"
+    },
+    {
+      "map": "mp_shipment_s2",
+      "gametype": "war"
+    },
+    {
+      "map": "mp_shipment_s2",
+      "gametype": "conf"
+    }
+  ],
+  "scoreLimits": {
+    "war": 100,
+    "dom": 200,
+    "hp": 250,
+    "dm": 30,
+    "conf": 75,
+    "sd": 4,
+    "ctf": 3,
+    "gun": 18,
+    "ball": 28
+  },
+  "singleRoundDom": true,
+  "botFill": 18,
+  "botNames": "nostalgia",
+  "port": 27016
+}

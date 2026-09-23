@@ -57,7 +57,7 @@ The packager prints every file it staged. Expect exactly this shape, and stop if
 | `s2x\ui_scripts\mp\find_match\*.lua` | 6 |
 | `s2x\ui_scripts\mp\patches\*.lua` (`__init__`, `cwl_currency`, `dedicated_gametype`, `dedicated_lobby`, `dedicated_members`, `dedicated_party`, `unlocks`) | 7 |
 | `s2x\scripts\mp\`: `s2x_gungame_bots.gsc`, `s2x_server_events.gsc` | 2 |
-| `s2x\tools\presets\*.json` (starter presets, since the multi-server launcher) | 4 |
+| `s2x\tools\presets\*.json` (starter presets, since the multi-server launcher) | 5 |
 | `s2x\tools\`: `S2xServerManager.exe`, `S2xServerManager.exe.config` (the Server Manager) | 2 |
 
 Install by copying the stage over the game folder:

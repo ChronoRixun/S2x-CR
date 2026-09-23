@@ -1,0 +1,65 @@
+{
+  "serverName": "^1CR's ^7Standard Maps Mix",
+  "mode": "mp",
+  "rotation": [
+    {
+      "map": "mp_shipment_s2",
+      "gametype": "war"
+    },
+    {
+      "map": "mp_d_day",
+      "gametype": "dom"
+    },
+    {
+      "map": "mp_aachen_v2",
+      "gametype": "hp"
+    },
+    {
+      "map": "mp_canon_farm",
+      "gametype": "conf"
+    },
+    {
+      "map": "mp_flak_tower",
+      "gametype": "war"
+    },
+    {
+      "map": "mp_forest_01",
+      "gametype": "dom"
+    },
+    {
+      "map": "mp_london",
+      "gametype": "hp"
+    },
+    {
+      "map": "mp_france_village",
+      "gametype": "conf"
+    },
+    {
+      "map": "mp_battleship_2",
+      "gametype": "war"
+    },
+    {
+      "map": "mp_gibraltar_02",
+      "gametype": "dom"
+    },
+    {
+      "map": "mp_house",
+      "gametype": "hp"
+    }
+  ],
+  "scoreLimits": {
+    "war": 100,
+    "dom": 200,
+    "hp": 250,
+    "dm": 30,
+    "conf": 75,
+    "sd": 4,
+    "ctf": 3,
+    "gun": 18,
+    "ball": 28
+  },
+  "singleRoundDom": true,
+  "botFill": 18,
+  "botNames": "nostalgia",
+  "port": 27019
+}
