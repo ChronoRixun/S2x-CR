@@ -620,6 +620,12 @@ namespace dedicated_party_client
 				// Restore the map/gametype carried by the go command at the last native
 				// boundary before client gameplay memory and UI state are selected.
 				update_hosted_dedicated_party_match(map_name, gametype, true);
+			}
+
+			// HandleGo returns before it preloads the accepted match, so the go flag is
+			// already clear by now; the hosted server's address identifies the match.
+			if (game::environment::is_multiplayer() && is_hosted_dedicated_party_address(target))
+			{
 				request_hosted_limits();
 			}
 
