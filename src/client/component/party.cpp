@@ -1089,6 +1089,19 @@ namespace party
 				info.set("party_gametype", party_connect_info.gametype);
 				info.set("party_match_sequence",
 					std::to_string(party_connect_info.match_sequence));
+
+				// The gametype script registers scr_<gametype>_{score,win,round}limit at
+				// map start (Gun Game computes its own). Hosted clients mirror them into
+				// their HUD, which otherwise reads a stock playlist recipe.
+				for (const auto* limit : {"scorelimit", "winlimit", "roundlimit"})
+				{
+					const auto name = "scr_" + party_connect_info.gametype + "_" + limit;
+					if (game::Dvar_FindMalleableVar(name.data()))
+					{
+						info.set(std::string{"s2x_"} + limit,
+							std::to_string(game::Dvar_GetInt(name.data())));
+					}
+				}
 			}
 
 			network::send(from, response_command, info.build(), '\n');
