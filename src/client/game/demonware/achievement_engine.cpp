@@ -488,6 +488,13 @@ namespace demonware::achievement_engine
 		loot_duplicate_credits = std::move(duplicate_credits);
 	}
 
+	std::uint32_t duplicate_credit(const std::uint32_t id)
+	{
+		std::lock_guard lock{catalog_mutex};
+		const auto value = loot_duplicate_credits.find(id);
+		return value == loot_duplicate_credits.end() ? 0 : value->second;
+	}
+
 	void set_zombies_loot_catalog(std::map<std::uint32_t, consumable_grant> consumables)
 	{
 		std::erase_if(consumables, [](const auto& entry)
