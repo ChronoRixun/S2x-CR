@@ -51,7 +51,7 @@ local rewards = {
 	[162] = { currencyID = 1, currencyAmount = 3000 },
 	[561] = { currencyID = 1, currencyAmount = 3000 },
 	[146] = { productID = "0x1", itemID = "0x1" },
-	[3048] = { productID = Engine.GetItemGUIDFromReference("lad_mp"), itemID = Engine.GetItemGUIDFromReference("lad_mp") },
+	[3048] = { productID = Engine.GetItemGUIDFromReference("lad_loot0_mp"), itemID = Engine.GetItemGUIDFromReference("lad_loot0_mp") },
 	[149] = { currencyID = 1, currencyAmount = 3000 },
 	[153] = { currencyID = 1, currencyAmount = 3000 },
 	[164] = { currencyID = 1, currencyAmount = 3000 },
