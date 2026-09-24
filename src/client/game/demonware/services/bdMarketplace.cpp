@@ -217,13 +217,10 @@ namespace demonware
 		hq_protocol::trace("marketplace_199", buffer->get_remaining());		guarded(server, this->task_id(), [&]
 		{
 			hq_protocol::trace("pawn_assumed_request", buffer->get_remaining());
-			// The client pawns three times on every launch, so this standing caveat about
-			// the handler - not a fault in this call - is a debug note, not a warning.
-			console::debug("[HQ marketplace] pawnItems uses provisional quantity reconciliation; currency conversion is unavailable\n");
 			std::string transaction{};
 			std::vector<hq_economy::item> items{};
 			const auto parsed = hq_marketplace::parse_pawn(buffer, transaction, items);
-			const auto error = !parsed ? BD_PARAM_PARSE_ERROR : hq_marketplace::pawn(transaction, items) ? BD_NO_ERROR : BD_HANDLE_TASK_FAILED;
+			const auto error = parsed ? hq_marketplace::pawn(transaction, items) : BD_PARAM_PARSE_ERROR;
 			server->create_reply(this->task_id(), error).send();
 		});
 	}

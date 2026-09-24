@@ -225,7 +225,8 @@ namespace demonware::hq_marketplace
 
 	bool parse_pawn(byte_buffer* buffer, std::string& transaction, std::vector<hq_economy::item>& items)
 	{
-		// IW7 candidate: context, ClientTx, count, (item ID, resulting quantity, collision).
+		// Context, ClientTx, count, then (item ID, copies to pawn, collision) as the duplicate
+		// pump builds them (276C20): the copies are the owned quantity - 1, and 0xFFFF is any collision.
 		std::uint32_t count{};
 		if (!context(buffer) || !buffer->read_string(&transaction) || transaction.empty() || !hq_economy::valid_receipt_key("pawn:" + transaction) ||
 			!buffer->read_uint32(&count) || count > 100) return false;
@@ -234,7 +235,7 @@ namespace demonware::hq_marketplace
 		for (std::uint32_t i = 0; i < count; ++i)
 		{
 			hq_economy::item entry{};
-			if (!buffer->read_uint32(&entry.guid) || !entry.guid || !buffer->read_uint32(&entry.quantity) ||
+			if (!buffer->read_uint32(&entry.guid) || !entry.guid || !buffer->read_uint32(&entry.quantity) || !entry.quantity ||
 				!buffer->read_uint16(&entry.collision) || !keys.emplace(entry.guid, entry.collision).second) return false;
 			parsed.push_back(entry);
 		}
@@ -258,29 +259,47 @@ namespace demonware::hq_marketplace
 		});
 	}
 
-	bool pawn(const std::string& transaction, const std::vector<hq_economy::item>& items)
+	unsigned pawn(const std::string& transaction, const std::vector<hq_economy::item>& items)
 	{
-		if (transaction.empty() || !hq_economy::valid_receipt_key("pawn:" + transaction)) return false;
-		// Quantity reconciliation only. Never invent a currency payout without pawn values.
+		if (transaction.empty() || !hq_economy::valid_receipt_key("pawn:" + transaction)) return BD_HANDLE_TASK_FAILED;
 		std::string fingerprint{};
 		for (const auto& item : items) fingerprint += std::to_string(item.guid) + ":" +
 			std::to_string(item.collision) + ":" + std::to_string(item.quantity) + ";";
-		if (fingerprint.size() > 1024) return false;
-		return hq_economy::transact([&](auto& data)
+		if (fingerprint.size() > 1024) return BD_HANDLE_TASK_FAILED;
+		unsigned error = BD_HANDLE_TASK_FAILED;
+		const auto ok = hq_economy::transact([&](auto& data)
 		{
 			const auto key = "pawn:" + transaction;
 			const auto prior = data.transactions.find(key);
 			if (prior != data.transactions.end()) return prior->second == fingerprint;
+			const auto now = static_cast<std::uint32_t>(time(nullptr));
+			// A record that cannot be paid is skipped, not the request refused: the queue (276140)
+			// drops every entry of the request on success and on 0x1F6C alike, so refusing would
+			// strand the payable ones behind it on every HQ entry.
+			std::uint64_t credits{};
 			for (const auto& item : items)
 			{
-				const auto found = data.inventory.find({item.guid, item.collision});
-				if (found == data.inventory.end() || item.quantity > found->second.quantity ||
-					(found->second.expires && found->second.expires <= time(nullptr))) return false;
-				found->second.quantity = item.quantity;
-				found->second.modified = static_cast<std::uint32_t>(time(nullptr));
+				// The copies the client counted are the collision-0 row, the only one synced
+				// into its cache, so "any collision" (0xFFFF) takes them from there.
+				const auto found = data.inventory.find({item.guid, item.collision == 0xFFFF ? std::uint16_t{0} : item.collision});
+				const auto credit = achievement_engine::duplicate_credit(item.guid);
+				if (!credit || found == data.inventory.end() || !hq_economy::live(found->second, now) ||
+					found->second.quantity <= item.quantity) continue;
+				found->second.quantity -= item.quantity;
+				found->second.modified = now;
+				credits += std::uint64_t{item.quantity} * credit;
+			}
+			// Nothing payable: 0x1F6C is the one error the queue drops instead of retrying. It
+			// also answers a replay under a new transaction, once the copies are gone.
+			if (!credits || credits > UINT32_MAX ||
+				!hq_economy::grant(data, {"GRANT_CURRENCY", hq_economy::armory_credits, static_cast<std::uint32_t>(credits)}))
+			{
+				error = BD_MARKETPLACE_MISCONFIGURED;
+				return false;
 			}
 			data.transactions.emplace(key, fingerprint);
 			return true;
 		});
+		return ok ? BD_NO_ERROR : error;
 	}
 }
