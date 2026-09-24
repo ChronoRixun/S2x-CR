@@ -8,6 +8,7 @@
 #include "component/console/console.hpp"
 #include <charconv>
 #include "game/demonware/hq_marketplace.hpp"
+#include "game/demonware/hq_vendor.hpp"
 #include "game/demonware/hq_contract_catalog.hpp"
 #include "game/demonware/hq_contract_clock.hpp"
 #include "game/demonware/hq_zombies_catalog.hpp"
@@ -120,8 +121,13 @@ namespace hq_economy
 				const auto* items = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/itemscollections.csv", false).stringTable;
 				if (!collections || !items) return;
 				std::vector<std::uint32_t> pool;
+				std::map<std::string, std::uint32_t> rewards;
 				for (int row = 0; row < items->rowCount; ++row)
 				{
+					// The redeem (276780) does not check collections.csv, so map every row.
+					std::uint32_t collection{}, reward{};
+					if (parse_number(cell(items, row, 0), collection) && parse_number(cell(items, row, 1), reward))
+						rewards[demonware::hq_vendor::rule_id("Collection_" + std::to_string(collection))] = reward;
 					bool known{};
 					for (int c = 0; c < collections->rowCount; ++c)
 						known |= std::string_view{cell(items, row, 0)} == cell(collections, c, 0);
@@ -132,6 +138,10 @@ namespace hq_economy
 						std::uint32_t id{};
 						if (parse_number(cell(items, row, static_cast<int>(col)), id)) pool.push_back(id);
 					}
+				}
+				{
+					std::lock_guard lock{demonware::hq_vendor::collections_mutex};
+					demonware::hq_vendor::collection_rewards = std::move(rewards);
 				}
 				std::map<std::uint32_t, unsigned> rarities;
 				std::map<std::uint32_t, std::string> types;
