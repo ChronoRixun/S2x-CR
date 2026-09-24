@@ -370,10 +370,11 @@ namespace demonware
 			}
 			++hq_vendor::requests;
 			auto result = std::make_unique<hq_vendor::result>();
-			if (!hq_vendor::reply_body(request, result->body))
+			std::uint32_t error{};
+			if (!hq_vendor::reply_body(request, result->body, error))
 			{
 				++hq_vendor::rejected;
-				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send_struct();
+				server->create_reply(this->task_id(), error).send_struct();
 				return;
 			}
 			byte_buffer encoded;

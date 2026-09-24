@@ -37,6 +37,7 @@ namespace demonware::achievement_engine
 	// Non-consumable duplicates convert to Armory Credits when the ID has a pawn
 	// value; the rest roll as plain grants.
 	void set_loot_catalog(std::vector<std::uint32_t> items, std::map<std::uint32_t, std::uint32_t> duplicate_credits = {});
+	std::uint32_t duplicate_credit(std::uint32_t id);
 	// A Zombies consumable card stacks `units` of `stock`: its own ID, unless its
 	// family keeps stock on one unrated row (Self-Revives), which the Consumables
 	// screen counts. The reveal still shows the rolled card.
