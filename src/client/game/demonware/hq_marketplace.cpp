@@ -302,4 +302,53 @@ namespace demonware::hq_marketplace
 		});
 		return ok ? BD_NO_ERROR : error;
 	}
+
+	bool parse_consume(byte_buffer* buffer, std::string& transaction, std::vector<hq_economy::item>& items)
+	{
+		// bdMarketplace::consumeInventoryItems as the ConsumeItems builder (278480) calls it: context,
+		// ClientTx, then the item IDs and the quantities as two counted uint32 arrays of at most 10,
+		// all its request holds.
+		std::uint32_t count{}, quantities{};
+		if (!context(buffer) || !buffer->read_string(&transaction) || transaction.empty() || !hq_economy::valid_receipt_key("consume:" + transaction) ||
+			!buffer->read_uint32(&count) || !count || count > 10) return false;
+		std::vector<hq_economy::item> parsed(count);
+		for (auto& entry : parsed) if (!buffer->read_uint32(&entry.guid) || !entry.guid) return false;
+		if (!buffer->read_uint32(&quantities) || quantities != count) return false;
+		for (auto& entry : parsed) if (!buffer->read_uint32(&entry.quantity) || !entry.quantity) return false;
+		if (!hq_protocol::padding(buffer)) return false;
+		items = std::move(parsed);
+		return true;
+	}
+
+	unsigned consume(const std::string& transaction, const std::vector<hq_economy::item>& items)
+	{
+		std::string fingerprint{};
+		for (const auto& item : items) fingerprint += std::to_string(item.guid) + ":" + std::to_string(item.quantity) + ";";
+		unsigned error = BD_MARKETPLACE_STORAGE_ERROR;
+		const auto ok = hq_economy::transact([&](auto& data)
+		{
+			const auto key = "consume:" + transaction;
+			if (const auto prior = data.transactions.find(key); prior != data.transactions.end())
+			{
+				error = BD_MARKETPLACE_RESOURCE_CONFLICT;
+				return prior->second == fingerprint;
+			}
+			const auto now = static_cast<std::uint32_t>(time(nullptr));
+			for (const auto& item : items)
+			{
+				// Collision 0 is the row the native cache counts (see pawn).
+				const auto found = data.inventory.find({item.guid, 0});
+				if (found == data.inventory.end() || !hq_economy::live(found->second, now) || found->second.quantity < item.quantity)
+				{
+					error = BD_MARKETPLACE_INSUFFICIENT_ITEM_QUANTITY;
+					return false;
+				}
+				found->second.quantity -= item.quantity;
+				found->second.modified = now;
+			}
+			data.transactions.emplace(key, fingerprint);
+			return true;
+		});
+		return ok ? BD_NO_ERROR : error;
+	}
 }
