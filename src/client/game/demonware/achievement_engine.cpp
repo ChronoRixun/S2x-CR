@@ -625,6 +625,23 @@ namespace demonware::achievement_engine
 				changed = true;
 				console::info("[HQ AE] rank up: granted a Rare %sSupply Drop\n", zombies ? "Zombie " : "");
 			}
+			// A Multiplayer prestige is vendor {2 = level}. Prestiging sends one for every level
+			// up to the new one unless the new level's player_prestige_N record is fulfilled, and
+			// none is here, so a permanent receipt per level pays that level's helmet
+			// (hat268..hat277) and calling card (playercard_prestige_prestige_level_N) once.
+			if (event_type == 11)
+				for (const auto& [selector, level] : parameters)
+				{
+					if (selector != 2 || level < 1 || level > 10) continue;
+					const auto receipt = "prestige:mp:" + std::to_string(level);
+					if (data.transactions.contains(receipt)) continue;
+					const auto offset = static_cast<std::uint32_t>(level);
+					if (!hq_economy::grant(data, {"GRANT_PRODUCT", 0x663210B + offset, 1}) ||
+						!hq_economy::grant(data, {"GRANT_PRODUCT", 0x28000E2 + offset, 1})) return false;
+					data.transactions[receipt] = std::to_string(event.timestamp);
+					changed = true;
+					console::info("[HQ AE] prestige %u: granted its helmet and calling card\n", offset);
+				}
 			if (payroll)
 			{
 				auto& entry = data.achievements["payroll_officer"];
