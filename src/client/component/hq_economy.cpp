@@ -135,8 +135,6 @@ namespace hq_economy
 				}
 				std::map<std::uint32_t, unsigned> rarities;
 				std::map<std::uint32_t, std::string> types;
-				std::map<std::uint32_t, std::uint32_t> duplicate_credits;
-				const auto* pawn = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/pawnValues.csv", false).stringTable;
 				for (const auto id : pool)
 				{
 					const auto rarity = utils::hook::invoke<int>(0x652330_g, id);
@@ -144,25 +142,38 @@ namespace hq_economy
 					// 0x652330 calls this same GUID-column reader for rarity (29).
 					const auto* type = utils::hook::invoke<const char*>(0xD1BA0_g, id, 0);
 					if (type) types[id] = type;
-					// Inventory_GetItemPawnValue (0x11E9E0) calls 0x274CF0. It checks
-					// StatsTable pawnability (30), category/subtype, then pawnValues.csv
-					// column rarity + 2. The packed return is currency low / amount high.
-					// Resolve on the game thread; never call asset code from DW dispatch.
-					if (pawn && pawn->values && pawn->rowCount > 0 && pawn->columnCount > 2)
+				}
+				demonware::hq_marketplace::set_rarities(rarities);
+				demonware::hq_marketplace::set_item_types(types);
+				// Duplicates reach the store from more than the pool (rewards, grants, older
+				// drops), so value every item the client would trade in: 0x276330 queues rows
+				// that are not a stock row (24) and are pawnable (30). The tables do not change
+				// while the game runs, so the few thousand lookups are done once.
+				static std::map<std::uint32_t, std::uint32_t> duplicate_credits;
+				const auto* pawn = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/pawnValues.csv", false).stringTable;
+				if (duplicate_credits.empty() && stats && pawn && pawn->values && pawn->rowCount > 0 && pawn->columnCount > 2)
+				{
+					for (int row = 0; row < stats->rowCount; ++row)
 					{
+						std::uint32_t id{};
+						if (std::atoi(cell(stats, row, 24)) >= 1 || std::atoi(cell(stats, row, 30)) < 1 ||
+							!parse_number(cell(stats, row, 18), id)) continue;
+						// Inventory_GetItemPawnValue (0x11E9E0) calls 0x274CF0. It checks
+						// StatsTable pawnability (30), category/subtype, then pawnValues.csv
+						// column rarity + 2. The packed return is currency low / amount high.
+						// Resolve on the game thread; never call asset code from DW dispatch.
 						const auto value = utils::hook::invoke<std::uint64_t>(0x274CF0_g, id);
 						if (static_cast<std::uint32_t>(value) == demonware::hq_economy::armory_credits)
 							duplicate_credits[id] = static_cast<std::uint32_t>(value >> 32);
 					}
 				}
-				demonware::hq_marketplace::set_rarities(rarities);
-				demonware::hq_marketplace::set_item_types(types);
-				if (duplicate_credits.size() < pool.size())
+				const auto unvalued = std::count_if(pool.begin(), pool.end(), [](const auto id) { return !duplicate_credits.contains(id); });
+				if (unvalued)
 				{
 					console::warn("[HQ economy] %zu of %zu loot items have no Armory Credit pawn value; their duplicates grant nothing extra\n",
-						pool.size() - duplicate_credits.size(), pool.size());
+						static_cast<std::size_t>(unvalued), pool.size());
 				}
-				demonware::achievement_engine::set_loot_catalog(std::move(pool), std::move(duplicate_credits));
+				demonware::achievement_engine::set_loot_catalog(std::move(pool), duplicate_credits);
 			}
 			catch (const std::exception& error)
 			{
