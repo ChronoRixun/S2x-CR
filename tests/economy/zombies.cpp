@@ -266,7 +266,7 @@ void duplicate_drop_checks()
 				// unowned, already owned, zero quantity, expired rental
 				seed(drop, ownership == 2 ? 0 : ownership == 0 ? 0 : 1,
 					ownership == 3 ? static_cast<unsigned>(time(nullptr) - 1) : 0, 100);
-				achievement_engine::set_loot_catalog({cosmetic}, {{cosmetic, price}});
+				achievement_engine::set_loot_catalog({cosmetic}, {{cosmetic, price}}, {{cosmetic, 1}});
 				achievement_engine::set_zombies_loot_catalog({{consumable, {consumable, 1}}});
 				const auto result = open(name, "duplicate-roll");
 				require(ok(result), "MP common/rare and Zombies drop succeeds");
@@ -303,7 +303,7 @@ void duplicate_drop_checks()
 	// An owned item without a pawn value still opens the drop: the duplicate card is
 	// shown, nothing is credited and nothing is stacked. An unowned one is granted.
 	seed(6, 1, 0, 100);
-	achievement_engine::set_loot_catalog({cosmetic});
+	achievement_engine::set_loot_catalog({cosmetic}, {}, {{cosmetic, 1}});
 	achievement_engine::set_zombies_loot_catalog({{consumable, {consumable, 1}}});
 	{
 		const auto result = open("sd_zombie_rare", "missing-value");
@@ -348,7 +348,7 @@ void duplicate_drop_checks()
 			"the retry reports the stock row and grants nothing again");
 	}
 	achievement_engine::set_zombies_loot_catalog({{consumable, {consumable, 1}}});
-	achievement_engine::set_loot_catalog({cosmetic}, {{cosmetic, 25}});
+	achievement_engine::set_loot_catalog({cosmetic}, {{cosmetic, 25}}, {{cosmetic, 1}});
 	auto revision = hq_economy::snapshot().revision;
 
 	seed(6, 1, 0, UINT32_MAX - 1);
@@ -381,6 +381,61 @@ void duplicate_drop_checks()
 		"old receipt replay never invents retroactive duplicate credits");
 	require(hq_economy::transact([&](auto& next) { next = saved; return true; }), "restore prior economy fixture");
 	std::cout << "PASS: MP/ZM duplicate payouts, same-drop repeats, zero/expired ownership, consumable stacking, native currency fields, persisted replay, missing metadata, overflow and save rollback\n";
+}
+
+void tier_drop_checks()
+{
+	// One synthetic item per tier, Common to Heroic. Without pawn values a repeat only shows.
+	constexpr std::uint32_t items[]{0x2000010, 0x2000011, 0x2000012, 0x2000013, 0x2000014};
+	const auto saved = hq_economy::snapshot();
+	const auto seed = [](unsigned drop, unsigned count) {
+		require(hq_economy::transact([&](auto& next) {
+			next.inventory.clear(); next.currencies.clear();
+			std::erase_if(next.transactions, [](const auto& pair) { return !pair.first.starts_with("migration:"); });
+			return hq_economy::grant(next, {"GRANT_PRODUCT", drop, count});
+		}), "tier fixture seeded");
+	};
+	const auto open = [](const char* drop, const std::string& tx) {
+		return request(std::string{"{\"Action\":\"open_supply_drop\",\"SupplyDropID\":\""} + drop + "\",\"ClientTx\":\"" + tx + "\"}");
+	};
+	std::map<std::uint32_t, unsigned> tier;
+	for (unsigned i = 0; i < 5; ++i) tier[items[i]] = i;
+	achievement_engine::set_loot_catalog({std::begin(items), std::end(items)}, {}, tier);
+	achievement_engine::set_zombies_loot_catalog({{0x4A00003, {0x4A00003, 1}}});
+	// Weights 45/30/15/8/2, and 0/60/25/12/3 for a Rare drop's first card. Each order
+	// check below is several standard deviations wide at 500 drops.
+	unsigned first[5]{}, rest[5]{};
+	seed(2, 500);
+	for (unsigned i = 0; i < 500; ++i)
+	{
+		const auto result = open("sd_mp_rare", "tier-" + std::to_string(i));
+		require(ok(result) && result["GrantedItems"].Size() == 3, "tiered Rare drop opens three cards");
+		for (unsigned card = 0; card < 3; ++card) ++(card ? rest : first)[tier.at(result["GrantedItems"][card]["id"].GetUint())];
+	}
+	require(!first[0] && first[1] > first[2] && first[2] > first[3] && first[3] > first[4] && first[4],
+		"a Rare drop's first card is Rare or better, Heroic included");
+	require(rest[0] > rest[1] && rest[1] > rest[2] && rest[2] > rest[3] && rest[3] > rest[4] && rest[4],
+		"other cards follow the Common-heavy weights");
+	// Empty tiers re-roll among the rest: with only Common and Heroic items, the floored
+	// card is always Heroic, and the Zombies reveal keeps its two-plus-three shape.
+	achievement_engine::set_loot_catalog({items[0], items[4]}, {}, tier);
+	seed(6, 20);
+	for (unsigned i = 0; i < 20; ++i)
+	{
+		const auto result = open("sd_zombie_rare", "sparse-" + std::to_string(i));
+		require(ok(result) && result["GrantedItems"].Size() == 5 && result["GrantedItems"][0]["id"].GetUint() == items[4] &&
+			result["GrantedItems"][4]["id"].GetUint() == 0x4A00003u, "empty tiers re-roll into the Heroic floor card");
+	}
+	// Nothing Rare or better (an unrated item counts as Common): the floor cannot hold,
+	// so the Rare drop is refused and kept, while a common drop still opens.
+	achievement_engine::set_loot_catalog({items[0], items[4]}, {}, {{items[0], 0}});
+	seed(2, 1);
+	require(!ok(open("sd_mp_rare", "no-rare")) && hq_economy::snapshot().inventory.at({2, 0}).quantity == 1,
+		"Rare drop refused and kept without a Rare-or-better item");
+	seed(1, 1);
+	require(ok(open("sd_mp", "common-only")) && !hq_economy::snapshot().inventory.at({1, 0}).quantity, "common drop opens from Common items");
+	require(hq_economy::transact([&](auto& next) { next = saved; return true; }), "restore prior economy fixture");
+	std::cout << "PASS: tier-then-item drops, Rare-or-better first card incl. Heroic, empty-tier re-roll, refused floor keeps the drop\n";
 }
 
 int main(int argc, char** argv)
@@ -505,14 +560,14 @@ int main(int argc, char** argv)
 
 		// The Zombies reveal needs both pools: two regular cards then three
 		// consumables. Missing either pool must leave the drop intact.
-		achievement_engine::set_loot_catalog({0x20000D}, {{0x20000D, 25}});
+		achievement_engine::set_loot_catalog({0x20000D}, {{0x20000D, 25}}, {{0x20000D, 1}});
 		require(!ok(request(R"({"Action":"open_supply_drop","SupplyDropID":"sd_zombie_rare","ClientTx":"drop"})")), "missing Zombies pool fails closed");
 		require(hq_economy::snapshot().inventory.at({6,0}).quantity == 1, "failed opening retains drop");
 		achievement_engine::set_zombies_loot_catalog({{0x4A00003, {0x4A00003, 1}}});
 		achievement_engine::set_loot_catalog({});
 		require(!ok(request(R"({"Action":"open_supply_drop","SupplyDropID":"sd_zombie_rare","ClientTx":"drop"})")), "missing regular-card pool fails closed");
 		require(hq_economy::snapshot().inventory.at({6,0}).quantity == 1, "either missing pool retains drop");
-		achievement_engine::set_loot_catalog({0x20000D}, {{0x20000D, 25}});
+		achievement_engine::set_loot_catalog({0x20000D}, {{0x20000D, 25}}, {{0x20000D, 1}});
 		auto opened = request(R"({"Action":"open_supply_drop","SupplyDropID":"sd_zombie_rare","ClientTx":"drop"})");
 		require(ok(opened) && opened["GrantedItems"].Size() == 5, "ZM drop returns five reveal records");
 		for (unsigned i = 0; i < 5; ++i)
@@ -671,6 +726,7 @@ int main(int argc, char** argv)
 
 		expanded_catalog_checks(timestamp);
 		duplicate_drop_checks();
+		tier_drop_checks();
 		achievement_engine::set_catalog({mp});
 		auto mp_offers = request(R"({"Action":"get_scheduled_user_achievements"})");
 		for (const auto& entry : mp_offers["Achievements"].GetArray()) require(entry["kind"].GetInt() < 8, "MP catalog excludes persisted ZM orders");

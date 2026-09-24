@@ -143,6 +143,16 @@ namespace hq_economy
 					std::lock_guard lock{demonware::hq_vendor::collections_mutex};
 					demonware::hq_vendor::collection_rewards = std::move(rewards);
 				}
+				// Retail drops also held Epic and Heroic weapon variants (29 = 3 or 4): rows with
+				// a base weapon (28) that the Armory shows (22), except collection rewards (47).
+				for (int row = 0; stats && row < stats->rowCount; ++row)
+				{
+					std::uint32_t id{};
+					const std::string_view rarity{cell(stats, row, 29)};
+					if (*cell(stats, row, 28) && std::string_view{cell(stats, row, 22)} == "1" &&
+						std::string_view{cell(stats, row, 47)} != "1" && (rarity == "3" || rarity == "4") &&
+						parse_number(cell(stats, row, 18), id)) pool.push_back(id);
+				}
 				std::map<std::uint32_t, unsigned> rarities;
 				std::map<std::uint32_t, std::string> types;
 				for (const auto id : pool)
@@ -183,7 +193,7 @@ namespace hq_economy
 					console::warn("[HQ economy] %zu of %zu loot items have no Armory Credit pawn value; their duplicates grant nothing extra\n",
 						static_cast<std::size_t>(unvalued), pool.size());
 				}
-				demonware::achievement_engine::set_loot_catalog(std::move(pool), duplicate_credits);
+				demonware::achievement_engine::set_loot_catalog(std::move(pool), duplicate_credits, rarities);
 			}
 			catch (const std::exception& error)
 			{

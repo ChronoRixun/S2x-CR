@@ -19,7 +19,7 @@ These checks do not run the game's native hooks, vendor menus or a live co-op se
 Use the freshly built `build/bin/x64/Release/s2x.exe` with the normal game directory as its working directory (or copy it into that directory). Launch with `-zombies -noupdate -demonware_debug`. Keep the current economy profile: currency/inventory and mail receipts are intentionally shared with MP; offer kinds and bonuses are separate.
 
 1. In the Zombies lobby, wait about five seconds. Open Orders through the usual route. Expect six daily and three weekly offers. Accept an order and check it appears in active Orders.
-2. Open Quartermaster through Supplies. Check that it opens and displays owned drops/prices. If a drop is available, open it and verify consumables arrive. The native two-stage Zombies reveal receives two regular collection items followed by three consumables. Rolls are uniform local policy, not retail odds.
+2. Open Quartermaster through Supplies. Check that it opens and displays owned drops/prices. If a drop is available, open it and verify consumables arrive. The native two-stage Zombies reveal receives two regular items (collection items or weapon variants) followed by three consumables. The rarity tier weights are local policy, not retail odds.
 3. Open Mail and claim any available welcome voucher/payroll. A voucher already redeemed in MP must not pay a second time.
 4. Play and meet the accepted order condition, return, claim, then relaunch and verify persistence. Test remote-client progress separately in co-op; both sides need this build for the Zombies relay tag.
 
