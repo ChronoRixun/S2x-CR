@@ -320,6 +320,21 @@ namespace demonware::hq_economy
 		return !key.empty() && key.size() <= identifier_limit && key.find('\0') == std::string_view::npos;
 	}
 
+	void keep_newest_receipts(state& data, const std::string_view prefix, const std::size_t limit)
+	{
+		std::vector<std::pair<std::uint64_t, std::string>> receipts;
+		for (const auto& [id, value] : data.transactions)
+		{
+			if (!id.starts_with(prefix)) continue;
+			std::uint64_t sequence{};
+			if (value.starts_with("sequence:")) std::from_chars(value.data() + 9, value.data() + value.size(), sequence);
+			receipts.emplace_back(sequence, id);
+		}
+		if (receipts.size() <= limit) return;
+		std::sort(receipts.begin(), receipts.end());
+		for (std::size_t i = 0; i < receipts.size() - limit; ++i) data.transactions.erase(receipts[i].second);
+	}
+
 	bool migrate_payroll(state& data)
 	{
 		// v1 parked the payroll balance in currency 7 (Social Score). A new stamp lets the

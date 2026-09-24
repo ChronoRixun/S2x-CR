@@ -54,14 +54,20 @@ namespace demonware::hq_item_data
 		return hq_economy::transact([&](hq_economy::state& data)
 		{
 			const auto key = "item-data:" + transaction;
-			if (const auto it = data.transactions.find(key); it != data.transactions.end()) return it->second == fingerprint;
+			// Receipts written before the bound hold the bare fingerprint.
+			if (const auto it = data.transactions.find(key); it != data.transactions.end())
+				return it->second == fingerprint || (it->second.starts_with("sequence:") && it->second.ends_with(":" + fingerprint));
 			for (const auto& entry : updates)
 			{
 				const auto it = data.inventory.find({entry.guid, entry.collision});
 				if (it == data.inventory.end()) return false;
 				it->second.metadata = entry.bytes;
 			}
-			data.transactions[key] = fingerprint;
+			// transact() saves each write as one new revision, which orders these receipts.
+			data.transactions[key] = "sequence:" + std::to_string(data.revision + 1) + ":" + fingerprint;
+			// Every request has a fresh transaction id and a replay follows within minutes:
+			// 256 is days of writes and leaves 7,696 permanent receipts beside 2,048 events.
+			hq_economy::keep_newest_receipts(data, "item-data:", 256);
 			return true;
 		});
 	}
