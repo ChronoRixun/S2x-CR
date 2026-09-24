@@ -61,7 +61,7 @@ Upstream stubs the Achievement Engine, so Orders, contracts, payroll, supply dro
 
 ### Modding
 
-Loose GSC and UI scripts are upstream's: the client loads `scripts\` (with its per-map and per-gametype folders) and `ui_scripts\` from `%LOCALAPPDATA%\s2x\data\` and `<game folder>\s2x\`, and loose UI scripts add to the packaged ones rather than replacing them.
+Loose GSC and UI scripts are upstream's: the client loads `scripts\` (with its per-map and per-gametype folders) and `ui_scripts\` from `%LOCALAPPDATA%\s2x\data\` and `<game folder>\s2x\`, and loose UI scripts add to the packaged ones rather than replacing them. Put your own files in `<game folder>\s2x\`, which no updater writes to: since [3163800](https://github.com/Brentdevent/S2x/commit/31638003e9ee2648cc415f55e18a6898233c6636), upstream's updater deletes every file under `%LOCALAPPDATA%\s2x\data\` that is not in its update manifest each time it runs. This fork's updater runs only with `-update` and deletes nothing, but launching upstream's client on the same PC still clears that folder.
 
 - **Ready to offer:** string tables from the same folders, at their asset path (`mp\botDivisionTable.csv` replaces `mp/botDivisionTable.csv`). `dumpstringtable <name>` exports a loaded table to `s2x\dump\`, `reloadstringtables` drops the cache, and `listassetpool 59 <filter>` lists what is loaded. Loose tables follow RFC 4180 quoting and are capped at 8 MiB, 65,535 rows and 1,024 columns; anything outside that is reported and the packaged table is used.
 
