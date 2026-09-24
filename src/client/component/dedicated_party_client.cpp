@@ -52,9 +52,15 @@ namespace dedicated_party_client
 			std::string map_name{};
 			std::string gametype{};
 			std::string sync_challenge{};
+			std::string limits_challenge{};
+			unsigned limits_generation{};
 			game::PartyData* game_lobby{};
 			int max_players{};
+			int score_limit{};
+			int win_limit{};
+			int round_limit{};
 			bool sync_after_next_go{};
+			bool limits_known{};
 		};
 
 		hosted_party_join_state_t hosted_party_join_state{};
@@ -400,6 +406,123 @@ namespace dedicated_party_client
 				hosted_dedicated_party_state.sync_challenge);
 		}
 
+		// A public party makes every client load a stock playlist recipe and read its
+		// match limits from there (MatchRules.IsUsingMatchRulesData), or from its own
+		// scr_<gametype>_* dvars when no recipe is in use. A dedicated host publishes
+		// neither, so its clients showed the recipe's stock numbers (75 in Gun Game).
+		// The host answers s2x_getInfo with the limits its gametype script registered;
+		// mirror them into the local dvars and switch the recipe off, as the dedicated
+		// server already does for its own scripts.
+		constexpr auto limits_query_attempts = 30;
+
+		void set_client_limit_dvar(const std::string& name, const int value)
+		{
+			if (auto* dvar = game::Dvar_FindMalleableVar(name.data()))
+			{
+				game::Dvar_SetInt(dvar, value);
+				return;
+			}
+
+			game::Dvar_RegisterInt(name.data(), value, std::numeric_limits<int>::min(),
+				std::numeric_limits<int>::max(), game::DVAR_FLAG_NONE);
+		}
+
+		void disable_match_rules_recipe()
+		{
+			// The recipe slot MatchRules.IsUsingMatchRulesData reads: the stock setter
+			// only writes the private-match slot, which a public party never uses.
+			const auto lobby_ref = game::Lobby_GetLocalClientData(0);
+			const auto party = reinterpret_cast<std::uintptr_t>(
+				game::Lobby_GetPartyDataFromLocalClient(lobby_ref));
+			if (!party)
+			{
+				return;
+			}
+
+			const auto session = utils::hook::invoke<std::uintptr_t>(0x47D290_g, party);
+			const auto controller = utils::hook::invoke<unsigned int>(0x470D50_g, session);
+			const auto recipe = utils::hook::invoke<std::uintptr_t>(0x924650_g, controller);
+			if (recipe)
+			{
+				*reinterpret_cast<int*>(recipe + 8) = 0;
+			}
+		}
+
+		void reapply_hosted_limits()
+		{
+			const auto& state = hosted_dedicated_party_state;
+			set_client_limit_dvar("scr_" + state.gametype + "_scorelimit", state.score_limit);
+			set_client_limit_dvar("scr_" + state.gametype + "_winlimit", state.win_limit);
+			set_client_limit_dvar("scr_" + state.gametype + "_roundlimit", state.round_limit);
+			disable_match_rules_recipe();
+		}
+
+		void apply_hosted_limits(const int score_limit, const int win_limit, const int round_limit)
+		{
+			auto& state = hosted_dedicated_party_state;
+			state.score_limit = score_limit;
+			state.win_limit = win_limit;
+			state.round_limit = round_limit;
+			state.limits_known = true;
+			reapply_hosted_limits();
+			console::info("Hosted dedicated lobby: %s limits %d/%d/%d.\n",
+				state.gametype.data(), score_limit, win_limit, round_limit);
+		}
+
+		void request_hosted_limits()
+		{
+			auto& state = hosted_dedicated_party_state;
+			state.limits_known = false;
+			state.limits_challenge = utils::cryptography::random::get_challenge();
+			const auto generation = ++state.limits_generation;
+
+			// The values are final once the host's map has loaded; poll until then.
+			scheduler::schedule([generation, attempts = 0]() mutable
+			{
+				auto& current = hosted_dedicated_party_state;
+				if (current.limits_generation != generation || current.limits_challenge.empty()
+					|| current.session_id.empty() || ++attempts > limits_query_attempts)
+				{
+					return scheduler::cond_end;
+				}
+
+				network::send(current.target, "s2x_getInfo", current.limits_challenge);
+				return scheduler::cond_continue;
+			}, scheduler::pipeline::main, 2s);
+		}
+
+		bool try_handle_limits_response(const utils::info_string& info, const std::string& challenge)
+		{
+			auto& state = hosted_dedicated_party_state;
+			if (state.limits_challenge.empty() || challenge != state.limits_challenge)
+			{
+				return false;
+			}
+
+			// Not this match yet: the host is between maps or still loading. Keep polling.
+			if (info.get("sv_running") != "1" || info.get("session_id") != state.session_id
+				|| utils::string::to_lower(info.get("gametype")) != utils::string::to_lower(state.gametype))
+			{
+				return true;
+			}
+
+			int score_limit{};
+			int win_limit{};
+			int round_limit{};
+			const auto known = parse_integer(info.get("s2x_scorelimit"), 0, 1000000, score_limit)
+				&& parse_integer(info.get("s2x_winlimit"), 0, 1000000, win_limit)
+				&& parse_integer(info.get("s2x_roundlimit"), 0, 1000000, round_limit);
+
+			// A host without the keys ends the polling and changes nothing.
+			state.limits_challenge.clear();
+			if (known)
+			{
+				apply_hosted_limits(score_limit, win_limit, round_limit);
+			}
+
+			return true;
+		}
+
 		void party_client_process_party_state_stub(game::PartyData* party_data,
 			std::uint32_t* active_client, game::netadr_s* from)
 		{
@@ -432,6 +555,13 @@ namespace dedicated_party_client
 					game::environment::is_multiplayer());
 			}
 
+			// The same playlist step turns the recipe back on with every partystate and
+			// runs the stock configs again, which reset the limit dvars to stock values.
+			if (!in_virtual_lobby && hosted_dedicated_party_state.limits_known)
+			{
+				reapply_hosted_limits();
+			}
+
 			if (in_virtual_lobby)
 			{
 				// Refresh once after a match so the next rotation selection is learned.
@@ -454,6 +584,7 @@ namespace dedicated_party_client
 				{
 					hosted_go = true;
 					hosted_dedicated_party_state.sync_after_next_go = true;
+					hosted_dedicated_party_state.limits_known = false;
 				}
 			}
 
@@ -489,6 +620,13 @@ namespace dedicated_party_client
 				// Restore the map/gametype carried by the go command at the last native
 				// boundary before client gameplay memory and UI state are selected.
 				update_hosted_dedicated_party_match(map_name, gametype, true);
+			}
+
+			// HandleGo returns before it preloads the accepted match, so the go flag is
+			// already clear by now; the hosted server's address identifies the match.
+			if (game::environment::is_multiplayer() && is_hosted_dedicated_party_address(target))
+			{
+				request_hosted_limits();
 			}
 
 			cl_connect_and_preload_map_hook.invoke<void>(
@@ -693,8 +831,17 @@ namespace dedicated_party_client
 	bool try_handle_sync_response(const game::netadr_s& from, const utils::info_string& info,
 		const std::string& challenge)
 	{
-		if (!is_hosted_dedicated_party_address(&from)
-			|| hosted_dedicated_party_state.sync_challenge.empty()
+		if (!is_hosted_dedicated_party_address(&from))
+		{
+			return false;
+		}
+
+		if (try_handle_limits_response(info, challenge))
+		{
+			return true;
+		}
+
+		if (hosted_dedicated_party_state.sync_challenge.empty()
 			|| challenge != hosted_dedicated_party_state.sync_challenge)
 		{
 			return false;
