@@ -154,4 +154,8 @@ namespace demonware::hq_marketplace
 	// Returns a BD error code; pays each payable record's copies at its duplicate value
 	// in one transaction with the replay receipt.
 	unsigned pawn(const std::string& transaction, const std::vector<hq_economy::item>& items);
+	bool parse_consume(byte_buffer* buffer, std::string& transaction, std::vector<hq_economy::item>& items);
+	// Returns a BD error code; takes every item's quantity off its row in one transaction
+	// with the replay receipt, or nothing if any row holds too few.
+	unsigned consume(const std::string& transaction, const std::vector<hq_economy::item>& items);
 }

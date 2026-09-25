@@ -58,6 +58,7 @@ namespace demonware
 		this->register_task(58, &bdMarketplace::validateInventoryItemsToken);
 		this->register_task(60, &bdMarketplace::steamProcessDurable);
 		this->register_task(85, &bdMarketplace::steamProcessDurableV2);
+		this->register_task(96, &bdMarketplace::consumeInventoryItems);
 		this->register_task(hq_products::task, &bdMarketplace::getProducts);
 		this->register_task(106, &bdMarketplace::purchaseSkus);
 		this->register_task(111, &bdMarketplace::getSkusPaginated);
@@ -222,6 +223,27 @@ namespace demonware
 			const auto parsed = hq_marketplace::parse_pawn(buffer, transaction, items);
 			const auto error = parsed ? hq_marketplace::pawn(transaction, items) : BD_PARAM_PARSE_ERROR;
 			server->create_reply(this->task_id(), error).send();
+		});
+	}
+
+	void bdMarketplace::consumeInventoryItems(service_server* server, byte_buffer* buffer) const
+	{
+		hq_protocol::trace("marketplace_96", buffer->get_remaining());
+		guarded(server, this->task_id(), [&]
+		{
+			std::string transaction{};
+			std::vector<hq_economy::item> items{};
+			if (!hq_marketplace::parse_consume(buffer, transaction, items))
+			{
+				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send();
+				return;
+			}
+			// cg_unlimited_zm_consumables shows these as 999 (unlimited_zombies_consumables.cpp), so it must not use them up either.
+			const auto* unlimited = game::Dvar_FindMalleableVar("cg_unlimited_zm_consumables");
+			if (unlimited && unlimited->current.enabled)
+				std::erase_if(items, [](const auto& item) { return game::Inventory_IsItemGuidAZMConsumable(item.guid); });
+			// The native caller (278480) passes no result object, so the reply carries none.
+			server->create_reply(this->task_id(), items.empty() ? BD_NO_ERROR : hq_marketplace::consume(transaction, items)).send();
 		});
 	}
 

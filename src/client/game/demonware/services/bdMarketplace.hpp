@@ -21,6 +21,7 @@ namespace demonware
 		void getInventoryPaginated(service_server* server, byte_buffer* buffer) const;
 		void putPlayersInventoryItems(service_server* server, byte_buffer* buffer) const;
 		void pawnItems(service_server* server, byte_buffer* buffer) const;
+		void consumeInventoryItems(service_server* server, byte_buffer* buffer) const;
 		void getEntitlements(service_server* server, byte_buffer* buffer) const;
 		void putInventoryItemsData(service_server* server, byte_buffer* buffer) const;
 		void getProducts(service_server* server, byte_buffer* buffer) const;
