@@ -50,6 +50,14 @@
         <Button DockPanel.Dock="Right" x:Name="btnMinimize" Style="{StaticResource Caption}" Content="&#x2014;"/>
         <TextBlock DockPanel.Dock="Right" Text="{Binding Clock}" Style="{StaticResource Mono}"
                    VerticalAlignment="Center" Margin="0,0,16,0"/>
+        <!-- Up here rather than beside + New server: that row is full at the default width once
+             SHOW HIDDEN is in it, and this reaches the editor screen too. -->
+        <Button DockPanel.Dock="Right" Style="{StaticResource Flat}" Command="{Binding LaunchProfilesCommand}"
+                Foreground="{StaticResource Muted}" Padding="14,0" Margin="0,0,8,0"
+                BorderBrush="{StaticResource Line}" BorderThickness="1,0,1,0"
+                ToolTip="Server packages that start their own servers">
+          <TextBlock views:TextEffects.Tracked="LAUNCH PROFILES&#x2026;" FontSize="10" FontWeight="SemiBold"/>
+        </Button>
       </DockPanel>
     </Border>
 
