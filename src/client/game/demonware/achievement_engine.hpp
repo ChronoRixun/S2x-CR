@@ -35,8 +35,10 @@ namespace demonware::achievement_engine
 	void set_event_rules(std::map<std::string, hq_event_predicate::rule> rules);
 	void set_catalog(std::vector<hq_economy::achievement> catalog);
 	// Non-consumable duplicates convert to Armory Credits when the ID has a pawn
-	// value; the rest roll as plain grants.
-	void set_loot_catalog(std::vector<std::uint32_t> items, std::map<std::uint32_t, std::uint32_t> duplicate_credits = {});
+	// value; the rest roll as plain grants. Drops roll a rarity tier (StatsTable
+	// column 29, 0 Common to 4 Heroic) and then an item in it; unrated items are Common.
+	void set_loot_catalog(std::vector<std::uint32_t> items, std::map<std::uint32_t, std::uint32_t> duplicate_credits = {},
+		const std::map<std::uint32_t, unsigned>& rarities = {});
 	std::uint32_t duplicate_credit(std::uint32_t id);
 	// A Zombies consumable card stacks `units` of `stock`: its own ID, unless its
 	// family keeps stock on one unrated row (Self-Revives), which the Consumables

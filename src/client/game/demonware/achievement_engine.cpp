@@ -22,7 +22,7 @@ namespace demonware::achievement_engine
 		std::function<void(cache_update)> cache_sink{};
 		std::mutex catalog_mutex{};
 		std::vector<hq_economy::achievement> definitions{};
-		std::vector<std::uint32_t> loot_items{};
+		std::array<std::vector<std::uint32_t>, 5> loot_tiers{};
 		std::map<std::uint32_t, consumable_grant> zombies_consumables{};
 		std::map<std::uint32_t, std::uint32_t> loot_duplicate_credits;
 		std::map<std::string, hq_event_predicate::rule> event_rules;
@@ -477,14 +477,21 @@ namespace demonware::achievement_engine
 		definitions = std::move(catalog);
 	}
 
-	void set_loot_catalog(std::vector<std::uint32_t> items, std::map<std::uint32_t, std::uint32_t> duplicate_credits)
+	void set_loot_catalog(std::vector<std::uint32_t> items, std::map<std::uint32_t, std::uint32_t> duplicate_credits,
+		const std::map<std::uint32_t, unsigned>& rarities)
 	{
 		std::erase_if(items, [](const auto id) { return id <= 2 || id > INT32_MAX; });
 		std::sort(items.begin(), items.end());
 		items.erase(std::unique(items.begin(), items.end()), items.end());
 		if (items.size() > 10000) items.clear();
+		std::array<std::vector<std::uint32_t>, 5> tiers;
+		for (const auto id : items)
+		{
+			const auto rarity = rarities.find(id);
+			tiers[rarity == rarities.end() || rarity->second >= tiers.size() ? 0 : rarity->second].push_back(id);
+		}
 		std::lock_guard lock{catalog_mutex};
-		loot_items = std::move(items);
+		loot_tiers = std::move(tiers);
 		loot_duplicate_credits = std::move(duplicate_credits);
 	}
 
@@ -1000,12 +1007,13 @@ namespace demonware::achievement_engine
 				const std::uint32_t drop_id = drop == "sd_mp" ? 1 : drop == "sd_mp_rare" ? 2 :
 					drop == "sd_zombie_rare" ? 6 : 0;
 				if (!drop_id) return fail("unsupported_supply_drop");
-				std::vector<std::uint32_t> pool, consumables;
+				std::array<std::vector<std::uint32_t>, 5> pool;
+				std::vector<std::uint32_t> consumables;
 				std::map<std::uint32_t, std::uint32_t> duplicate_credits;
 				std::map<std::uint32_t, consumable_grant> consumable_grants;
 				{
 					std::lock_guard lock{catalog_mutex};
-					pool = loot_items;
+					pool = loot_tiers;
 					duplicate_credits = loot_duplicate_credits;
 					if (drop_id == 6) consumable_grants = zombies_consumables;
 				}
@@ -1024,7 +1032,7 @@ namespace demonware::achievement_engine
 					}
 					else
 					{
-						if (pool.empty() || (drop_id == 6 && consumables.empty())) return false;
+						if (drop_id == 6 && consumables.empty()) return false;
 						auto owned = next.inventory.find({drop_id, 0});
 						if (owned == next.inventory.end() || !owned->second.quantity ||
 							(owned->second.expires && owned->second.expires <= now)) return false;
@@ -1033,8 +1041,26 @@ namespace demonware::achievement_engine
 						// The native ZM reveal partitions rewards, flips two non-consumable
 						// cards, then reveals exactly three consumables. Sending only the
 						// consumables leaves an invalid GUID in the first stage's second slot.
-						// Uniform rolls with replacement remain local policy, not retail odds.
+						// Retail never published its odds, so the tier weights (Common, Rare,
+						// Legendary, Epic, Heroic) are local policy, as are rolls with replacement.
+						// A Rare drop's first card is Rare or better, as Activision states.
+						static constexpr unsigned tier_weights[]{45, 30, 15, 8, 2}, rare_weights[]{0, 60, 25, 12, 3};
 						std::mt19937_64 random{std::random_device{}()};
+						// Tier first, then an item in it. An empty tier gets no weight, so its share
+						// re-rolls among the rest; no eligible tier refuses the opening.
+						const auto roll_loot = [&](const unsigned card) -> std::uint32_t
+						{
+							const auto& weights = card == 0 && drop_id != 1 ? rare_weights : tier_weights;
+							unsigned live[std::size(tier_weights)]{};
+							for (std::size_t tier = 0; tier < pool.size(); ++tier) if (!pool[tier].empty()) live[tier] = weights[tier];
+							if (std::all_of(std::begin(live), std::end(live), [](const auto weight) { return !weight; })) return 0;
+							const auto& candidates = pool[std::discrete_distribution<std::size_t>(std::begin(live), std::end(live))(random)];
+							return candidates[std::uniform_int_distribution<std::size_t>{0, candidates.size() - 1}(random)];
+						};
+						const auto roll_consumable = [&](unsigned)
+						{
+							return consumables[std::uniform_int_distribution<std::size_t>{0, consumables.size() - 1}(random)];
+						};
 						rapidjson::Value items{rapidjson::kArrayType};
 						// The stored receipt keeps the stock row each card changed, so a retry
 						// does not depend on the catalog being loaded. The client never sees it.
@@ -1042,12 +1068,12 @@ namespace demonware::achievement_engine
 						std::uint32_t credits{};
 						const auto balance = next.currencies.find(hq_economy::armory_credits);
 						const auto balance_before = balance == next.currencies.end() ? 0u : balance->second;
-						const auto grant_rolls = [&](const auto& candidates, const unsigned count, const bool stackable)
+						const auto grant_rolls = [&](const auto& roll, const unsigned count, const bool stackable)
 						{
-							std::uniform_int_distribution<std::size_t> roll{0, candidates.size() - 1};
 							for (unsigned i = 0; i < count; ++i)
 							{
-								const auto id = candidates[roll(random)];
+								const auto id = roll(i);
+								if (!id) return false;
 								const auto prior = next.inventory.find({id, 0});
 								if (!stackable && prior != next.inventory.end() && hq_economy::live(prior->second, now))
 								{
@@ -1083,8 +1109,8 @@ namespace demonware::achievement_engine
 							}
 							return true;
 						};
-						if (!grant_rolls(pool, drop_id == 6 ? 2 : 3, false) ||
-							(drop_id == 6 && !grant_rolls(consumables, 3, true))) return false;
+						if (!grant_rolls(roll_loot, drop_id == 6 ? 2 : 3, false) ||
+							(drop_id == 6 && !grant_rolls(roll_consumable, 3, true))) return false;
 						if (credits && !hq_economy::grant(next, {"GRANT_CURRENCY", hq_economy::armory_credits, credits})) return false;
 						rapidjson::Value currencies{rapidjson::kArrayType};
 						if (credits)
