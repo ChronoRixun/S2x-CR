@@ -319,7 +319,8 @@ function New-ServerField($Server, $Info, $Listed, [long]$Now) {
     # clamped to it), so it is used as is; subtracting bots would zero it.
     $humans = [int]$Info['clients']
     $people = if ($humans -eq 1) { '1 player online' } else { "$humans players online" }
-    $lines += "$playing · $people, bots fill the rest of $slots"
+    # Zombies bots wait for a player and never fill the slots; the server name gives their count.
+    $lines += if ($Info['gametype'] -eq 'zombies') { "$playing · $people" } else { "$playing · $people, bots fill the rest of $slots" }
     if ($Server -and $Server.rotation.Count -gt 0) {
         $modes = @($Server.rotation | ForEach-Object { Format-Gametype $_.gametype } | Select-Object -Unique)
         $maps = @($Server.rotation | ForEach-Object { Format-Map $_.map } | Select-Object -Unique)
