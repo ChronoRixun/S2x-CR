@@ -114,13 +114,13 @@ namespace S2x.ServerManager.Models
         // Presets saved before v1.3.0 carry placeholder zone names the game never had.
         public static readonly Dictionary<string, string> LegacyZombieZones = Map(
             "nazi_zombie_proto", "mp_zombie_house",
-            "nazi_zombie_asylum_f", "mp_zombie_descent",
+            "nazi_zombie_asylum_f", "mp_zombie_nest_01",
             "nazi_zombie_island", "mp_zombie_island",
             "nazi_zombie_office", "mp_zombie_berlin",
             "nazi_zombie_treasure", "mp_zombie_windmill",
             "nazi_zombie_uss", "mp_zombie_dnk",
             "nazi_zombie_museum", "mp_zombie_dig_02",
-            "nazi_zombie_mountaineer", "mp_zombie_nest_01");
+            "nazi_zombie_mountaineer", "mp_zombie_descent");
 
         public static readonly string[] BotNamePools = { "default", "modern", "nostalgia" };
 
