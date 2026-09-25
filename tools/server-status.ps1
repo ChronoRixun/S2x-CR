@@ -274,10 +274,10 @@ $MapNames = @{
     mp_wolfslair = 'Valkyrie'; mp_dunkirk = 'Dunkirk'; mp_egypt_02 = 'Egypt'; mp_v2_rocket_02 = 'V2'
     mp_stalingrad = 'Stalingrad'; mp_market_garden = 'Market Garden'; mp_monte_cassino_v2 = 'Monte Cassino'
     mp_tank_graveyard_2 = 'Excavation'; mp_airship = 'Airship'; mp_fuhrerbunker = 'Chancellery'
-    mp_zombie_house = 'Groesten Haus'; mp_zombie_descent = 'The Final Reich'; mp_zombie_island = 'The Darkest Shore'
+    mp_zombie_house = 'Groesten Haus'; mp_zombie_nest_01 = 'The Final Reich'; mp_zombie_island = 'The Darkest Shore'
     mp_zombie_berlin = 'The Shadowed Throne'; mp_zombie_windmill = 'The Tortured Path: Into the Storm'
     mp_zombie_dnk = 'The Tortured Path: Across the Depths'; mp_zombie_dig_02 = 'The Tortured Path: Beyond the Veil'
-    mp_zombie_nest_01 = 'The Frozen Dawn'
+    mp_zombie_descent = 'The Frozen Dawn'
 }
 
 function Format-Map([string]$Map) {
