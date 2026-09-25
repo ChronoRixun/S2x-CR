@@ -123,13 +123,13 @@ $DefaultScoreLimits = [ordered]@{
 
 $ZombieMaps = [ordered]@{
     "mp_zombie_house"    = "Groesten Haus"
-    "mp_zombie_descent"  = "The Final Reich"
+    "mp_zombie_nest_01"  = "The Final Reich"
     "mp_zombie_island"   = "The Darkest Shore"
     "mp_zombie_berlin"   = "The Shadowed Throne"
     "mp_zombie_windmill" = "The Tortured Path: Into the Storm"
     "mp_zombie_dnk"      = "The Tortured Path: Across the Depths"
     "mp_zombie_dig_02"   = "The Tortured Path: Beyond the Veil"
-    "mp_zombie_nest_01"  = "The Frozen Dawn"
+    "mp_zombie_descent"  = "The Frozen Dawn"
 }
 $ZombieMapPacks = @{
     "mp_zombie_island"   = "DLC 1"
@@ -137,7 +137,7 @@ $ZombieMapPacks = @{
     "mp_zombie_windmill" = "DLC 3"
     "mp_zombie_dnk"      = "DLC 3"
     "mp_zombie_dig_02"   = "DLC 3"
-    "mp_zombie_nest_01"  = "DLC 4"
+    "mp_zombie_descent"  = "DLC 4"
 }
 $ZombieMapKeys   = @($ZombieMaps.Keys)
 $ZombieMapValues = @($ZombieMaps.Values)
@@ -147,13 +147,13 @@ $ZombieMapValues = @($ZombieMaps.Values)
 # entry becomes its first chapter.
 $LegacyZombieZones = @{
     "nazi_zombie_proto"       = "mp_zombie_house"
-    "nazi_zombie_asylum_f"    = "mp_zombie_descent"
+    "nazi_zombie_asylum_f"    = "mp_zombie_nest_01"
     "nazi_zombie_island"      = "mp_zombie_island"
     "nazi_zombie_office"      = "mp_zombie_berlin"
     "nazi_zombie_treasure"    = "mp_zombie_windmill"
     "nazi_zombie_uss"         = "mp_zombie_dnk"
     "nazi_zombie_museum"      = "mp_zombie_dig_02"
-    "nazi_zombie_mountaineer" = "mp_zombie_nest_01"
+    "nazi_zombie_mountaineer" = "mp_zombie_descent"
 }
 
 $BotNamePools = @("default", "modern", "nostalgia")
