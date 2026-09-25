@@ -399,7 +399,7 @@ namespace demonware::achievement_engine
 			for (const auto reuse_completed : {false})
 				for (std::size_t i = 0; live < limit && i < pool.size(); ++i)
 				{
-					auto entry = pool[(period + i) % pool.size()];
+					auto entry = pool[(period * limit + i) % pool.size()];
 					const auto found = data.achievements.find(entry.name);
 					if (found != data.achievements.end())
 					{
