@@ -139,6 +139,15 @@ namespace S2x.ServerManager.Services
 
             root["serverName"] = preset.ServerName;
             root["mode"] = preset.IsZombies ? "zombies" : "mp";
+            // The PowerShell launcher does not know this key and starts such a preset as a plain
+            // Zombies server, which is harmless.
+            if (preset.IsProfile)
+                root["launch"] = new Dictionary<string, object>(StringComparer.Ordinal)
+                {
+                    { "profile", preset.LaunchProfileId },
+                    { "entry", preset.LaunchEntryKey },
+                };
+            else root.Remove("launch");
             root["rotation"] = preset.Rotation.Select(entry =>
             {
                 // The entry the file had, with only the two keys this app owns updated, so a
@@ -203,6 +212,13 @@ namespace S2x.ServerManager.Services
                 preset.Advertise = Bool(root, "advertise", true);
                 preset.ShuffleOnLaunch = Bool(root, "shuffleOnLaunch", false);
                 preset.Hidden = Bool(root, "hidden", false);
+
+                var launch = Get(root, "launch") as Dictionary<string, object>;
+                if (launch != null)
+                {
+                    preset.LaunchProfileId = Str(launch, "profile");
+                    preset.LaunchEntryKey = Str(launch, "entry");
+                }
 
                 var difficulty = (Str(root, "botDifficulty") ?? "regular").ToLowerInvariant();
                 preset.BotDifficulty = Array.IndexOf(GameData.BotDifficulties, difficulty) >= 0 ? difficulty : "regular";

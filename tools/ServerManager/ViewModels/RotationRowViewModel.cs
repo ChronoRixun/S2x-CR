@@ -36,7 +36,7 @@ namespace S2x.ServerManager.ViewModels
         public string MapName { get { return GameData.MapName(Entry.Map); } }
         public string Pack { get { return GameData.MapPack(Entry.Map); } }
         public Visibility PackVisibility { get { return Pack == null ? Visibility.Collapsed : Visibility.Visible; } }
-        public string GametypeCaps { get { return Editor.IsZombies ? "ZM" : GameData.GametypeShort(Entry.Gametype); } }
+        public string GametypeCaps { get { return Editor.IsZombies ? Editor.ZombiesTag : GameData.GametypeShort(Entry.Gametype); } }
         public string Line { get { return "gametype " + Entry.Gametype + " map " + Entry.Map; } }
 
         /// <summary>The score limit this line will play to, from 03. Zombies has none.</summary>

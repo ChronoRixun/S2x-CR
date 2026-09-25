@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Media;
 using S2x.ServerManager.Models;
+using S2x.ServerManager.Services;
 using S2x.ServerManager.Views;
 
 namespace S2x.ServerManager.ViewModels
@@ -238,8 +239,7 @@ namespace S2x.ServerManager.ViewModels
             {
                 var dot = " " + GameData.MiddleDot + " ";
                 if (State.Status == ServerStatus.Stopped)
-                    return Preset.Rotation.Count + " maps" + dot + Preset.BotFill + " bots" +
-                           dot + "cap " + Preset.MaxPlayers;
+                    return Preset.Rotation.Count + " maps" + dot + PlannedBots + dot + "cap " + Cap;
                 if (State.Status == ServerStatus.Crashed) return "exited" + dot + "PID " + State.Pid;
                 if (State.Status == ServerStatus.Starting) return "loading" + dot + MapName;
                 // The strip above the editor spells these out; the row has 186 px for them.
@@ -308,8 +308,23 @@ namespace S2x.ServerManager.ViewModels
         {
             get
             {
-                return string.Format("{0} in rotation {1} {2} bots {1} cap {3}",
-                    Preset.Rotation.Count, GameData.MiddleDot, Preset.BotFill, Preset.MaxPlayers);
+                return string.Format("{0} in rotation {1} {2} {1} cap {3}",
+                    Preset.Rotation.Count, GameData.MiddleDot, PlannedBots, Cap);
+            }
+        }
+
+        // A profile server's bots and cap are the package's, not the bot-fill and player cap the
+        // preset keeps for its own servers: those numbers are never applied to it.
+        private int Cap { get { return Preset.IsProfile ? ServerPreset.CapCeiling(true) : Preset.MaxPlayers; } }
+
+        private string PlannedBots
+        {
+            get
+            {
+                if (!Preset.IsProfile) return Preset.BotFill + " bots";
+                LaunchProfile profile;
+                var entry = LaunchProfiles.Find(_fleet.Profiles, Preset.LaunchProfileId, Preset.LaunchEntryKey, out profile);
+                return entry == null || entry.Bots < 0 ? "bots by profile" : entry.Bots + (entry.Bots == 1 ? " bot" : " bots");
             }
         }
 

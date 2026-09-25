@@ -20,6 +20,15 @@
               FontSize="10.5" Padding="10,0"/>
     </DataTemplate>
 
+    <!-- A group a launch profile takes over: still on screen, visibly not in use. -->
+    <Style x:Key="Greyed" TargetType="StackPanel">
+      <Style.Triggers>
+        <Trigger Property="IsEnabled" Value="False">
+          <Setter Property="Opacity" Value="0.4"/>
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+
     <DataTemplate x:Key="PipTemplate">
       <Rectangle Height="6" Fill="{Binding Fill}" Stroke="{Binding Stroke}" StrokeThickness="1" Margin="0,0,2,0"/>
     </DataTemplate>
@@ -212,22 +221,24 @@
 
             <DockPanel Margin="0,0,0,12">
               <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                <ToggleButton Style="{StaticResource Switch}" IsChecked="{Binding ShuffleOnLaunch, Mode=TwoWay}"
-                              VerticalAlignment="Center"/>
-                <TextBlock FontSize="11.5" Foreground="{StaticResource Label}"
-                           Margin="8,0,14,0" VerticalAlignment="Center" ToolTip="Shuffle on every launch">
-                  <TextBlock.Style>
-                    <Style TargetType="TextBlock">
-                      <Setter Property="Text" Value="Shuffle on every launch"/>
-                      <Style.Triggers>
-                        <DataTrigger Value="True"
-                                     Binding="{Binding Compact, RelativeSource={RelativeSource AncestorType=views:EditorView}}">
-                          <Setter Property="Text" Value="Shuffle"/>
-                        </DataTrigger>
-                      </Style.Triggers>
-                    </Style>
-                  </TextBlock.Style>
-                </TextBlock>
+                <StackPanel Orientation="Horizontal" Style="{StaticResource Greyed}" IsEnabled="{Binding ShuffleEnabled}">
+                  <ToggleButton Style="{StaticResource Switch}" IsChecked="{Binding ShuffleOnLaunch, Mode=TwoWay}"
+                                VerticalAlignment="Center"/>
+                  <TextBlock FontSize="11.5" Foreground="{StaticResource Label}"
+                             Margin="8,0,14,0" VerticalAlignment="Center" ToolTip="Shuffle on every launch">
+                    <TextBlock.Style>
+                      <Style TargetType="TextBlock">
+                        <Setter Property="Text" Value="Shuffle on every launch"/>
+                        <Style.Triggers>
+                          <DataTrigger Value="True"
+                                       Binding="{Binding Compact, RelativeSource={RelativeSource AncestorType=views:EditorView}}">
+                            <Setter Property="Text" Value="Shuffle"/>
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </TextBlock.Style>
+                  </TextBlock>
+                </StackPanel>
                 <Button Style="{StaticResource Outline}" Content="&#x2928; RANDOMIZE" FontSize="11"
                         FontWeight="SemiBold" Padding="12,6" Command="{Binding RandomizeCommand}"/>
                 <Button Style="{StaticResource Link}" Content="Clear all" Margin="14,0,0,0"
@@ -372,7 +383,10 @@
                 <TextBlock views:TextEffects.Tracked="{Binding LobbyNumber, StringFormat={}{0} &#xB7; LOBBY}"
                            FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Dim}"/>
               </DockPanel>
-              <StackPanel Margin="20,0,20,16">
+              <!-- A profile server's party is the package's, so there is nothing to type here. -->
+              <TextBlock Text="{Binding LobbyText}" Visibility="{Binding LobbyTextVisibility}" FontSize="12"
+                         Foreground="{StaticResource Label}" TextWrapping="Wrap" Margin="20,0,20,16"/>
+              <StackPanel Margin="20,0,20,16" Visibility="{Binding LobbyFieldsVisibility}">
                 <DockPanel>
                   <TextBox DockPanel.Dock="Right" Width="52" Style="{StaticResource Number}"
                            Text="{Binding CapText, UpdateSourceTrigger=PropertyChanged}"/>
@@ -429,7 +443,10 @@
                 <TextBlock views:TextEffects.Tracked="{Binding AdvancedNumber, StringFormat={}{0} &#xB7; ADVANCED}"
                            FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Dim}"/>
               </DockPanel>
-              <StackPanel Margin="20,0,20,16">
+              <TextBlock Text="Not available for profile servers: the profile writes its own cfg."
+                         Visibility="{Binding AdvancedNoteVisibility}" FontSize="11" Foreground="{StaticResource Dim}"
+                         TextWrapping="Wrap" Margin="20,0,20,8"/>
+              <StackPanel Margin="20,0,20,16" Style="{StaticResource Greyed}" IsEnabled="{Binding AdvancedEnabled}">
                 <Grid>
                   <TextBox Style="{StaticResource Entry}" Height="80" AcceptsReturn="True"
                            Background="{StaticResource Bar}" FontFamily="Consolas" FontSize="12"
@@ -453,7 +470,7 @@
           <StackPanel Margin="20,16,20,16">
             <TextBlock views:TextEffects.Tracked="WRITES TO" FontSize="10" FontWeight="SemiBold"
                        Foreground="{StaticResource Dim}" Margin="0,0,0,5"/>
-            <TextBlock Text="{Binding CfgPath}" Style="{StaticResource Mono}" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding WritesTo}" Style="{StaticResource Mono}" TextWrapping="Wrap"/>
           </StackPanel>
         </StackPanel>
       </ScrollViewer>

@@ -263,6 +263,12 @@ namespace S2x.ServerManager.ViewModels
             if (_fixedPath != null) return _fixedPath;
             if (_card == null || _fleet.IsDemo) return null;
 
+            // A profile's server runs out of the package's folder and writes its log there.
+            LaunchProfile profile;
+            var entry = LaunchProfiles.Find(_fleet.Profiles, _card.Preset.LaunchProfileId, _card.Preset.LaunchEntryKey, out profile);
+            if (entry != null && entry.Log != null)
+                return Path.GetFullPath(Path.Combine(profile.Folder, entry.Log));
+
             var own = GameFolder.ServerLogPath(_fleet.GameDir, _card.Preset.Port);
             if (File.Exists(own)) return own;
 

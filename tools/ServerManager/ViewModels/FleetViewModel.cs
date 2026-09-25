@@ -56,6 +56,7 @@ namespace S2x.ServerManager.ViewModels
             Servers = new ObservableCollection<ServerCardViewModel>();
             Shown = new ObservableCollection<ServerCardViewModel>();
             Console = new ConsoleViewModel(this);
+            Profiles = LaunchProfiles.Load(gameDir);
             BuildCommands();
             LoadStarters();
 
@@ -72,6 +73,7 @@ namespace S2x.ServerManager.ViewModels
             Shown = new ObservableCollection<ServerCardViewModel>();
             Starters = starters;
             Console = new ConsoleViewModel(this);
+            Profiles = new List<LaunchProfile>();
             BuildCommands();
             Recount();
         }
@@ -91,6 +93,9 @@ namespace S2x.ServerManager.ViewModels
         /// <summary>The console drawer, shared by the cards, the roster pane and the editor.</summary>
         public ConsoleViewModel Console { get; private set; }
 
+        /// <summary>The registered launch profiles, read at start and again when their dialog closes.</summary>
+        public List<LaunchProfile> Profiles { get; private set; }
+
         public RelayCommand StartAllCommand { get; private set; }
         public RelayCommand StopAllCommand { get; private set; }
         public RelayCommand NewServerCommand { get; private set; }
@@ -102,6 +107,7 @@ namespace S2x.ServerManager.ViewModels
         public RelayCommand CloseConsoleCommand { get; private set; }
         public RelayCommand FocusConsoleFilterCommand { get; private set; }
         public RelayCommand PollNowCommand { get; private set; }
+        public RelayCommand LaunchProfilesCommand { get; private set; }
 
         public void StartPolling() { if (!_demo) _timer.Start(); }
 
@@ -385,6 +391,15 @@ namespace S2x.ServerManager.ViewModels
             // Ctrl+L: the filter of the drawer on screen, and the drawer first if it is shut.
             FocusConsoleFilterCommand = new RelayCommand(FocusConsoleFilter);
             PollNowCommand = new RelayCommand(async () => await PollAsync());
+            LaunchProfilesCommand = new RelayCommand(ManageProfiles);
+        }
+
+        private void ManageProfiles()
+        {
+            if (_demo) { Toast("Demo mode: nothing was written"); return; }
+            Views.LaunchProfilesDialog.Manage(GameDir);
+            Profiles = LaunchProfiles.Load(GameDir);
+            foreach (var editor in _editors.Values) editor.ProfilesChanged();
         }
 
         private void FocusConsoleFilter()

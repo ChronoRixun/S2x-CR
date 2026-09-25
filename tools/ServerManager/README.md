@@ -124,6 +124,35 @@ shared `console.log` instead and says `shared log; per-server log did not appear
 path in its header. A server started by the PowerShell launcher, or one that was already running
 when this app opened, has no per-port log either, and falls back the same way.
 
+## Launch profiles
+
+A launch profile is a separately installed server package that starts its own servers: it
+stages its own runtime, writes its own cfg and has its own start script. LAUNCH PROFILES... in
+the title bar registers the folder it lives in. ADD... takes a folder only when its
+`server-manager.json` parses; Remove only unregisters it. The list is
+`<game>\s2x\launch-profiles.txt`, one folder per line, blank lines and `#` comments skipped, so
+it can be edited by hand. It is read when the app starts and again when the dialog closes.
+
+`server-manager.json` has a `profile` name, a `title` and `entries`. Each entry has a `key`, the
+`map` it runs, the `mode` label the editor shows, a `short` tag for the rotation row and `start`,
+the whole command line, run from the package folder; `public` is what `{public}` becomes when the
+server advertises, and `log` is its log, relative to the folder. `start` can use `{gameDir}`,
+`{port}`, `{name}` and `{public}`. An entry whose start script is not in the folder is not
+offered, and the dialog names the missing script.
+
+In the editor, a Zombies map that profile entries cover lists them after Zombies in the mode
+picker. Adding one needs an empty rotation, and the server then runs that one map: nothing can be
+added beside it, shuffle and randomize are off, the lobby shows the package's fixed party, the
+advanced block is greyed, and the name cannot hold a quote or a line break. The preset keeps a
+`launch` key naming the profile and the entry, which the PowerShell launcher ignores.
+
+LAUNCH SERVER runs the usual port checks, then the entry's command, hidden, for up to 90 s, and
+waits up to 10 s for a server with `-dedicated` and `net_port <port>` on that port. Its pid goes
+in `server-<port>.pid`, so STOP, RESTART, Start All and the cards treat it like any other. A
+profile that is not registered, or an entry whose script is missing, is said in the toast before
+anything runs; a script that fails puts the error it stopped on, or its last three lines, in the
+toast. The console tails the entry's `log` instead of `s2x\logs\server-<port>.log`.
+
 ## The tray
 
 The app keeps an icon in the notification area: the tooltip is how many servers are up out of
@@ -176,6 +205,7 @@ untouched, on the preset and on each line of its rotation:
 | `extraLines` | the advanced block, one dvar per entry | empty |
 | `shuffleOnLaunch` | true, false | false |
 | `hidden` | true, false | false |
+| `launch` | `profile` and `entry` of a launch profile | absent |
 
 The file is written the way `Save-Preset` writes it under Windows PowerShell: `ConvertTo-Json`
 escaping, four-space indents measured from the column the block opened at, CRLF, a closing
@@ -206,7 +236,8 @@ Start writes the cfg, then runs
 `s2x.exe -noupdate -dedicated[ -zombies] +set net_port <port> +set g_consoleLog
 s2x\logs\server-<port>.log +exec server-<port>.cfg +map_rotate`
 from the game folder, then writes the pid file. Never `+map`: it runs before the dedicated party
-exists and is dropped.
+exists and is dropped. A launch profile's server is started by its own script instead (see
+Launch profiles).
 
 ## Packaging
 
