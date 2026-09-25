@@ -1,6 +1,6 @@
 # Zombies economy checks
 
-Build with Visual Studio 2022 C++ tools and initialized submodules:
+Build with Visual Studio 2022 C++ tools and initialized submodules. Build `build\s2x.sln` (Release, x64) first: the test links its `common.lib` and `libtomcrypt.lib` from `build\bin\x64\Release`.
 
 ```powershell
 msbuild tests/economy/zombies.vcxproj /p:Configuration=Release /p:Platform=x64
