@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using S2x.ServerManager.Models;
 
@@ -22,6 +24,11 @@ namespace S2x.ServerManager.Services
         // launching one is two steps, and a double click or a Start racing Start All can slip
         // between them, so a port is claimed for the whole of it.
         private readonly HashSet<int> _busy = new HashSet<int>();
+
+        // A profile's start script stages its runtime and checks its hashes before it launches,
+        // then the server it started has to turn up in the process list.
+        private const int ProfileScriptSeconds = 90;
+        private const int ProfileServerSeconds = 10;
 
         public ServerController(string gameDir) { _gameDir = gameDir; }
 
@@ -60,6 +67,8 @@ namespace S2x.ServerManager.Services
                 if (scan.Servers.ContainsKey(port))
                     return "A server is already running on :" + port + ".";
 
+                if (snapshot.IsProfile) return StartProfile(snapshot, port);
+
                 var cfgPath = GameFolder.CfgPath(_gameDir, port);
                 Directory.CreateDirectory(Path.GetDirectoryName(cfgPath));
                 File.WriteAllText(cfgPath, BuildServerCfg(snapshot), new UTF8Encoding(false));
@@ -94,6 +103,122 @@ namespace S2x.ServerManager.Services
             {
                 Release(port);
             }
+        }
+
+        /// <summary>
+        /// A launch profile's server: the package's own script stages and starts it, and this
+        /// finds what it started the way Stop will, by -dedicated and net_port on the command
+        /// line. The pid file is written as for any other server, so Stop and the fleet treat
+        /// it the same.
+        /// </summary>
+        private string StartProfile(ServerPreset snapshot, int port)
+        {
+            LaunchProfile profile;
+            var entry = LaunchProfiles.Find(LaunchProfiles.Load(_gameDir), snapshot.LaunchProfileId, snapshot.LaunchEntryKey, out profile);
+            if (profile == null) return "The profile '" + snapshot.LaunchProfileId + "' is not registered.";
+            if (entry == null)
+            {
+                string script;
+                return profile.MissingScripts.TryGetValue(snapshot.LaunchEntryKey, out script)
+                    ? "The profile '" + profile.Title + "' is missing " + script + "."
+                    : "The profile '" + profile.Title + "' has no entry " + snapshot.LaunchEntryKey + ".";
+            }
+
+            string program, arguments;
+            SplitCommand(FillCommand(entry, port, snapshot), out program, out arguments);
+            var output = new List<string>();
+            var errors = new List<string>();
+            var closed = new CountdownEvent(2);
+            // Not disposed: a server the script started can hold the pipes open after the script
+            // is gone, and a read still pending on a disposed process would take the app down.
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = program,
+                    Arguments = arguments,
+                    WorkingDirectory = profile.Folder,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                },
+            };
+            process.OutputDataReceived += (s, e) => Collect(output, e.Data, closed);
+            process.ErrorDataReceived += (s, e) => Collect(errors, e.Data, closed);
+            process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+
+            if (!process.WaitForExit(ProfileScriptSeconds * 1000))
+            {
+                try { process.Kill(); } catch { }
+                closed.Wait(5000);
+                return "The start script did not finish in " + ProfileScriptSeconds + " s." + Said(output, errors);
+            }
+            closed.Wait(5000);
+            if (process.ExitCode != 0)
+            {
+                var said = Said(output, errors);
+                return said.Length > 0 ? said.Trim() : "The start script failed with exit code " + process.ExitCode + ".";
+            }
+
+            for (int second = 0; ; second++)
+            {
+                S2xProcess server;
+                if (ProcessInspector.DedicatedServers().Servers.TryGetValue(port, out server))
+                {
+                    File.WriteAllText(GameFolder.PidPath(_gameDir, port), server.Pid.ToString());
+                    return null;
+                }
+                if (second == ProfileServerSeconds) break;
+                Thread.Sleep(1000);
+            }
+            return "The start script finished, but no server came up on :" + port + "." + Said(output, errors);
+        }
+
+        /// <summary>The entry's start command for this server, its placeholders filled.</summary>
+        private string FillCommand(LaunchEntry entry, int port, ServerPreset snapshot)
+        {
+            // The name and the folder land between quotes: a quote or a line break would end the
+            // argument early, and a backslash in front of the closing quote would escape it.
+            var name = new string((snapshot.ServerName ?? "").Where(c => c != '"' && c != '\r' && c != '\n').ToArray()).TrimEnd('\\');
+            var text = entry.Start
+                .Replace("{gameDir}", _gameDir.TrimEnd('\\'))
+                .Replace("{port}", port.ToString())
+                .Replace("{name}", name);
+            // Nothing to put in means the space in front of it goes too.
+            return snapshot.Advertise && entry.Public.Length > 0
+                ? text.Replace("{public}", entry.Public)
+                : text.Replace(" {public}", "").Replace("{public}", "");
+        }
+
+        /// <summary>The first token is the program; the rest of the line is its arguments as written.</summary>
+        private static void SplitCommand(string command, out string program, out string arguments)
+        {
+            var match = Regex.Match(command.Trim(), @"^(""[^""]*""|\S+)\s*(.*)$", RegexOptions.Singleline);
+            program = match.Groups[1].Value.Trim('"');
+            arguments = match.Groups[2].Value;
+        }
+
+        private static void Collect(List<string> lines, string line, CountdownEvent closed)
+        {
+            if (line == null) { closed.Signal(); return; }
+            lock (lines) if (line.Trim().Length > 0) lines.Add(line.Trim());
+        }
+
+        /// <summary>
+        /// What the script said, for the toast: the message of the error it stopped on, or the
+        /// last three lines it wrote. PowerShell writes an uncaught error as its message, then
+        /// where it was raised ("At &lt;script&gt;:&lt;line&gt;") and a picture of that line.
+        /// </summary>
+        private static string Said(List<string> output, List<string> errors)
+        {
+            List<string> lines;
+            lock (errors) lines = errors.TakeWhile(line => !line.StartsWith("At ", StringComparison.Ordinal)).ToList();
+            if (lines.Count == 0) lock (output) lines = output.ToList();
+            if (lines.Count == 0) return "";
+            return " " + string.Join(" " + GameData.MiddleDot + " ", lines.Skip(Math.Max(0, lines.Count - 3)));
         }
 
         /// <summary>Terminates only the verified server on this port, then drops the pid file.</summary>
@@ -143,7 +268,10 @@ namespace S2x.ServerManager.Services
             for (int i = 0; i < queue.Count; i++)
             {
                 if (i > 0) await Task.Delay(2000).ConfigureAwait(true);
-                var failure = Start(queue[i]);
+                // Off the window's thread, as a single Start is: a profile's script can take
+                // most of a minute, and the window would hang for all of it.
+                var preset = queue[i];
+                var failure = await Task.Run(() => Start(preset)).ConfigureAwait(true);
                 if (failure != null && onFailure != null) onFailure(failure);
             }
             return null;
