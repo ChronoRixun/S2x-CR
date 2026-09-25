@@ -61,11 +61,17 @@ namespace S2x.ServerManager.Models
         // its place in the presets folder, and the PowerShell launcher ignores the key.
         public bool Hidden;
 
+        // A server a launch profile starts: the profile and the entry in it. Null for a server
+        // this app starts itself.
+        public string LaunchProfileId;
+        public string LaunchEntryKey;
+
         // Every key as it was read, so writing the file back does not lose anything a newer
         // launcher put there.
         public Dictionary<string, object> Raw = new Dictionary<string, object>(StringComparer.Ordinal);
 
         public bool IsZombies { get { return string.Equals(Mode, "zombies", StringComparison.OrdinalIgnoreCase); } }
+        public bool IsProfile { get { return !string.IsNullOrEmpty(LaunchProfileId) && !string.IsNullOrEmpty(LaunchEntryKey); } }
 
         /// <summary>The cap the game allows: a Zombies party is four, a multiplayer one eighteen.</summary>
         public static int CapCeiling(bool zombies) { return zombies ? 4 : 18; }
@@ -102,6 +108,8 @@ namespace S2x.ServerManager.Models
                 Advertise = Advertise,
                 ShuffleOnLaunch = ShuffleOnLaunch,
                 Hidden = Hidden,
+                LaunchProfileId = LaunchProfileId,
+                LaunchEntryKey = LaunchEntryKey,
                 Raw = (Dictionary<string, object>)CopyValue(Raw) ?? new Dictionary<string, object>(StringComparer.Ordinal),
             };
             foreach (var pair in ScoreLimits) copy.ScoreLimits[pair.Key] = pair.Value;
