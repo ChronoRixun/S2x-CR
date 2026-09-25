@@ -399,6 +399,7 @@ namespace S2x.ServerManager.ViewModels
             if (_demo) { Toast("Demo mode: nothing was written"); return; }
             Views.LaunchProfilesDialog.Manage(GameDir);
             Profiles = LaunchProfiles.Load(GameDir);
+            foreach (var editor in _editors.Values) editor.ProfilesChanged();
         }
 
         private void FocusConsoleFilter()

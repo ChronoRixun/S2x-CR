@@ -110,6 +110,8 @@ namespace S2x.ServerManager.ViewModels
         private RotationRowViewModel _selectedRow;
         private PickOption _pickedMap;
         private PickOption _pickedGametype;
+        private string _launchId;
+        private string _launchKey;
         private ServerState _state = new ServerState();
 
         public EditorViewModel(FleetViewModel fleet, ServerPreset preset, bool isNew)
@@ -130,6 +132,7 @@ namespace S2x.ServerManager.ViewModels
             _minText = preset.MinPlayers.ToString();
             _delayText = preset.StartDelay.ToString();
             _advertise = preset.Advertise;
+            if (preset.IsProfile) { _launchId = preset.LaunchProfileId; _launchKey = preset.LaunchEntryKey; }
             _extraText = string.Join(Environment.NewLine, preset.ExtraLines);
             foreach (var pair in GameData.DefaultScoreLimits)
             {
@@ -147,7 +150,7 @@ namespace S2x.ServerManager.ViewModels
             SaveCommand = new RelayCommand(() => Save());
             SaveAsCommand = new RelayCommand(SaveAs);
             AddCommand = new RelayCommand(Add);
-            RandomizeCommand = new RelayCommand(Randomize);
+            RandomizeCommand = new RelayCommand(Randomize, () => !IsProfile);
             ClearCommand = new RelayCommand(ClearRotation);
             SetMultiplayerCommand = new RelayCommand(() => SetMode(false));
             SetZombiesCommand = new RelayCommand(() => SetMode(true));
@@ -195,8 +198,24 @@ namespace S2x.ServerManager.ViewModels
         public string Name
         {
             get { return _name; }
-            set { if (Set(ref _name, value ?? "")) Touched(); }
+            set
+            {
+                var name = value ?? "";
+                if (IsProfile && name.IndexOfAny(NotInProfileName) >= 0)
+                {
+                    // The profile's script is handed the name as one quoted argument, which a
+                    // quote or a line break would end early.
+                    _name = new string(name.Where(c => Array.IndexOf(NotInProfileName, c) < 0).ToArray());
+                    _fleet.Toast("A profile server's name cannot hold a quote or a line break.");
+                    Raise("Name");
+                    Touched();
+                    return;
+                }
+                if (Set(ref _name, name)) Touched();
+            }
         }
+
+        private static readonly char[] NotInProfileName = { '"', '\r', '\n' };
 
         public string PlainName
         {
@@ -242,7 +261,7 @@ namespace S2x.ServerManager.ViewModels
                 _portText = digits;
                 Raise("PortText");
                 Touched();
-                Raise("PortWarning"); Raise("PortWarningVisibility"); Raise("CfgPath");
+                Raise("PortWarning"); Raise("PortWarningVisibility"); Raise("CfgPath"); Raise("WritesTo");
             }
         }
 
@@ -305,7 +324,8 @@ namespace S2x.ServerManager.ViewModels
         public PickOption PickedMap
         {
             get { return _pickedMap; }
-            set { Set(ref _pickedMap, value); }
+            // A launch profile's modes belong to one map each, so the Zombies list follows it.
+            set { if (Set(ref _pickedMap, value) && _isZombies) BuildModes(); }
         }
 
         public PickOption PickedGametype
@@ -496,8 +516,33 @@ namespace S2x.ServerManager.ViewModels
 
         public string LobbySummary
         {
-            get { return "cap " + Cap + " " + GameData.MiddleDot + " min " + MinPlayers + " " + GameData.MiddleDot + " " + StartDelay + " s"; }
+            get
+            {
+                if (IsProfile) return "set by the profile";
+                return "cap " + Cap + " " + GameData.MiddleDot + " min " + MinPlayers + " " + GameData.MiddleDot + " " + StartDelay + " s";
+            }
         }
+
+        /// <summary>A profile server's party is the package's: the slots, and its own bots in some of them.</summary>
+        public string LobbyText
+        {
+            get
+            {
+                LaunchProfile profile;
+                var entry = ProfileEntry(out profile);
+                if (entry == null) return "Set by the profile '" + _launchId + "', which is not available here.";
+                var digit = entry.Mode.FirstOrDefault(char.IsDigit);
+                if (digit == default(char)) return "Set by the profile.";
+                var slots = ServerPreset.CapCeiling(true);
+                var bots = digit - '0';
+                var room = Math.Max(0, slots - bots);
+                return "Set by the profile: " + slots + " slots, " + bots + (bots == 1 ? " bot" : " bots") +
+                       ", room for " + room + (room == 1 ? " player" : " players");
+            }
+        }
+
+        public Visibility LobbyFieldsVisibility { get { return IsProfile ? Visibility.Collapsed : Visibility.Visible; } }
+        public Visibility LobbyTextVisibility { get { return IsProfile ? Visibility.Visible : Visibility.Collapsed; } }
 
         public string LobbyNumber { get { return _isZombies ? "03" : "05"; } }
         public string VisibilityNumber { get { return _isZombies ? "04" : "06"; } }
@@ -558,6 +603,10 @@ namespace S2x.ServerManager.ViewModels
             }
         }
 
+        /// <summary>The package writes its own cfg, so nothing typed here would reach its server.</summary>
+        public bool AdvancedEnabled { get { return !IsProfile; } }
+        public Visibility AdvancedNoteVisibility { get { return IsProfile ? Visibility.Visible : Visibility.Collapsed; } }
+
         public string AdvancedSummary
         {
             get
@@ -569,6 +618,18 @@ namespace S2x.ServerManager.ViewModels
 
         // ── footer ────────────────────────────────────────────────────────────────
         public string CfgPath { get { return GameFolder.CfgPath(_fleet.GameDir, Port); } }
+
+        public string WritesTo
+        {
+            get
+            {
+                if (!IsProfile) return CfgPath;
+                LaunchProfile profile;
+                var entry = ProfileEntry(out profile);
+                if (entry == null) return "Starts the profile '" + _launchId + "', which is not available here.";
+                return "Starts " + System.IO.Path.Combine(profile.Folder, entry.Script) + "; the profile writes its own cfg.";
+            }
+        }
 
         public string StateCaps
         {
@@ -676,6 +737,20 @@ namespace S2x.ServerManager.ViewModels
         public void Add()
         {
             if (PickedMap == null) return;
+            var picked = PickedGametype != null ? PickedGametype.Key : "";
+            if (picked.StartsWith(ProfileOption, StringComparison.Ordinal))
+            {
+                // The package starts one map, so a server it runs has exactly one row.
+                if (Rotation.Count > 0) { _fleet.Toast("A profile server runs one map: clear the rotation first."); return; }
+                var parts = picked.Substring(ProfileOption.Length).Split(new[] { ':' }, 2);
+                _launchId = parts[0];
+                _launchKey = parts[1];
+                if (_name.IndexOfAny(NotInProfileName) >= 0) Name = _name;
+                Rotation.Add(new RotationRowViewModel(this, new RotationEntry { Map = PickedMap.Key, Gametype = "zombies" }));
+                RotationChanged();
+                return;
+            }
+            if (IsProfile) { _fleet.Toast("A profile server runs one map: clear the rotation first."); return; }
             var gametype = _isZombies ? "zombies" : (PickedGametype != null ? PickedGametype.Key : "war");
             Rotation.Add(new RotationRowViewModel(this, new RotationEntry { Map = PickedMap.Key, Gametype = gametype }));
             RotationChanged();
@@ -741,9 +816,12 @@ namespace S2x.ServerManager.ViewModels
 
         private void RotationChanged()
         {
+            // Its one row gone, a profile server is an ordinary one again.
+            if (Rotation.Count == 0) { _launchId = null; _launchKey = null; }
             Renumber();
             Raise("RotationCount"); Raise("RotationMeta"); Raise("EmptyRotationVisibility");
             Raise("ScoreRows"); Raise("ScoreSummary"); Raise("DomVisibility");
+            ProfileChanged();
             Touched();
         }
 
@@ -770,6 +848,8 @@ namespace S2x.ServerManager.ViewModels
             public string CapText;
             public string MinText;
             public int BotFill;
+            public string LaunchId;
+            public string LaunchKey;
         }
 
         private readonly Dictionary<bool, ModeDraft> _drafts = new Dictionary<bool, ModeDraft>();
@@ -787,6 +867,8 @@ namespace S2x.ServerManager.ViewModels
                 CapText = _capText,
                 MinText = _minText,
                 BotFill = _botFill,
+                LaunchId = _launchId,
+                LaunchKey = _launchKey,
             };
             _isZombies = zombies;
 
@@ -810,6 +892,8 @@ namespace S2x.ServerManager.ViewModels
             _capText = draft != null ? draft.CapText : ceiling.ToString();
             _botFill = Math.Min(draft != null ? draft.BotFill : _botFill, Cap);
             _minText = draft != null ? draft.MinText : "1";
+            _launchId = draft != null && Rotation.Count > 0 ? draft.LaunchId : null;
+            _launchKey = draft != null && Rotation.Count > 0 ? draft.LaunchKey : null;
             ClampMinimum();
 
             BuildPickers();
@@ -826,12 +910,72 @@ namespace S2x.ServerManager.ViewModels
                     ? pair.Value
                     : pair.Value + "  " + GameData.MiddleDot + "  " + GameData.MapPack(pair.Key),
             }).ToList();
-            GametypeOptions = _isZombies
-                ? new List<PickOption> { new PickOption { Key = "zombies", Label = "Zombies" } }
-                : GameData.Gametypes.Select(pair => new PickOption { Key = pair.Key, Label = pair.Value }).ToList();
             _pickedMap = MapOptions.FirstOrDefault();
+            Raise("MapOptions"); Raise("PickedMap");
+            BuildModes();
+        }
+
+        private const string ProfileOption = "profile:";
+
+        /// <summary>
+        /// The second picker. Zombies is one mode, plus every launch profile entry for the picked
+        /// map; a map no profile covers offers Zombies alone.
+        /// </summary>
+        private void BuildModes()
+        {
+            if (_isZombies)
+            {
+                GametypeOptions = new List<PickOption> { new PickOption { Key = "zombies", Label = "Zombies" } };
+                foreach (var profile in _fleet.Profiles)
+                    foreach (var entry in profile.Entries)
+                        if (entry.Game == "zombies" && _pickedMap != null && entry.Map == _pickedMap.Key)
+                            GametypeOptions.Add(new PickOption { Key = ProfileOption + profile.Id + ":" + entry.Key, Label = entry.Mode });
+            }
+            else GametypeOptions = GameData.Gametypes.Select(pair => new PickOption { Key = pair.Key, Label = pair.Value }).ToList();
             _pickedGametype = GametypeOptions.FirstOrDefault();
-            Raise("MapOptions"); Raise("GametypeOptions"); Raise("PickedMap"); Raise("PickedGametype");
+            Raise("GametypeOptions"); Raise("PickedGametype");
+        }
+
+        // ── launch profile ────────────────────────────────────────────────────────
+        /// <summary>
+        /// A server a launch profile starts: one row, the entry's map, and the package's own
+        /// script and cfg in charge of the lobby and anything the advanced block would add.
+        /// </summary>
+        public bool IsProfile { get { return _launchId != null; } }
+
+        public bool ShuffleEnabled { get { return !IsProfile; } }
+
+        /// <summary>The rotation row's tag: the entry's own for a profile server.</summary>
+        public string ZombiesTag
+        {
+            get
+            {
+                LaunchProfile profile;
+                var entry = IsProfile ? ProfileEntry(out profile) : null;
+                return entry != null ? entry.Short.ToUpperInvariant() : "ZM";
+            }
+        }
+
+        /// <summary>The entry this server runs, when its profile is registered here.</summary>
+        private LaunchEntry ProfileEntry(out LaunchProfile profile)
+        {
+            return LaunchProfiles.Find(_fleet.Profiles, _launchId, _launchKey, out profile);
+        }
+
+        /// <summary>The fleet read the profiles again: the modes on offer and this server's entry follow.</summary>
+        public void ProfilesChanged()
+        {
+            BuildModes();
+            ProfileChanged();
+            foreach (var row in Rotation) row.Refresh();
+        }
+
+        private void ProfileChanged()
+        {
+            Raise("IsProfile"); Raise("ShuffleEnabled"); Raise("LobbySummary"); Raise("LobbyText");
+            Raise("LobbyFieldsVisibility"); Raise("LobbyTextVisibility");
+            Raise("AdvancedEnabled"); Raise("AdvancedNoteVisibility"); Raise("WritesTo");
+            RandomizeCommand.Refresh();
         }
 
         private List<SwatchViewModel> BuildSwatches()
@@ -886,7 +1030,8 @@ namespace S2x.ServerManager.ViewModels
                 .Append(_shuffleOnLaunch).Append('').Append(_singleRoundDom).Append('')
                 .Append(_botFill).Append('').Append(_botNames).Append('').Append(_botDifficulty).Append('')
                 .Append(Cap).Append('').Append(MinPlayers).Append('').Append(StartDelay).Append('')
-                .Append(_advertise).Append('').Append(string.Join("\n", ExtraLines)).Append('');
+                .Append(_advertise).Append('').Append(string.Join("\n", ExtraLines)).Append('')
+                .Append(_launchId).Append('').Append(_launchKey).Append('');
             foreach (var row in Rotation) text.Append(row.Entry.Gametype).Append(' ').Append(row.Entry.Map).Append(',');
             text.Append('');
             foreach (var mode in Modes()) text.Append(mode).Append('=').Append(_scores[mode]).Append(',');
@@ -908,6 +1053,8 @@ namespace S2x.ServerManager.ViewModels
             target.MinPlayers = MinPlayers;
             target.StartDelay = StartDelay;
             target.Advertise = _advertise;
+            target.LaunchProfileId = _launchId;
+            target.LaunchEntryKey = _launchKey;
             target.ExtraLines.Clear();
             target.ExtraLines.AddRange(ExtraLines);
             foreach (var pair in _scores) target.ScoreLimits[pair.Key] = pair.Value;
