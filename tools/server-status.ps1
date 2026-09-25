@@ -274,10 +274,10 @@ $MapNames = @{
     mp_wolfslair = 'Valkyrie'; mp_dunkirk = 'Dunkirk'; mp_egypt_02 = 'Egypt'; mp_v2_rocket_02 = 'V2'
     mp_stalingrad = 'Stalingrad'; mp_market_garden = 'Market Garden'; mp_monte_cassino_v2 = 'Monte Cassino'
     mp_tank_graveyard_2 = 'Excavation'; mp_airship = 'Airship'; mp_fuhrerbunker = 'Chancellery'
-    mp_zombie_house = 'Groesten Haus'; mp_zombie_descent = 'The Final Reich'; mp_zombie_island = 'The Darkest Shore'
+    mp_zombie_house = 'Groesten Haus'; mp_zombie_nest_01 = 'The Final Reich'; mp_zombie_island = 'The Darkest Shore'
     mp_zombie_berlin = 'The Shadowed Throne'; mp_zombie_windmill = 'The Tortured Path: Into the Storm'
     mp_zombie_dnk = 'The Tortured Path: Across the Depths'; mp_zombie_dig_02 = 'The Tortured Path: Beyond the Veil'
-    mp_zombie_nest_01 = 'The Frozen Dawn'
+    mp_zombie_descent = 'The Frozen Dawn'
 }
 
 function Format-Map([string]$Map) {
@@ -319,7 +319,8 @@ function New-ServerField($Server, $Info, $Listed, [long]$Now) {
     # clamped to it), so it is used as is; subtracting bots would zero it.
     $humans = [int]$Info['clients']
     $people = if ($humans -eq 1) { '1 player online' } else { "$humans players online" }
-    $lines += "$playing · $people, bots fill the rest of $slots"
+    # Zombies bots wait for a player and never fill the slots; the server name gives their count.
+    $lines += if ($Info['gametype'] -eq 'zombies') { "$playing · $people" } else { "$playing · $people, bots fill the rest of $slots" }
     if ($Server -and $Server.rotation.Count -gt 0) {
         $modes = @($Server.rotation | ForEach-Object { Format-Gametype $_.gametype } | Select-Object -Unique)
         $maps = @($Server.rotation | ForEach-Object { Format-Map $_.map } | Select-Object -Unique)
