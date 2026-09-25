@@ -119,6 +119,8 @@ namespace demonware::hq_marketplace
 	inline std::uint32_t collection_price(unsigned rarity, std::string_view type)
 	{
 		if (rarity >= std::size(rarity_prices)) rarity = 0;
+		// Retail sells class camos one tier above column 29 (0: 250, 1: 550 AC); 2 was not captured.
+		if (type == "weapon_class_camo" && rarity < 2) ++rarity;
 		const bool camo = type == "weapon_camo" || type == "weapon_class_camo" || type == "universal_camo";
 		const bool weapon = type.starts_with("weapon") && !camo && type != "weapon_charm" &&
 			type != "weapon_reticle" && type != "weapon_attachment" && type != "weapon_grenade";
