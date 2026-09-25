@@ -438,6 +438,30 @@ void tier_drop_checks()
 	std::cout << "PASS: tier-then-item drops, Rare-or-better first card incl. Heroic, empty-tier re-roll, refused floor keeps the drop\n";
 }
 
+void item_data_receipt_checks()
+{
+	const auto saved = hq_economy::snapshot();
+	const std::vector<hq_item_data::update> seen{{0x7000001, 0, "\x01"}}, other{{0x7000001, 0, "\x02"}};
+	require(hq_economy::transact([](auto& next) { next.inventory[{0x7000001, 0}] = {0x7000001, 1}; return true; }), "item-data fixture");
+	require(hq_item_data::apply("legacy", seen), "item-data write");
+	require(hq_economy::transact([](auto& next) {
+		auto& value = next.transactions.at("item-data:legacy");
+		value = value.substr(value.find(':', 9) + 1); // bare fingerprint, as written before the bound
+		return true;
+	}), "legacy item-data receipt fixture");
+	require(hq_item_data::apply("legacy", seen) && !hq_item_data::apply("legacy", other), "legacy receipt still guards its replay");
+	const auto count = [] { return std::ranges::count_if(hq_economy::snapshot().transactions, [](const auto& entry) { return entry.first.starts_with("item-data:"); }); };
+	for (unsigned i = 0; i < 256; ++i) require(hq_item_data::apply("seen-" + std::to_string(i), seen), "item-data writes");
+	require(count() == 256 && !hq_economy::snapshot().transactions.contains("item-data:legacy"), "legacy receipt retires first");
+	require(hq_item_data::apply("seen-256", seen) && count() == 256 && !hq_economy::snapshot().transactions.contains("item-data:seen-0"), "oldest receipt retires at the bound");
+	const auto revision = hq_economy::snapshot().revision;
+	require(hq_item_data::apply("seen-1", seen) && !hq_item_data::apply("seen-256", other) && hq_economy::snapshot().revision == revision, "kept receipts replay once and refuse a different request");
+	hq_economy::invalidate();
+	require(count() == 256 && hq_economy::snapshot().inventory.at({0x7000001, 0}).metadata == "\x01", "bounded receipts persist");
+	require(hq_economy::transact([&](auto& next) { next = saved; return true; }), "restore prior economy fixture");
+	std::cout << "PASS: item-data receipts keep the newest 256, retire legacy first, and still guard replays\n";
+}
+
 int main(int argc, char** argv)
 {
 	try
@@ -727,6 +751,7 @@ int main(int argc, char** argv)
 		expanded_catalog_checks(timestamp);
 		duplicate_drop_checks();
 		tier_drop_checks();
+		item_data_receipt_checks();
 		achievement_engine::set_catalog({mp});
 		auto mp_offers = request(R"({"Action":"get_scheduled_user_achievements"})");
 		for (const auto& entry : mp_offers["Achievements"].GetArray()) require(entry["kind"].GetInt() < 8, "MP catalog excludes persisted ZM orders");

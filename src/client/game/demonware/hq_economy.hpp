@@ -81,6 +81,9 @@ namespace demonware::hq_economy
 	// Complete persisted receipt key, including its producer prefix.
 	inline constexpr std::size_t identifier_limit = 128;
 	bool valid_receipt_key(std::string_view key);
+	// For receipts that only guard a replay of one request, stored as "sequence:<n>:<request>".
+	// Keeps the newest `limit` under `prefix`; legacy receipts without a sequence go first.
+	void keep_newest_receipts(state& data, std::string_view prefix, std::size_t limit);
 
 	// Missing storage initializes an empty economy through snapshot()/transact().
 	// Unreadable, damaged or locked storage throws store_unavailable while loading:
