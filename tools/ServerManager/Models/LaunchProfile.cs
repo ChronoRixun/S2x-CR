@@ -35,5 +35,19 @@ namespace S2x.ServerManager.Models
         public string Public;      // what {public} becomes when the server advertises
         public string Log;         // relative to the package folder
         public string Script;      // the start script the command runs, relative to the folder
+
+        /// <summary>
+        /// How many of the party the package's own players take: the first digit in the mode's
+        /// label ("Zombies (with 3 Bots)"), or -1 when the label names none. The profile file has
+        /// no separate count, and the label is what the host reads.
+        /// </summary>
+        public int Bots
+        {
+            get
+            {
+                foreach (var c in Mode ?? "") if (c >= '0' && c <= '9') return c - '0';
+                return -1;
+            }
+        }
     }
 }

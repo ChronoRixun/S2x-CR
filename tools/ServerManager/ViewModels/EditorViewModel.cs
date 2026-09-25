@@ -531,10 +531,9 @@ namespace S2x.ServerManager.ViewModels
                 LaunchProfile profile;
                 var entry = ProfileEntry(out profile);
                 if (entry == null) return "Set by the profile '" + _launchId + "', which is not available here.";
-                var digit = entry.Mode.FirstOrDefault(char.IsDigit);
-                if (digit == default(char)) return "Set by the profile.";
+                var bots = entry.Bots;
+                if (bots < 0) return "Set by the profile.";
                 var slots = ServerPreset.CapCeiling(true);
-                var bots = digit - '0';
                 var room = Math.Max(0, slots - bots);
                 return "Set by the profile: " + slots + " slots, " + bots + (bots == 1 ? " bot" : " bots") +
                        ", room for " + room + (room == 1 ? " player" : " players");
