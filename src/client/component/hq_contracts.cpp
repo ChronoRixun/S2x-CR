@@ -4,13 +4,15 @@
 #include "game/game.hpp"
 #include "game/ui_scripting/execution.hpp"
 #include "ui_scripting.hpp"
+#include "game/demonware/hq_contract_catalog.hpp"
 #include "game/demonware/hq_zombies_catalog.hpp"
 #include "game/demonware/hq_zombies_contract_catalog.hpp"
 
 namespace hq_contracts
 {
-	// Keep local Orders policy; the nine Contracts use the loaded retail periodic rows.
-	// Captured AE limits remain authoritative even where the retail table differs.
+	// Keep local Orders policy; the Contracts use the loaded retail periodic rows, with their
+	// rewards and timers from hq_contract_catalog. Captured AE limits remain authoritative
+	// even where the retail table differs.
 	constexpr auto policy = R"lua(
 local lookup = Engine.TableLookup
 local rows = {
@@ -45,18 +47,8 @@ local rows = {
 	[265] = {"265", "AEC_WEEKLY", "weekly_ch_long_range_kills", "Long Range Specialist", "Get 50 long range kills", "", "1", "", "50", "", "0", "", ""},
 	[266] = {"266", "AEC_WEEKLY", "weekly_ch_explosive_kills", "Demolitions Expert", "Get 50 explosive kills", "", "1", "", "50", "", "0", "", ""},
 }
-local contractLimits = { [162] = 1200, [561] = 2400, [146] = 3000, [3048] = 4800,
-	[149] = 2400, [153] = 1200, [164] = 2400, [204] = 1200, [562] = 3000 }
+local contractLimits = {}
 local rewards = {
-	[162] = { currencyID = 1, currencyAmount = 3000 },
-	[561] = { currencyID = 1, currencyAmount = 3000 },
-	[146] = { productID = "0x1", itemID = "0x1" },
-	[3048] = { productID = Engine.GetItemGUIDFromReference("lad_loot0_mp"), itemID = Engine.GetItemGUIDFromReference("lad_loot0_mp") },
-	[149] = { currencyID = 1, currencyAmount = 3000 },
-	[153] = { currencyID = 1, currencyAmount = 3000 },
-	[164] = { currencyID = 1, currencyAmount = 3000 },
-	[204] = { currencyID = 1, currencyAmount = 3000 },
-	[562] = { productID = "0x1", itemID = "0x1" },
 	[10] = { productID = "0x1", itemID = "0x1" },
 	[11] = { productID = "0x1", itemID = "0x1" },
 	[45] = { productID = "0x1", itemID = "0x1" },
@@ -88,6 +80,12 @@ local rewards = {
 	[265] = { productID = "0x2", itemID = "0x2" },
 	[266] = { productID = "0x2", itemID = "0x2" },
 }
+for _, entry in ipairs(S2xRewards) do
+	contractLimits[entry.id] = entry.seconds
+	local item = entry.item ~= "" and Engine.GetItemGUIDFromReference(entry.item) or "0x1"
+	rewards[entry.id] = entry.currency ~= 0 and { currencyID = entry.currency, currencyAmount = entry.amount }
+		or { productID = item, itemID = item }
+end
 if CONDITIONS.IsZombiesMode() then
 	rows, rewards, contractLimits = {}, {}, {}
 	-- The inventory tab groups by periodic type; mode-specific styling uses kind 8/9.
@@ -145,10 +143,21 @@ end
 			ui_scripting::on_start([]
 			{
 				const auto lua = ui_scripting::get_globals();
+				ui_scripting::table rewards;
+				int index{};
+				for (const auto& definition : demonware::hq_contract_catalog::entries)
+				{
+					ui_scripting::table entry;
+					entry["id"] = definition.id; entry["seconds"] = definition.seconds;
+					entry["currency"] = definition.currency; entry["amount"] = definition.amount;
+					entry["item"] = definition.item_reference;
+					rewards[++index] = entry;
+				}
+				lua["S2xRewards"] = rewards;
 				if (game::environment::is_zombies())
 				{
 					ui_scripting::table orders;
-					int index{};
+					index = 0;
 					for (const auto& definition : demonware::hq_zombies_catalog::entries)
 					{
 						ui_scripting::table entry;
