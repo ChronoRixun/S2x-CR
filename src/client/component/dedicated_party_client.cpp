@@ -605,23 +605,14 @@ namespace dedicated_party_client
 			hosted_dedicated_go_in_progress = false;
 
 			// HandleGo can ignore or defer a message while the virtual lobby loads.
-			// Only CL_ConnectAndPreloadMap may commit the accepted match's settings;
-			// writing mapname here can make lobby startup request the next map's BSP.
+			// Writing mapname here can make lobby startup request the next map's BSP;
+			// the engine's handleGo command passes the accepted map to the preload itself.
 			return result;
 		}
 
 		void cl_connect_and_preload_map_stub(const int local_client_num, void* session_info,
 			game::netadr_s* target, const char* map_name, const char* gametype)
 		{
-			if (game::environment::is_multiplayer()
-				&& hosted_dedicated_go_in_progress && map_name && gametype)
-			{
-				// Public PartyClient_HandleGo runs Playlist_RunRules before this call.
-				// Restore the map/gametype carried by the go command at the last native
-				// boundary before client gameplay memory and UI state are selected.
-				update_hosted_dedicated_party_match(map_name, gametype, true);
-			}
-
 			// HandleGo returns before it preloads the accepted match, so the go flag is
 			// already clear by now; the hosted server's address identifies the match.
 			if (game::environment::is_multiplayer() && is_hosted_dedicated_party_address(target))
@@ -901,7 +892,7 @@ namespace dedicated_party_client
 			hosted_dedicated_party_state.max_players = max_players;
 			apply_hosted_party_capacity(hosted_dedicated_party_state.game_lobby);
 			// Keep the next rotation entry out of live map dvars while the current map
-			// is unloading. CL_ConnectAndPreloadMap commits it when the server sends go.
+			// is unloading. The server's go carries it to the preload.
 			if (match_sequence > hosted_dedicated_party_state.match_sequence
 				&& update_hosted_dedicated_party_match(
 					info.get("party_mapname"), info.get("party_gametype"), false))
