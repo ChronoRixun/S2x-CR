@@ -636,13 +636,34 @@ namespace demonware::achievement_engine
 			if (event.timestamp > 0 && data.transactions.contains(key)) return true;
 			// A soldier level-up awards a Rare Supply Drop, as the end-of-match screen
 			// promises: sd_mp_rare (item 2) in Multiplayer, sd_zombie_rare (item 6) in
-			// Zombies. The event carries no rank; the receipt above keeps it once per event.
+			// Zombies. The receipt above keeps it once per event.
 			if (event_type == 14)
 			{
-				const auto zombies = game::environment::is_zombies();
-				if (!hq_economy::grant(data, {"GRANT_PRODUCT", zombies ? 6u : 2u, 1})) return false;
-				changed = true;
-				console::info("[HQ AE] rank up: granted a Rare %sSupply Drop\n", zombies ? "Zombie " : "");
+				std::uint64_t mode{}, rank{}, flag{};
+				for (const auto& [selector, value] : parameters)
+					if (selector == 1) rank = value; else if (selector == 2) mode = value; else if (selector == 3) flag = value;
+				// An MP rank index above 54 (rankTable maxrank, reached only at prestige 10) is a master rank. A match reports it
+				// twice, the rank-up and a copy flagged 3 = 1, and the hub replays flagged ranks from record 84's progress each time
+				// it fetches achievements. Kept at the highest rank's display level, it lets the replay resume and each rank pay once.
+				auto pay = true;
+				if (mode == 1 && rank < 1000 && (flag == 1 || rank > 54))
+				{
+					auto& ranks = data.achievements["player_master_prestige_ranks"];
+					pay = rank > 54 && rank + 1 > ranks.progress;
+					if (rank + 1 > ranks.progress)
+					{
+						ranks.name = ranks.challenge_name = "player_master_prestige_ranks";
+						ranks.kind = 5; ranks.target = 1000; ranks.status = "inProgress";
+						ranks.progress = static_cast<std::uint32_t>(rank + 1); changed = true;
+					}
+				}
+				if (pay)
+				{
+					const auto zombies = game::environment::is_zombies();
+					if (!hq_economy::grant(data, {"GRANT_PRODUCT", zombies ? 6u : 2u, 1})) return false;
+					changed = true;
+					console::info("[HQ AE] rank up: granted a Rare %sSupply Drop\n", zombies ? "Zombie " : "");
+				}
 			}
 			// A Multiplayer prestige is vendor {2 = level}. Prestiging sends one for every level
 			// up to the new one unless the new level's player_prestige_N record is fulfilled, and
