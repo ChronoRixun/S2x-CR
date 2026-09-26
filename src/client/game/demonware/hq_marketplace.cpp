@@ -331,7 +331,8 @@ namespace demonware::hq_marketplace
 			if (const auto prior = data.transactions.find(key); prior != data.transactions.end())
 			{
 				error = BD_MARKETPLACE_RESOURCE_CONFLICT;
-				return prior->second == fingerprint;
+				// Receipts written before the bound hold the bare fingerprint.
+				return prior->second == fingerprint || (prior->second.starts_with("sequence:") && prior->second.ends_with(":" + fingerprint));
 			}
 			const auto now = static_cast<std::uint32_t>(time(nullptr));
 			for (const auto& item : items)
@@ -346,7 +347,9 @@ namespace demonware::hq_marketplace
 				found->second.quantity -= item.quantity;
 				found->second.modified = now;
 			}
-			data.transactions.emplace(key, fingerprint);
+			// As with item-data: a fresh ClientTx per use that nothing retries, ordered by the saved revision.
+			data.transactions[key] = "sequence:" + std::to_string(data.revision + 1) + ":" + fingerprint;
+			hq_economy::keep_newest_receipts(data, "consume:", 256);
 			return true;
 		});
 		return ok ? BD_NO_ERROR : error;
