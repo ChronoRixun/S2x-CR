@@ -456,6 +456,6 @@ Only after sections 0–5 are ticked. Box 4 has no Steam and runs its servers fr
 | 6 README, docs, harness | partial | harness built and passed at build time (tier weights, Rare floor, receipt bound); README not re-read in the pass |
 | 7 Regression list | partial | covered by play tonight: browser, connect, HQ, drops, Zombies match, Manager start/stop; the rest not walked |
 | 8 Box 4 upgrade | pass | rc3 zip via the share, new Manager, kit profile registered, 4 MP + 2 ZM profile servers up and on the master, status task re-registered for the new ports |
-| 9 Release | | tag v1.5.0 at 1637261 (local until pushed); rebuilt and packaged as v1.5.0 |
+| 9 Release | pass | tag v1.5.0 at 1637261 pushed; rebuilt at the tag (console reports v1.5.0, browser fills); release published with s2x-cr-v1.5.0.zip 2026-09-26 |
 
 Not tested in this pass: a first-run Defender/SmartScreen prompt; a remote client on a Gun Game server; the launcher script's Zombies rotation; weekly order rotation; sections 6 and 7 in full.
