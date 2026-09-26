@@ -5,6 +5,7 @@
 #include "game/ui_scripting/execution.hpp"
 #include "ui_scripting.hpp"
 #include "game/demonware/hq_contract_catalog.hpp"
+#include "game/demonware/hq_economy.hpp"
 #include "game/demonware/hq_zombies_catalog.hpp"
 #include "game/demonware/hq_zombies_contract_catalog.hpp"
 
@@ -61,8 +62,8 @@ local rewards = {
 	[210] = { productID = "0x1", itemID = "0x1" },
 	[211] = { productID = "0x1", itemID = "0x1" },
 	[212] = { productID = "0x1", itemID = "0x1" },
-	[12] = { productID = "0x1", itemID = "0x1" },
-	[13] = { productID = "0x1", itemID = "0x1" },
+	[12] = { currencyID = 7, currencyAmount = S2xSocialScoreDaily },
+	[13] = { currencyID = 7, currencyAmount = S2xSocialScoreDaily },
 	[14] = { currencyID = 1, currencyAmount = 300 },
 	[15] = { currencyID = 1, currencyAmount = 250 },
 	[269] = { currencyID = 1, currencyAmount = 250 },
@@ -189,6 +190,7 @@ end
 					}
 					lua["S2xZombiesContracts"] = contracts;
 				}
+				lua["S2xSocialScoreDaily"] = demonware::hq_economy::social_score_daily;
 				(void)lua["loadstring"](policy)[0]();
 			});
 		}
