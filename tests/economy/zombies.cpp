@@ -462,6 +462,31 @@ void item_data_receipt_checks()
 	std::cout << "PASS: item-data receipts keep the newest 256, retire legacy first, and still guard replays\n";
 }
 
+void zombies_prestige_checks(std::int64_t& timestamp)
+{
+	const auto saved = hq_economy::snapshot();
+	const auto prestige = [&](const std::uint64_t level) { return achievement_engine::submit_event({"11", timestamp++, {{"5", level}}}); };
+	const auto added = [&] { return hq_economy::snapshot().inventory.size() - saved.inventory.size(); };
+	const auto cards = [](const std::uint32_t count)
+	{
+		const auto state = hq_economy::snapshot();
+		for (std::uint32_t n = 1; n <= count; ++n)
+		{
+			const auto card = state.inventory.find({0x240025B + n, 0});
+			if (card == state.inventory.end() || card->second.quantity != 1 || !state.transactions.contains("prestige:zm:" + std::to_string(n))) return false;
+		}
+		return true;
+	};
+	require(prestige(3) && cards(3) && added() == 3, "Zombies prestige 3 pays cards 1..3");
+	require(prestige(3) && added() == 3, "a second prestige 3 event pays nothing more");
+	require(prestige(10) && cards(10) && added() == 10, "prestige 10 pays cards 4..10 and nothing else");
+	require(prestige(0) && prestige(11) && added() == 10, "levels 0 and 11 pay nothing");
+	hq_economy::invalidate();
+	require(cards(10), "the cards and their receipts persist");
+	require(hq_economy::transact([&](auto& next) { next = saved; return true; }), "restore prior economy fixture");
+	std::cout << "PASS: a Zombies prestige pays every calling card up to its level once, nothing for levels 0 or 11\n";
+}
+
 int main(int argc, char** argv)
 {
 	try
@@ -752,6 +777,7 @@ int main(int argc, char** argv)
 		duplicate_drop_checks();
 		tier_drop_checks();
 		item_data_receipt_checks();
+		zombies_prestige_checks(timestamp);
 		achievement_engine::set_catalog({mp});
 		auto mp_offers = request(R"({"Action":"get_scheduled_user_achievements"})");
 		for (const auto& entry : mp_offers["Achievements"].GetArray()) require(entry["kind"].GetInt() < 8, "MP catalog excludes persisted ZM orders");
