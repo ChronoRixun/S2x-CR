@@ -26,6 +26,15 @@ namespace demonware::achievement_engine
 		std::map<std::uint32_t, consumable_grant> zombies_consumables{};
 		std::map<std::uint32_t, std::uint32_t> loot_duplicate_credits;
 		std::map<std::string, hq_event_predicate::rule> event_rules;
+		// Master prestige rewards by display level. ProxyRewards (rankutils) names the camo at 56 and a uniform
+		// at each hundred; the other camos carry their level in their names, and the master helmet
+		// (player_prestige_11) is placed on the first master rank. Those two placements are inferred.
+		constexpr struct { unsigned level; std::uint32_t items[2]; } master_rewards[]
+		{
+			{56, {0x704001E, 0x6632116}}, {100, {0x6000039}}, {200, {0x6021039, 0x7040019}}, {300, {0x6003039}},
+			{400, {0x6010039, 0x704001A}}, {500, {0x6011039}}, {600, {0x6023039, 0x704001B}}, {666, {0x704001F}},
+			{700, {0x6033039}}, {800, {0x6013039, 0x704001C}}, {900, {0x6020039}}, {1000, {0x6030039, 0x704001D}},
+		};
 		using allocator = rapidjson::Document::AllocatorType;
 
 		bool daily(const int kind) { return kind == 1 || kind == 8; }
@@ -664,6 +673,20 @@ namespace demonware::achievement_engine
 					changed = true;
 					console::info("[HQ AE] rank up: granted a Rare %sSupply Drop\n", zombies ? "Zombie " : "");
 				}
+				// A match's flagged copy of each new master rank and the hub's replay, which re-sends the highest rank
+				// reached, send {2 = MP, 1 = rank index, 3 = 1}, so index + 1 is the display level and a level already
+				// passed is paid on the next HQ entry.
+				if (mode == 1 && rank < 1000 && flag == 1)
+					for (const auto& [level, items] : master_rewards)
+					{
+						if (rank + 1 < level) break;
+						const auto receipt = "prestige:master:" + std::to_string(level);
+						if (data.transactions.contains(receipt)) continue;
+						for (const auto item : items)
+							if (item && !hq_economy::grant(data, {"GRANT_PRODUCT", item, 1})) return false;
+						data.transactions[receipt] = std::to_string(event.timestamp);
+						console::info("[HQ AE] master rank %u: granted its rewards\n", level);
+					}
 			}
 			// A Multiplayer prestige is vendor {2 = level}. Prestiging sends one for every level
 			// up to the new one unless the new level's player_prestige_N record is fulfilled, and
