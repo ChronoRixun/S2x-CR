@@ -639,6 +639,18 @@ namespace demonware::achievement_engine
 			if (event_type == 11)
 				for (const auto& [selector, level] : parameters)
 				{
+					// A Zombies prestige is vendor {5 = level}, sent once and never replayed, so every card
+					// up to that level (playercard_zm_challenge_01..10) is paid here once under its receipt.
+					if (selector == 5 && level >= 1 && level <= 10)
+						for (std::uint32_t n = 1; n <= level; ++n)
+						{
+							const auto receipt = "prestige:zm:" + std::to_string(n);
+							if (data.transactions.contains(receipt)) continue;
+							if (!hq_economy::grant(data, {"GRANT_PRODUCT", 0x240025B + n, 1})) return false;
+							data.transactions[receipt] = std::to_string(event.timestamp);
+							changed = true;
+							console::info("[HQ AE] Zombies prestige %u: granted its calling card\n", n);
+						}
 					if (selector != 2 || level < 1 || level > 10) continue;
 					const auto receipt = "prestige:mp:" + std::to_string(level);
 					if (data.transactions.contains(receipt)) continue;
