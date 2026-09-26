@@ -447,15 +447,15 @@ Only after sections 0–5 are ticked. Box 4 has no Steam and runs its servers fr
 
 | Check | Pass / fail / skipped | Notes |
 |---|---|---|
-| 0 Install, backup, updater, baseline | | |
-| 1 HQ economy | | |
-| 2 Dedicated HUD limits | | |
-| 3 Server Manager launch profiles | | |
-| 4 Map names | | |
-| 5 Status card | | |
-| 6 README, docs, harness | | |
-| 7 Regression list | | |
-| 8 Box 4 upgrade | | |
-| 9 Release | | |
+| 0 Install, backup, updater, baseline | pass | rc1 18:27, rc2, rc3 21:48 (game closed, profile backed up each time); updater quiet; baseline HQ entry smooth |
+| 1 HQ economy | pass | 1.1 prestige helmet/card, trade-ins not exercised; 1.2 three Rare drops, first card Rare+; 1.3 collection reward incl. MAS-38; 1.4 consumables used up; 1.5 ZM 5 new dailies + accepted LMG carried, MP offerDay advanced with 2 accepted carried; #25 trimmed live at 256 |
+| 2 Dedicated HUD limits | pass | rc3, server from rc-test.cfg: `gun limits 36/1/1` on join, HUD 0/36, `dom limits 200/1/2` after rotation (Dom HUD shows no maximum), 0/36 again, match ended at 36; step 7: fresh client after the LAN-only server requested the master and listed 13 |
+| 3 Server Manager launch profiles | pass | GUI: register, four modes listed, launch, join, stop; Box 4 launched two profile servers |
+| 4 Map names | pass | Manager, launcher tables and status card name The Final Reich (nest_01) and The Frozen Dawn (descent); Box 4 profile server on The Final Reich shows the right name in the Manager and the card |
+| 5 Status card | pass | Box 4 card after the upgrade: 6 servers, Zombies lines with the right map and no "bots fill", MP lines unchanged |
+| 6 README, docs, harness | partial | harness built and passed at build time (tier weights, Rare floor, receipt bound); README not re-read in the pass |
+| 7 Regression list | partial | covered by play tonight: browser, connect, HQ, drops, Zombies match, Manager start/stop; the rest not walked |
+| 8 Box 4 upgrade | pass | rc3 zip via the share, new Manager, kit profile registered, 4 MP + 2 ZM profile servers up and on the master, status task re-registered for the new ports |
+| 9 Release | | tag v1.5.0 at 1637261 (local until pushed); rebuilt and packaged as v1.5.0 |
 
-Not tested in this pass:
+Not tested in this pass: a first-run Defender/SmartScreen prompt; a remote client on a Gun Game server; the launcher script's Zombies rotation; weekly order rotation; sections 6 and 7 in full.
