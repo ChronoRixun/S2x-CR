@@ -462,6 +462,32 @@ void item_data_receipt_checks()
 	std::cout << "PASS: item-data receipts keep the newest 256, retire legacy first, and still guard replays\n";
 }
 
+void mail_delivery_checks()
+{
+	hq_economy::state state;
+	require(hq_mail::redeem(state, 1, "s2x-mail:welcome-v1"), "welcome fixture");
+	for (const std::size_t index : {1u, 2u})
+	{
+		const auto& delivery = hq_mail::deliveries[index];
+		const auto key = "mail:" + std::to_string(delivery.id);
+		const auto owned = state.inventory.size();
+		require(!hq_mail::redeem(state, delivery.id, "s2x-mail:welcome-v1") && state.inventory.size() == owned && !state.transactions.contains(key),
+			"wrong code grants nothing");
+		require(hq_mail::redeem(state, delivery.id, delivery.code) && hq_mail::redeem(state, delivery.id, delivery.code), "delivery claim and replay");
+		for (const auto& reward : delivery.rewards) require(state.inventory.at({reward.id, 0}).quantity == 1, "each item granted once");
+		require(state.inventory.size() == owned + delivery.rewards.size() && state.transactions.at(key) == delivery.code, "one receipt holding the code");
+		if (index == 1)
+		{
+			// Slots 8 and 9 are now empty and allocated; delivery 3 still sits in slot 10, then three empty slots.
+			const auto wire = hq_mail::messages(state, 14), empty = hq_mail::empty_slots(14);
+			require(wire.starts_with(empty.substr(0, 10 * 18)) && wire.ends_with(empty.substr(0, 3 * 18)) &&
+				wire.find(hq_mail::deliveries[2].code) != std::string::npos, "a claimed delivery keeps later slots in place");
+		}
+	}
+	require(hq_mail::messages(state, 14) == hq_mail::empty_slots(14), "every delivery claimed");
+	std::cout << "PASS: anniversary and community deliveries grant each item once, refuse a wrong code and keep later slots in place\n";
+}
+
 int main(int argc, char** argv)
 {
 	try
@@ -752,6 +778,7 @@ int main(int argc, char** argv)
 		duplicate_drop_checks();
 		tier_drop_checks();
 		item_data_receipt_checks();
+		mail_delivery_checks();
 		achievement_engine::set_catalog({mp});
 		auto mp_offers = request(R"({"Action":"get_scheduled_user_achievements"})");
 		for (const auto& entry : mp_offers["Achievements"].GetArray()) require(entry["kind"].GetInt() < 8, "MP catalog excludes persisted ZM orders");

@@ -34,12 +34,26 @@ namespace demonware::hq_mail
 		const char* code;
 		const char* title;
 		const char* description;
+		const char* image;
 		std::vector<hq_economy::reward> rewards;
 	};
 	// Stable IDs/codes are permanent receipts. Never reuse an ID for a different pack.
 	inline const std::vector<delivery> deliveries{
 		{1, "s2x-mail:welcome-v1", "Welcome to Headquarters", "A welcome pack containing 500 Armory Credits.",
-			{{"GRANT_CURRENCY", hq_economy::armory_credits, 500}}}
+			"s2_armory_credits_icon", {{"GRANT_CURRENCY", hq_economy::armory_credits, 500}}},
+		{2, "s2x-mail:anniversary40-v1", "Activision 40th Anniversary Calling Cards",
+			"10 calling cards to celebrate Activision's 40th Anniversary!", "voucher_40th_anniversary",
+			{{"GRANT_PRODUCT", 0x2400499, 1}, {"GRANT_PRODUCT", 0x240049A, 1}, {"GRANT_PRODUCT", 0x240049B, 1},
+				{"GRANT_PRODUCT", 0x240049C, 1}, {"GRANT_PRODUCT", 0x240049D, 1}, {"GRANT_PRODUCT", 0x240049E, 1},
+				{"GRANT_PRODUCT", 0x240049F, 1}, {"GRANT_PRODUCT", 0x24004A0, 1}, {"GRANT_PRODUCT", 0x24004A1, 1},
+				{"GRANT_PRODUCT", 0x24004A2, 1}}}, // playercard_40th_001..010
+		{3, "s2x-mail:community-v1", "Community Event Rewards", "Rewards from the Call of Duty: WWII community events.",
+			"voucher_community_helmet",
+			{{"GRANT_PRODUCT", 0x663211F, 1}, {"GRANT_PRODUCT", 0x4000C0, 1}, // hat287, grip_collection_community_01
+				{"GRANT_PRODUCT", 0x2400270, 1}, {"GRANT_PRODUCT", 0x24003CD, 1}, {"GRANT_PRODUCT", 0x24003F7, 1}, // playercard_incentive_community_01..03
+				{"GRANT_PRODUCT", 0x7000062, 1}, {"GRANT_PRODUCT", 0x7000095, 1}, // weaponcharm_mtx5_community, _02
+				{"GRANT_PRODUCT", 0x7040023, 1}, {"GRANT_PRODUCT", 0x7040021, 1}, {"GRANT_PRODUCT", 0x7040018, 1}, // camo_mtx9_community, camo_mtx8_03_universal, camo_mtx7_07_universal
+				{"GRANT_PRODUCT", 0x1022402, 1}}} // model21_loot3_mp (Cruiser II)
 	};
 	inline bool pending(const hq_economy::state& state, const delivery& message)
 	{
