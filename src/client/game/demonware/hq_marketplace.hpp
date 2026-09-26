@@ -32,8 +32,8 @@ namespace demonware::hq_marketplace
 		// 135 bytes; the native SKU cache slot only 64, at +0x25C (Inventory_GetSKUInfo,
 		// binding 0x11FF90, reads promotionalText there and skuData at +0x29C).
 		const char* promotional_text{""};
-		// A CWL pack grants five real cosmetic GUIDs from the decompiled details menu.
-		std::array<std::uint32_t, 5> items{};
+		// A pack grants up to ten cosmetic GUIDs, the native SKU and product record capacity.
+		std::array<std::uint32_t, 10> items{};
 		const char* contract{""};
 		bool consumable{};
 		// Currency id of the single price record the client reads: task 111 catalog record
@@ -160,6 +160,21 @@ namespace demonware::hq_marketplace
 		{0x2000119, 1000, 100, "t:CWL_VITA;l:0x2000119|1", "Team Vitality Pack;5 CWL cosmetics", {0x2000119, 0x2400439, 0x6632183, 0x70000a6, 0x7040011}},
 		{0x2000118, 1000, 100, "t:CWL_KALI;l:0x2000118|1", "Team Kaliber Pack;5 CWL cosmetics", {0x2000118, 0x2400438, 0x6632182, 0x700009e, 0x7040010}},
 		{0x200012f, 1000, 100, "t:CWL_CWL;l:0x200012f|1", "CWL Pack;5 CWL cosmetics", {0x200012f, 0x240042a, 0x6632177, 0x7000097, 0x7040013}},
+		// Items retail gave only through pre-orders, promotions and paid packs. The front page's
+		// scheduled-special tiles show them: the publisher variables
+		// online_quartermaster_special_bundle_*_ref name these tags. Packs holding a uniform cost
+		// their items' collection price; the rest cost at most a CWL pack. The C.O.D.E. packs also
+		// grant their retail pack's feature GUID (unlockTable RequiredItems): without it Zombies
+		// keeps the owned items locked.
+		{0x2000004, 1000, 100, "t:S2X_CODE;l:0x2000004|1;i:emblem_incentive_code", "C.O.D.E. Pack;3 cosmetics", {0x2000004, 0x800093, 0x2400225, 0x6600100}},
+		{0x2000003, 1000, 100, "t:S2X_BETA;l:0x2000003|1;i:emblem_incentive_beta", "Beta and Ambassador Pack;7 cosmetics", {0x2000003, 0x2400222, 0x6632101, 0x2000005, 0x2400267, 0x2400268, 0x2400269}},
+		{0x700013f, 1000, 100, "t:S2X_ZOMBIES;l:0x700013f|1;i:charm_ray_gun", "Zombies Pack;9 cosmetics", {0x700013f, 0x7040001, 0x7040002, 0x7040003, 0x7040015, 0x7040016, 0x7040017, 0x7040020, 0x7040022}},
+		{0x6003001, 16250, 100, "t:S2X_PREORDER;l:0x6003001|1;i:us_infantry_skin1", "Divisions Pre-order Pack;5 cosmetics", {0x6003001, 0x6003003, 0x6003009, 0x600300d, 0x6003010}},
+		{0x7000096, 1000, 100, "t:S2X_VIPER;l:0x7000096|1;i:charm_fdr_dog", "C.O.D.E. Viper Pack;9 cosmetics", {0x7000096, 0x80013a, 0x7018017, 0x7019017, 0x701a017, 0x701b017, 0x701c017, 0x701d017, 0x701e017, 0x701f017}},
+		{0x600002f, 3750, 100, "t:S2X_ENDOWMENT;l:0x600002f|1;i:monty_r1", "C.O.D.E. Endowment Pack;5 cosmetics", {0x600002f, 0x80013a, 0x2000108, 0x24003f9, 0x2000107, 0x24003f8}},
+		{0x66000e5, 1000, 100, "t:S2X_PARTNER;l:0x66000e5|1;i:special_helmet_pathfinder", "Partner Pack;7 cosmetics", {0x66000e5, 0x2400223, 0x2400226, 0x2400224, 0x240026a, 0x240026b, 0x24003cc}},
+		{0x6000038, 3250, 100, "t:S2X_TWITCH;l:0x6000038|1;i:twitch_r1", "Twitch Uniform;1 cosmetic", {0x6000038}},
+		{0x6023003, 6500, 100, "t:S2X_ARMYMEN;l:0x6023003|1;i:us_paratrooper_skin3", "Army Men Pack;2 cosmetics", {0x6023003, 0x6023022}},
 	};
 	// Retail capture 2026-09-13: native loot rarity column 29 AND StatsTable Group column 0.
 	inline constexpr std::uint32_t rarity_prices[]{125, 275, 600, 7300, 8900};

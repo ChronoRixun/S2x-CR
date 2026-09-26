@@ -667,6 +667,34 @@ void social_rank_checks(std::int64_t timestamp)
 	std::cout << "PASS: social ranks pay once; replay, catch-up, event-ring eviction and reload pay nothing more; bad ranks pay nothing\n";
 }
 
+void promo_pack_checks()
+{
+	const auto saved = hq_economy::snapshot();
+	constexpr std::uint32_t preorder = 0x6003001, endowment = 0x600002f, zombies = 0x700013f;
+	const std::vector<std::uint32_t> uniforms{0x6003001, 0x6003003, 0x6003009, 0x600300d, 0x6003010};
+	require(hq_economy::transact([](auto& next) { next.inventory.clear(); return hq_economy::grant(next, {"SET_CURRENCY_BALANCE", 6, 20000}); }), "promo pack fixture");
+	const auto credits = [] { return hq_economy::snapshot().currencies.at(6); };
+	const auto pack = hq_marketplace::find_sku(preorder);
+	require(pack && pack->price == 16250 && hq_marketplace::granted_items(*pack) == uniforms, "pre-order pack price and items");
+	require(hq_marketplace::purchase("promo-1", preorder, 1) == 0 && credits() == 3750, "pack purchase debits once");
+	for (const auto id : uniforms) require(hq_economy::snapshot().inventory.at({id, 0}).quantity == 1, "pack grants every uniform once");
+	require(hq_marketplace::purchase("promo-1", preorder, 1) == 0 && credits() == 3750, "pack replay debits nothing");
+	require(hq_marketplace::purchase("promo-2", preorder, 1) != 0 && credits() == 3750, "owned pack refuses a rebuy");
+	require(hq_marketplace::purchase("promo-3", endowment, 1) == 0 && credits() == 0, "second pack spends the rest");
+	const auto revision = hq_economy::snapshot().revision;
+	require(hq_marketplace::purchase("promo-4", zombies, 1) != 0 && hq_economy::snapshot().revision == revision, "short funds grant nothing");
+	for (const auto& entry : hq_marketplace::vendor_skus)
+	{
+		const std::string_view data{entry.data};
+		const auto limiter = data.find("l:");
+		if (limiter == data.npos) continue;
+		require(std::strtoul(data.data() + limiter + 2, nullptr, 16) == entry.id && entry.items[0] == entry.id, "limiter is the SKU id and first item");
+		require(data.size() < 64 && std::string_view{entry.promotional_text}.size() < 64, "SKU data and promo text fit the native cache");
+	}
+	require(hq_economy::transact([&](auto& next) { next = saved; return true; }), "restore prior economy fixture");
+	std::cout << "PASS: promo packs grant every item for one debit, replay once, refuse a rebuy or short funds, and every limited SKU is limited by its first item\n";
+}
+
 int main(int argc, char** argv)
 {
 	try
@@ -962,6 +990,7 @@ int main(int argc, char** argv)
 		mp_weapon_contract_checks(timestamp);
 		mp_variant_order_checks(timestamp);
 		social_rank_checks(timestamp);
+		promo_pack_checks();
 		achievement_engine::set_catalog({mp});
 		auto mp_offers = request(R"({"Action":"get_scheduled_user_achievements"})");
 		for (const auto& entry : mp_offers["Achievements"].GetArray()) require(entry["kind"].GetInt() < 8, "MP catalog excludes persisted ZM orders");
