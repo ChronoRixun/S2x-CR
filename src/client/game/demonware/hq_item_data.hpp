@@ -66,7 +66,7 @@ namespace demonware::hq_item_data
 			// transact() saves each write as one new revision, which orders these receipts.
 			data.transactions[key] = "sequence:" + std::to_string(data.revision + 1) + ":" + fingerprint;
 			// Every request has a fresh transaction id and a replay follows within minutes:
-			// 256 is days of writes and leaves 7,696 permanent receipts beside 2,048 events.
+			// 256 is days of writes; with 256 card-use receipts it leaves 7,440 permanent receipts beside 2,048 events.
 			hq_economy::keep_newest_receipts(data, "item-data:", 256);
 			return true;
 		});

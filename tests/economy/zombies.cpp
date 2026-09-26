@@ -462,6 +462,35 @@ void item_data_receipt_checks()
 	std::cout << "PASS: item-data receipts keep the newest 256, retire legacy first, and still guard replays\n";
 }
 
+void consume_receipt_checks()
+{
+	const auto saved = hq_economy::snapshot();
+	constexpr std::uint32_t card = 0x4A00001; // Max Ammo (common)
+	const std::vector<hq_economy::item> one{{card, 1}}, two{{card, 2}};
+	require(hq_economy::transact([&](auto& next) { next.inventory[{card, 0}] = {card, 1000}; return true; }), "consume fixture");
+	require(hq_marketplace::consume("legacy", one) == BD_NO_ERROR, "card use");
+	require(hq_economy::transact([](auto& next) {
+		auto& value = next.transactions.at("consume:legacy");
+		value = value.substr(value.find(':', 9) + 1); // bare fingerprint, as written before the bound
+		return true;
+	}), "legacy consume receipt fixture");
+	const auto quantity = [&] { return hq_economy::snapshot().inventory.at({card, 0}).quantity; };
+	require(hq_marketplace::consume("legacy", one) == BD_NO_ERROR && hq_marketplace::consume("legacy", two) == BD_MARKETPLACE_RESOURCE_CONFLICT &&
+		quantity() == 999, "legacy receipt still guards its replay");
+	const auto count = [] { return std::ranges::count_if(hq_economy::snapshot().transactions, [](const auto& entry) { return entry.first.starts_with("consume:"); }); };
+	for (unsigned i = 0; i < 256; ++i) require(hq_marketplace::consume("use-" + std::to_string(i), one) == BD_NO_ERROR, "card uses");
+	require(count() == 256 && !hq_economy::snapshot().transactions.contains("consume:legacy"), "legacy receipt retires first");
+	require(hq_marketplace::consume("use-256", one) == BD_NO_ERROR && count() == 256 && !hq_economy::snapshot().transactions.contains("consume:use-0"),
+		"oldest receipt retires at the bound");
+	const auto revision = hq_economy::snapshot().revision;
+	require(hq_marketplace::consume("use-1", one) == BD_NO_ERROR && hq_marketplace::consume("use-256", two) == BD_MARKETPLACE_RESOURCE_CONFLICT &&
+		hq_economy::snapshot().revision == revision && quantity() == 742, "kept receipts replay and refuse a different request without charging");
+	hq_economy::invalidate();
+	require(count() == 256 && quantity() == 742, "bounded receipts persist");
+	require(hq_economy::transact([&](auto& next) { next = saved; return true; }), "restore prior economy fixture");
+	std::cout << "PASS: consume receipts keep the newest 256, retire legacy first, and still guard replays\n";
+}
+
 int main(int argc, char** argv)
 {
 	try
@@ -752,6 +781,7 @@ int main(int argc, char** argv)
 		duplicate_drop_checks();
 		tier_drop_checks();
 		item_data_receipt_checks();
+		consume_receipt_checks();
 		achievement_engine::set_catalog({mp});
 		auto mp_offers = request(R"({"Action":"get_scheduled_user_achievements"})");
 		for (const auto& entry : mp_offers["Achievements"].GetArray()) require(entry["kind"].GetInt() < 8, "MP catalog excludes persisted ZM orders");
