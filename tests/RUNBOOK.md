@@ -34,6 +34,7 @@ Every economy fix below was already live-tested on this profile this week, one b
 | `627962c`, `152d0e9` | Status card: The Final Reich and The Frozen Dawn named correctly; Zombies lines stop saying bots fill the server | section 5 |
 | `32ec918`, `6e32463`, `def7ac2`, `e4cc562`, `585ab7e`, `6b0966f` | Server Manager launch profiles: register a server package, pick its modes, start and stop its servers | section 3 |
 | `69285bd` | The Final Reich and The Frozen Dawn swapped back in the Manager's and the launcher's map tables | section 4 |
+| `b21b025` | The two master-server settings are no longer saved, so a server run from the game folder with the master disabled no longer leaves the client's browser empty | section 2, step 7 |
 | `d18def5`–`ffc3a5a` | Rename to S2x-CR, README, showcase, SECURITY | nothing to play |
 
 Automated coverage before you start: the economy harness builds and passes again (build `build\s2x.sln` Release x64 first, then `msbuild tests/economy/zombies.vcxproj /p:Configuration=Release /p:Platform=x64` and `.\build\tests\zombies\bin\zombies.exe`; every section prints PASS and it exits 0). It covers the Rare floor and tier weights over 500 openings, the empty-tier re-roll and the item-data receipt bound; each fix branch also passed its own harness (consumables 26/26, uniform pawn 18/18, collection redeem 20/20, prestige 20/20). The Manager builds with 0 warnings, and its launch-profile loader and editor were driven from PowerShell. What none of that proves is anything rendered on screen, the game's own requests at HQ entry, or a server package started from the Manager's window. That is what this runbook is for.
@@ -102,14 +103,16 @@ A local dedicated server for section 2, on a port that does not collide with box
 
 ```bat
 cd /d "D:\Program Files\Steam\steamapps\common\Call of Duty WWII"
-start "" s2x.exe -noupdate -dedicated +set net_port 27017 +set party_maxplayers 18 +set party_matchStartDelay 15 +set bot_fill 8 +set bot_names nostalgia +set sv_hostname "rc test" +set sv_maprotation "gametype gun map mp_shipment_s2 gametype dom map mp_shipment_s2" +exec server.cfg +set scr_gun_cycleCount 2 +map_rotate
+start "" s2x.exe -noupdate -dedicated +set net_port 27017 +set party_maxplayers 18 +set party_matchStartDelay 15 +set bot_fill 8 +set bot_names nostalgia +set sv_hostname "rc test" +set master_server_enable 0 +set sv_maprotation "gametype gun map mp_shipment_s2 gametype dom map mp_shipment_s2" +exec server.cfg +set scr_gun_cycleCount 2 +map_rotate
 ```
 
 The same launch from PowerShell, where `cd /d` and `start ""` do not work:
 
 ```powershell
-Set-Location 'D:\Program Files\Steam\steamapps\common\Call of Duty WWII'; Start-Process -FilePath '.\s2x.exe' -WorkingDirectory (Get-Location) -ArgumentList '-noupdate -dedicated +set net_port 27017 +set party_maxplayers 18 +set party_matchStartDelay 15 +set bot_fill 8 +set bot_names nostalgia +set sv_hostname "rc test" +set sv_maprotation "gametype gun map mp_shipment_s2 gametype dom map mp_shipment_s2" +exec server.cfg +set scr_gun_cycleCount 2 +map_rotate'
+Set-Location 'D:\Program Files\Steam\steamapps\common\Call of Duty WWII'; Start-Process -FilePath '.\s2x.exe' -WorkingDirectory (Get-Location) -ArgumentList '-noupdate -dedicated +set net_port 27017 +set party_maxplayers 18 +set party_matchStartDelay 15 +set bot_fill 8 +set bot_names nostalgia +set sv_hostname "rc test" +set master_server_enable 0 +set sv_maprotation "gametype gun map mp_shipment_s2 gametype dom map mp_shipment_s2" +exec server.cfg +set scr_gun_cycleCount 2 +map_rotate'
 ```
+
+`master_server_enable 0` keeps the test server off the public list (it is the setting the Manager's "Advertise off" writes); section 2 step 7 checks that it no longer sticks to your client.
 
 Start the server before the client, or give it a port other than 27016: a client already running on this PC holds UDP 27016, and a server asked for a taken port moves to the next free one without saying so. To see where a server really is: `Get-NetUDPEndpoint | Where-Object OwningProcess -eq <server pid>`.
 
@@ -259,6 +262,7 @@ Do not use `setprestige` on this profile to test #22: the catch-up pays every le
 4. Rotate back to Gun Game: `0 / 36` again.
 5. Stop the server, start it again and join during its first match: the limit shows there too (the fresh-host case, which reads 0 without the fix).
 6. Let one Gun Game match run to its end, bots will do it: the match ends at 36. The release notes' known issue says Gun Game runs to 75 on a dedicated server; the server-side trace says it ends at the ladder length. Record what you see; the known-issues line depends on it.
+7. Stop the server (it ran with the master disabled). Launch the client the normal way and open the server browser: the list fills and the console logs `[server_list] requesting S2 servers from ...`. Before this build a server whose cfg set `master_server_enable 0` wrote that setting into `players2\system_config_mp.cfg` while it started, and the client then showed "No servers found" at every launch with nothing logged.
 
 **Evidence if it fails:** a screenshot of the HUD, the client console tail from the connect, the server's gametype and `scr_gun_cycleCount`.
 
@@ -271,6 +275,7 @@ Do not use `setprestige` on this profile to test #22: the catch-up pays every le
 - [ ] After a rotation the HUD follows the new gametype's limit
 - [ ] Fresh host's first match shows the limit
 - [ ] Gun Game match ends at 36 (or note where it ended)
+- [ ] After the server stopped, the browser lists servers and the console logs `[server_list] requesting`
 
 ---
 
