@@ -154,7 +154,7 @@ namespace mail_guard
 						ui_scripting::table item;
 						item["guid"] = utils::string::va("0x%x", 0x50E0001u + static_cast<unsigned>(i));
 						item["slot"] = static_cast<int>(8 + i); item["name"] = message.title; item["desc"] = message.description;
-						item["image"] = "s2_armory_credits_icon"; item["itemQuantity"] = 1;
+						item["image"] = message.image; item["itemQuantity"] = 1;
 						result[++index] = item;
 					}
 				}
