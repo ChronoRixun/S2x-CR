@@ -315,8 +315,7 @@ namespace hq_economy
 				std::vector<demonware::hq_economy::achievement> catalog;
 				// Daily order pool. The rotation shows 6 per day, cycling through the
 				// full pool. All challenge names have event rules in dwgamechallenges.csv.
-				for (const auto& [name, target, currency, amount] :
-					std::vector<std::tuple<const char*, unsigned, unsigned, unsigned>>{
+				const std::vector<std::tuple<const char*, unsigned, unsigned, unsigned>> generic_orders{
 					{"daily_ch_kills", 25, 0, 1}, {"daily_ch_headshots", 3, 0, 1},
 					{"daily_ch_assault_kills", 35, 0, 1}, {"daily_ch_smg_kills", 30, 0, 1},
 					{"daily_ch_lmg_kills", 25, 0, 1}, {"daily_ch_shotgun_kills", 25, 0, 1},
@@ -327,12 +326,19 @@ namespace hq_economy
 					{"daily_ch_dom_wins", 1, 0, 1}, {"daily_ch_tdm_wins", 1, 0, 1},
 					{"daily_ch_killstreak", 3, 1, 300}, {"daily_ch_dom_caps", 5, 1, 250},
 					{"daily_ch_assists", 10, 1, 250}, {"daily_ch_destroy_scorestreaks", 2, 1, 300},
-					{"daily_ch_equipment_kills", 5, 0, 1}, {"daily_ch_ffa_killer", 15, 0, 1}})
+					{"daily_ch_equipment_kills", 5, 0, 1}, {"daily_ch_ffa_killer", 15, 0, 1}};
+				// The retail variant dailies sit between the generic ones, so each day's six mix both.
+				const auto& variants = demonware::hq_contract_catalog::orders;
+				std::size_t variant{};
+				for (std::size_t i = 0; i < generic_orders.size(); ++i)
 				{
+					const auto& [name, target, currency, amount] = generic_orders[i];
 					demonware::hq_economy::achievement entry;
 					entry.name = entry.challenge_name = name; entry.target = target;
 					entry.rewards = {{currency ? "GRANT_CURRENCY" : "GRANT_PRODUCT", currency ? currency : 1, amount}};
 					catalog.push_back(entry);
+					for (; variant < (i + 1) * std::size(variants) / generic_orders.size(); ++variant)
+						catalog.push_back(demonware::hq_contract_catalog::achievement(variants[variant]));
 				}
 				// Weekly order pool. The rotation shows 3 per week.
 				for (const auto& [name, target] : std::vector<std::pair<const char*, unsigned>>{

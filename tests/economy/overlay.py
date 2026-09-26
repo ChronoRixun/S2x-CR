@@ -33,6 +33,8 @@ assert len({entry[7] for entry in contracts}) == len(contracts)
 mp_header = (root / 'src/client/game/demonware/hq_contract_catalog.hpp').read_text()
 mp_contracts = re.findall(r'\{(\d+), "([^"]+)", "[^"]*", "[^"]*", (\d+), (\d+), (\d+), (\d+), (\d+), "([^"]*)"\}', mp_header)
 assert len(mp_contracts) == 56 and len({entry[0] for entry in mp_contracts}) == 56
+orders = re.findall(r'\{(\d+), "(daily_ch_[^"]+)", (\d+), (0x[0-9A-Fa-f]+)\}', mp_header)
+assert len(orders) == 41 and all(len({entry[i] for entry in orders}) == 41 for i in (0, 1, 3))
 
 if a.research_root:
     with (a.research_root / 'tables/dwgamechallenges.csv').open() as f:
@@ -50,6 +52,14 @@ if a.research_root:
         assert periodic[id][1] == 'AEC_CONTRACT' and periodic[id][8] == target
         assert periodic[id][10] == seconds and int(periodic[id][11], 16) == int(token, 16)
         assert tokens[int(token, 16)][0] == 'contract' and tokens[int(token, 16)][2] == name
+    # A variant daily's name gives its weapon and loot index; _1 pays the Epic row, _2 the Heroic.
+    aliases = {'kar': 'kar98', 'winchester': 'winchester1897'}
+    for id, name, target, guid in orders:
+        assert retail[id][1:3] == [name, '1'] and retail[id][3] in ('1', '2'), id
+        assert not re.search(r'\b1(28|29|30):', retail[id][4]), id
+        weapon, loot, k = re.fullmatch(r'daily_ch_([a-z0-9]+?)loot(\d)_([12])', name).groups()
+        row = tokens[int(guid, 16)]
+        assert row[2] == f'{aliases.get(weapon, weapon)}_loot{loot}_mp' and row[29] == ('3' if k == '1' else '4'), id
 
 
 for zombies in (False, True):
@@ -83,6 +93,9 @@ records = {{ ID = 10 }, { ID = 999999, reward = "untouched" }}
         lua.globals().S2xRewards[index] = lua.table_from(dict(
             id=int(id), seconds=int(seconds), currency=int(currency), amount=int(amount), item=item))
         lua.globals().records[index + len(entries) + len(contracts) + 2] = lua.table_from(dict(ID=int(id)))
+    for index, (id, name, target, guid) in enumerate(orders, len(mp_contracts) + 1):
+        lua.globals().S2xRewards[index] = lua.table_from(dict(id=int(id), currency=0, guid='0x%X' % int(guid, 16)))
+        lua.globals().records[index + len(entries) + len(contracts) + 2] = lua.table_from(dict(ID=int(id), timeLimit=7))
     lua.execute(policy)
     lookup = lua.globals().Engine.TableLookup
     file = 'mp/periodicChallengeTable.csv'
@@ -132,6 +145,12 @@ records = {{ ID = 10 }, { ID = 999999, reward = "untouched" }}
                 assert reward.productID == reward.itemID == ('0x123' if item else '0x1')
             if not zombies:
                 assert records[index].timeLimit == int(seconds)
+        for index, (id, name, target, guid) in enumerate(orders, len(entries) + len(contracts) + len(mp_contracts) + 3):
+            reward = records[index].reward
+            if zombies:
+                assert reward is None
+            else:
+                assert reward.productID == reward.itemID == '0x%X' % int(guid, 16) and records[index].timeLimit == 7
     if zombies and a.research_root:
         utils = (a.research_root / 'luafiles/dec/ui_utility_mp_achievementengineutils.dec.lua').read_text()
         lua.execute(utils[:utils.index('AchievementEngineUtils.GetSpecialZMMaterialByMTX')])

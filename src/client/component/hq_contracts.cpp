@@ -82,7 +82,7 @@ local rewards = {
 }
 for _, entry in ipairs(S2xRewards) do
 	contractLimits[entry.id] = entry.seconds
-	local item = entry.item ~= "" and Engine.GetItemGUIDFromReference(entry.item) or "0x1"
+	local item = entry.guid or entry.item ~= "" and Engine.GetItemGUIDFromReference(entry.item) or "0x1"
 	rewards[entry.id] = entry.currency ~= 0 and { currencyID = entry.currency, currencyAmount = entry.amount }
 		or { productID = item, itemID = item }
 end
@@ -111,7 +111,7 @@ for _, name in ipairs({"AE_GetScheduledChallenges", "AE_GetPlayerActiveChallenge
 				if type(record) == "table" and rewards[tonumber(record.ID)] then
 					record.reward = rewards[tonumber(record.ID)]
 					local id = tonumber(record.ID)
-					record.timeLimit = contractLimits[id] or (rows[id] and tonumber(rows[id][11]))
+					record.timeLimit = contractLimits[id] or (rows[id] and tonumber(rows[id][11])) or record.timeLimit
 				end
 			end
 		end
@@ -151,6 +151,14 @@ end
 					entry["id"] = definition.id; entry["seconds"] = definition.seconds;
 					entry["currency"] = definition.currency; entry["amount"] = definition.amount;
 					entry["item"] = definition.item_reference;
+					rewards[++index] = entry;
+				}
+				for (const auto& order : demonware::hq_contract_catalog::orders)
+				{
+					// A variant's reference names both its Epic and Heroic rows: pass the GUID.
+					ui_scripting::table entry;
+					std::ostringstream item; item << "0x" << std::uppercase << std::hex << order.item;
+					entry["id"] = order.id; entry["currency"] = 0; entry["guid"] = item.str();
 					rewards[++index] = entry;
 				}
 				lua["S2xRewards"] = rewards;
