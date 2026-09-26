@@ -524,6 +524,18 @@ namespace demonware::achievement_engine
 		return event_cache_dirty.exchange(false);
 	}
 
+	// Retail's division prestige rewards (DivisionsUtils PrestigeRewards): level 2 calling card, level 3 uniform,
+	// level 4 weapon variant (its row of the rarity Activision's variant list gives). Level 1's iconic weapon and
+	// training are stats the game sets itself.
+	struct division_prestige { std::uint64_t skill; const char* name; std::uint32_t items[3]; };
+	constexpr division_prestige division_prestige_rewards[]
+	{
+		{1, "infantry", {0x280004F, 0x6002001, 0x101F200}},      {2, "airborne", {0x2800050, 0x6002003, 0x1013200}},
+		{3, "armored", {0x2800052, 0x6002009, 0x101C200}},       {4, "mountain", {0x2800051, 0x600200D, 0x1016200}},
+		{5, "expeditionary", {0x2800053, 0x6002010, 0x1022200}}, {11, "resistance", {0x2800100, 0x600201E, 0x102D100}},
+		{13, "grenadier", {0x2800119, 0x6032032, 0x1082100}},    {15, "commando", {0x280010D, 0x603003A, 0x1096102}},
+	};
+
 	static bool apply_event(hq_economy::state& data, const reward_game_events::event& event,
 		const bool native_payroll, hq_payroll::push& notification, bool& changed)
 	{
@@ -661,6 +673,25 @@ namespace demonware::achievement_engine
 					changed = true;
 					console::info("[HQ AE] prestige %u: granted its helmet and calling card\n", offset);
 				}
+			// A division prestige is vendor {3 = new level, 1 = the division's skill value}, sent once and never
+			// replayed, so paying every level up to the new one also covers levels reached before this existed.
+			if (event_type == 11)
+			{
+				std::uint64_t skill{}, level{};
+				for (const auto& [selector, value] : parameters)
+					if (selector == 1) skill = value; else if (selector == 3) level = value;
+				for (const auto& division : division_prestige_rewards)
+					if (division.skill == skill && level <= 4)
+						for (std::uint64_t n = 2; n <= level; ++n)
+						{
+							const auto receipt = "prestige:division:" + std::string{division.name} + ":" + std::to_string(n);
+							if (data.transactions.contains(receipt)) continue;
+							if (!hq_economy::grant(data, {"GRANT_PRODUCT", division.items[n - 2], 1})) return false;
+							data.transactions[receipt] = std::to_string(event.timestamp);
+							changed = true;
+							console::info("[HQ AE] %s division prestige %llu: granted its reward\n", division.name, n);
+						}
+			}
 			if (payroll)
 			{
 				auto& entry = data.achievements["payroll_officer"];
