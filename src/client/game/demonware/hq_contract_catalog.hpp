@@ -86,4 +86,39 @@ namespace demonware::hq_contract_catalog
 			d.currency ? d.currency : (*d.item_reference ? weapon : 1u), d.amount}};
 		return a;
 	}
+	// Retail daily_ch_<weapon>loot<N>_1/_2 paid the Epic/Heroic row of <weapon>_loot<N>_mp. Both
+	// rows share that reference, so the reward is the GUID. Door Kicker (680, rule 1:4) has retail's
+	// target of 100 shotgun kills and the other 1:4 rows follow it; the rest take the generic dailies'
+	// targets. Rows whose rule needs kill flag words (selectors 128-130) wait until a real kill shows them.
+	struct order { unsigned id; const char* name; unsigned target, item; };
+	inline constexpr order orders[]{
+		{630, "daily_ch_barloot0_1", 35, 0x1055100}, {631, "daily_ch_barloot2_1", 5, 0x1055301},
+		{632, "daily_ch_barloot1_2", 3, 0x1055202}, {634, "daily_ch_barloot3_1", 5, 0x1055400},
+		{637, "daily_ch_brenloot2_1", 25, 0x1026301}, {638, "daily_ch_brenloot0_1", 5, 0x1026100},
+		{639, "daily_ch_brenloot0_2", 3, 0x1026102}, {642, "daily_ch_brenloot2_2", 5, 0x1026302},
+		{643, "daily_ch_brenloot3_2", 25, 0x1026402}, {645, "daily_ch_karloot3_1", 15, 0x1016400},
+		{646, "daily_ch_karloot3_2", 3, 0x1016402}, {647, "daily_ch_karloot2_1", 3, 0x1016301},
+		{650, "daily_ch_karloot1_2", 3, 0x1016202}, {651, "daily_ch_lewisloot0_1", 25, 0x1015100},
+		{652, "daily_ch_lewisloot2_1", 5, 0x1015301}, {653, "daily_ch_lewisloot0_2", 3, 0x1015102},
+		{656, "daily_ch_lewisloot2_2", 5, 0x1015302}, {657, "daily_ch_lewisloot3_2", 25, 0x1015402},
+		{658, "daily_ch_lugerloot2_1", 10, 0x102C301}, {659, "daily_ch_lugerloot3_2", 5, 0x102C402},
+		{660, "daily_ch_lugerloot0_1", 3, 0x102C100}, {663, "daily_ch_lugerloot3_1", 5, 0x102C400},
+		{664, "daily_ch_lugerloot0_2", 10, 0x102C102}, {666, "daily_ch_m1911loot0_1", 10, 0x1014100},
+		{667, "daily_ch_m1911loot2_1", 5, 0x1014301}, {668, "daily_ch_m1911loot0_2", 3, 0x1014102},
+		{671, "daily_ch_m1911loot1_2", 5, 0x1014202}, {674, "daily_ch_m30loot0_1", 100, 0x1023100},
+		{675, "daily_ch_m30loot0_2", 5, 0x1023102}, {676, "daily_ch_m30loot1_1", 3, 0x1023200},
+		{679, "daily_ch_m30loot3_2", 5, 0x1023402}, {680, "daily_ch_m30loot3_1", 100, 0x1023400},
+		{682, "daily_ch_thompsonloot3_1", 30, 0x1012400}, {683, "daily_ch_thompsonloot2_1", 5, 0x1012301},
+		{684, "daily_ch_thompsonloot0_2", 3, 0x1012102}, {687, "daily_ch_thompsonloot0_1", 30, 0x1012100},
+		{689, "daily_ch_winchesterloot3_1", 100, 0x1017400}, {690, "daily_ch_winchesterloot0_1", 5, 0x1017100},
+		{691, "daily_ch_winchesterloot1_2", 3, 0x1017202}, {694, "daily_ch_winchesterloot3_2", 100, 0x1017402},
+		{695, "daily_ch_winchesterloot2_1", 3, 0x1017301},
+	};
+	inline hq_economy::achievement achievement(const order& o)
+	{
+		hq_economy::achievement a;
+		a.name = o.name; a.challenge_name = o.name; a.target = o.target;
+		a.rewards = {{"GRANT_PRODUCT", o.item, 1}};
+		return a;
+	}
 }

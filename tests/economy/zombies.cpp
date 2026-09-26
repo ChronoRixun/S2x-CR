@@ -554,6 +554,34 @@ void mp_weapon_contract_checks(std::int64_t& timestamp)
 	std::cout << "PASS: " << size << "-row MP contract board, one SKU and token each, weapon contract purchase/activation/claim, off-board purchase refused and off-board progress paid\n";
 }
 
+void mp_variant_order_checks(std::int64_t& timestamp)
+{
+	// A retail variant daily pays its own Epic/Heroic GUID. Door Kicker counts shotgun kills only.
+	const auto saved = hq_economy::snapshot();
+	const auto& row = *std::find_if(std::begin(hq_contract_catalog::orders), std::end(hq_contract_catalog::orders),
+		[](const auto& entry) { return entry.id == 680; });
+	const auto order = hq_contract_catalog::achievement(row);
+	require(order.kind == 1 && order.target == 100 && order.rewards.size() == 1 && order.rewards.front().type == "GRANT_PRODUCT" &&
+		order.rewards.front().id == 0x1023400 && order.rewards.front().amount == 1, "Door Kicker is a daily for 100 kills paying the Epic M30");
+	achievement_engine::set_event_rules({{row.name, {1, "(1:4)"}}});
+	achievement_engine::set_catalog({order});
+	require(ok(transition("activate_scheduled_user_achievement", order, "variant")), "variant daily activates");
+	timestamp = std::max(timestamp, static_cast<std::int64_t>(time(nullptr)) * 1000000 + 1);
+	require(achievement_engine::submit_event({"1", timestamp++, {{"1", 2}}}) &&
+		hq_economy::snapshot().achievements.at(order.name).progress == 0, "an SMG kill does not count");
+	std::vector<reward_game_events::event> kills;
+	for (unsigned i = 0; i < order.target; ++i) kills.push_back({"1", timestamp++, {{"1", 4}}});
+	require(achievement_engine::submit_events(kills) && hq_economy::snapshot().achievements.at(order.name).status == "claimable", "shotgun kills complete it");
+	const auto before = hq_economy::snapshot();
+	const auto owned = before.inventory.contains({0x1023400, 0}) ? before.inventory.at({0x1023400, 0}).quantity : 0;
+	require(ok(transition("claim_achievement_reward", order, "variant-claim")) && ok(transition("claim_achievement_reward", order, "variant-claim")), "variant claim and replay");
+	hq_economy::invalidate();
+	const auto after = hq_economy::snapshot();
+	require(after.inventory.at({0x1023400, 0}).quantity == owned + 1 && after.currencies == before.currencies, "claim grants the variant once and no currency");
+	require(hq_economy::transact([&](auto& next) { next = saved; return true; }), "restore prior economy fixture");
+	std::cout << "PASS: variant daily progresses on its weapon class only and pays its GUID once\n";
+}
+
 int main(int argc, char** argv)
 {
 	try
@@ -845,6 +873,7 @@ int main(int argc, char** argv)
 		tier_drop_checks();
 		item_data_receipt_checks();
 		mp_weapon_contract_checks(timestamp);
+		mp_variant_order_checks(timestamp);
 		achievement_engine::set_catalog({mp});
 		auto mp_offers = request(R"({"Action":"get_scheduled_user_achievements"})");
 		for (const auto& entry : mp_offers["Achievements"].GetArray()) require(entry["kind"].GetInt() < 8, "MP catalog excludes persisted ZM orders");
