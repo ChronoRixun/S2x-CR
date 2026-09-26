@@ -516,6 +516,98 @@ void zombies_prestige_checks(std::int64_t& timestamp)
 	std::cout << "PASS: a Zombies prestige pays every calling card up to its level once, nothing for levels 0 or 11\n";
 }
 
+void mp_weapon_contract_checks(std::int64_t& timestamp)
+{
+	// The MP board is nine consecutive catalog rows, one row further each day. A weapon
+	// contract pays its Rare loot0 (a synthetic GUID here) and is priced by its own SKU.
+	const auto saved = hq_economy::snapshot();
+	constexpr auto size = std::size(hq_contract_catalog::entries);
+	const auto sku_for = [](const hq_contract_catalog::definition& row) {
+		return std::find_if(std::begin(hq_marketplace::vendor_skus), std::end(hq_marketplace::vendor_skus),
+			[&](const auto& sku) { return std::string_view{sku.contract} == row.name; });
+	};
+	std::vector<hq_economy::achievement> catalog;
+	std::map<std::string, hq_event_predicate::rule> rules;
+	std::set<std::uint32_t> tokens;
+	for (std::size_t i = 0; i < size; ++i)
+	{
+		const auto& row = hq_contract_catalog::entries[i];
+		const auto sku = sku_for(row);
+		require(sku != std::end(hq_marketplace::vendor_skus) && std::count_if(std::begin(hq_marketplace::vendor_skus),
+			std::end(hq_marketplace::vendor_skus), [&](const auto& other) { return std::string_view{other.contract} == row.name; }) == 1 &&
+			sku->price == row.price && std::string_view{sku->data}.find("c:" + std::to_string(row.id) + ";") != std::string_view::npos,
+			"each MP contract has one SKU with its price and id");
+		tokens.insert(hq_marketplace::granted_items(*sku).front());
+		if (*row.item_reference)
+			require(row.currency == 0 && row.amount == 1 && row.price == 2500 &&
+				std::string_view{row.item_reference}.ends_with("_loot0_mp"), "weapon contract grants one Rare loot0 for 2500 AC");
+		catalog.push_back(hq_contract_catalog::achievement(row, 0x7F00000 + static_cast<unsigned>(i)));
+		rules.emplace(row.name, hq_event_predicate::rule{1, ""});
+	}
+	require(tokens.size() == size, "cost tokens distinct");
+	for (std::size_t start = 0; start < size; ++start)
+	{
+		bool generic{};
+		for (std::size_t i = 0; i < 9; ++i) generic |= !*hq_contract_catalog::entries[(start + i) % size].item_reference;
+		require(generic, "every day's board holds a generic contract");
+	}
+	require(hq_economy::transact([](auto& next) {
+		std::erase_if(next.achievements, [](const auto& pair) { return pair.second.kind == 4; });
+		next.inventory.clear(); next.currencies.clear();
+		return hq_economy::grant(next, {"GRANT_CURRENCY", 6, 2500});
+	}), "reset MP contracts");
+	achievement_engine::set_event_rules(rules);
+	achievement_engine::set_catalog(catalog);
+	const auto day = static_cast<std::uint64_t>(time(nullptr)) / 86400;
+	auto board = request(R"({"Action":"get_scheduled_user_achievements","AchievementKind":4})");
+	require(ok(board) && board["Achievements"].Size() == 9, "nine MP contracts offered");
+	std::size_t first = size;
+	for (unsigned i = 0; i < 9; ++i)
+	{
+		const auto index = (day + i) % size;
+		require(std::string_view{board["Achievements"][i]["name"].GetString()} == hq_contract_catalog::entries[index].name, "board is today's nine consecutive rows");
+		if (first == size && *hq_contract_catalog::entries[index].item_reference) first = index;
+	}
+	require(first < size, "today's board holds a weapon contract");
+	const auto& weapon = catalog[first];
+	const auto sku = sku_for(hq_contract_catalog::entries[first])->id;
+	require(!ok(transition("activate_user_contract", weapon, "weapon")), "weapon contract requires payment");
+	require(hq_marketplace::purchase("weapon", sku, 1) == 0 && hq_marketplace::purchase("weapon", sku, 1) == 0, "weapon contract purchase and replay");
+	require(hq_economy::snapshot().currencies.at(6) == 0, "weapon contract debits 2500 AC once");
+	require(ok(transition("activate_user_contract", weapon, "weapon")), "paid weapon contract activates");
+	timestamp = std::max(timestamp, static_cast<std::int64_t>(time(nullptr)) * 1000000 + 1);
+	for (unsigned i = 0; i < weapon.target; ++i) require(achievement_engine::submit_event({"1", timestamp++, {}}), "weapon contract event");
+	require(hq_economy::snapshot().achievements.at(weapon.name).status == "claimable", "weapon contract claimable");
+	require(ok(transition("claim_achievement_reward", weapon, "weapon-claim")) && ok(transition("claim_achievement_reward", weapon, "weapon-claim")), "weapon contract claim and replay");
+	require(hq_economy::snapshot().inventory.at({weapon.rewards.front().id, 0}).quantity == 1, "claim grants the weapon once");
+	// Rows 9..55 from today's start are off the board: not for sale, but one bought on an
+	// earlier day still progresses and pays.
+	std::size_t k = 9;
+	while (!*hq_contract_catalog::entries[(day + k) % size].item_reference) ++k;
+	const auto off = (day + k) % size;
+	require(hq_economy::transact([](auto& next) { return hq_economy::grant(next, {"GRANT_CURRENCY", 6, 2500}); }), "fund off-board purchase");
+	require(hq_marketplace::purchase("off-board", sku_for(hq_contract_catalog::entries[off])->id, 1) != 0 &&
+		hq_economy::snapshot().currencies.at(6) == 2500, "off-board weapon contract is not for sale");
+	auto carried = catalog[off];
+	require(hq_economy::transact([&](auto& next) {
+		carried.status = "inProgress"; carried.offer_day = day - (size - k);
+		carried.activation = static_cast<std::uint64_t>(time(nullptr)); carried.activation_generation = next.revision + 1;
+		next.achievements[carried.name] = carried;
+		return true;
+	}), "contract bought before it rotated off");
+	bool listed{};
+	for (const auto& entry : request(R"({"Action":"get_user_achievements"})")["Achievements"].GetArray())
+		listed |= std::string_view{entry["name"].GetString()} == carried.name;
+	require(listed, "off-board contract still listed");
+	timestamp = std::max(timestamp, static_cast<std::int64_t>(time(nullptr)) * 1000000 + 1);
+	for (unsigned i = 0; i < carried.target; ++i) require(achievement_engine::submit_event({"1", timestamp++, {}}), "off-board contract event");
+	require(hq_economy::snapshot().achievements.at(carried.name).status == "claimable", "off-board contract claimable");
+	require(ok(transition("claim_achievement_reward", carried, "off-board-claim")), "off-board contract claim");
+	require(hq_economy::snapshot().inventory.at({carried.rewards.front().id, 0}).quantity == 1, "off-board claim grants its weapon");
+	require(hq_economy::transact([&](auto& next) { next = saved; return true; }), "restore prior economy fixture");
+	std::cout << "PASS: " << size << "-row MP contract board, one SKU and token each, weapon contract purchase/activation/claim, off-board purchase refused and off-board progress paid\n";
+}
+
 int main(int argc, char** argv)
 {
 	try
@@ -808,6 +900,7 @@ int main(int argc, char** argv)
 		item_data_receipt_checks();
 		consume_receipt_checks();
 		zombies_prestige_checks(timestamp);
+		mp_weapon_contract_checks(timestamp);
 		achievement_engine::set_catalog({mp});
 		auto mp_offers = request(R"({"Action":"get_scheduled_user_achievements"})");
 		for (const auto& entry : mp_offers["Achievements"].GetArray()) require(entry["kind"].GetInt() < 8, "MP catalog excludes persisted ZM orders");

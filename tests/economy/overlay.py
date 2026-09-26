@@ -30,6 +30,9 @@ assert len(contracts) == 8
 assert len({entry[0] for entry in entries + contracts}) == len(entries) + len(contracts)
 assert len({entry[6] for entry in contracts}) == len(contracts)
 assert len({entry[7] for entry in contracts}) == len(contracts)
+mp_header = (root / 'src/client/game/demonware/hq_contract_catalog.hpp').read_text()
+mp_contracts = re.findall(r'\{(\d+), "([^"]+)", "[^"]*", "[^"]*", (\d+), (\d+), (\d+), (\d+), (\d+), "([^"]*)"\}', mp_header)
+assert len(mp_contracts) == 56 and len({entry[0] for entry in mp_contracts}) == 56
 
 if a.research_root:
     with (a.research_root / 'tables/dwgamechallenges.csv').open() as f:
@@ -63,6 +66,7 @@ Engine = {
 }
 S2xZombiesOrders = {}
 S2xZombiesContracts = {}
+S2xRewards = {}
 records = {{ ID = 10 }, { ID = 999999, reward = "untouched" }}
 ''')
     for index, (id, kind, name, target, title, description, _) in enumerate(entries, 1):
@@ -75,6 +79,10 @@ records = {{ ID = 10 }, { ID = 999999, reward = "untouched" }}
             id=int(id), name=name, title=title, description=description,
             target=int(target), seconds=int(seconds), token=token.lower()))
         lua.globals().records[index + len(entries) + 2] = lua.table_from(dict(ID=int(id)))
+    for index, (id, name, target, seconds, price, currency, amount, item) in enumerate(mp_contracts, 1):
+        lua.globals().S2xRewards[index] = lua.table_from(dict(
+            id=int(id), seconds=int(seconds), currency=int(currency), amount=int(amount), item=item))
+        lua.globals().records[index + len(entries) + len(contracts) + 2] = lua.table_from(dict(ID=int(id)))
     lua.execute(policy)
     lookup = lua.globals().Engine.TableLookup
     file = 'mp/periodicChallengeTable.csv'
@@ -114,6 +122,16 @@ records = {{ ID = 10 }, { ID = 999999, reward = "untouched" }}
                 assert records[index].timeLimit == int(entry[5])
             else:
                 assert records[index].reward is None
+        for index, (id, name, target, seconds, price, currency, amount, item) in enumerate(mp_contracts, len(entries) + len(contracts) + 3):
+            reward = records[index].reward
+            if zombies:
+                assert reward is None
+            elif currency != '0':
+                assert reward.currencyID == int(currency) and reward.currencyAmount == int(amount)
+            else:
+                assert reward.productID == reward.itemID == ('0x123' if item else '0x1')
+            if not zombies:
+                assert records[index].timeLimit == int(seconds)
     if zombies and a.research_root:
         utils = (a.research_root / 'luafiles/dec/ui_utility_mp_achievementengineutils.dec.lua').read_text()
         lua.execute(utils[:utils.index('AchievementEngineUtils.GetSpecialZMMaterialByMTX')])
