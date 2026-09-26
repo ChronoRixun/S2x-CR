@@ -275,9 +275,9 @@ namespace master_server
 			scheduler::once([]
 			{
 				master_server = game::Dvar_RegisterString(
-					"master_server", default_master_server, game::DVAR_FLAG_SAVED);
+					"master_server", default_master_server, game::DVAR_FLAG_NONE);
 				master_server_enable = game::Dvar_RegisterBool(
-					"master_server_enable", true, game::DVAR_FLAG_SAVED);
+					"master_server_enable", true, game::DVAR_FLAG_NONE);
 
 				game::netadr_s address{};
 				refresh_address_cache(address);
