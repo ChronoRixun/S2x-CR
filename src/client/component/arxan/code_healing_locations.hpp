@@ -317,8 +317,6 @@ namespace mp
 	};
 
 	// 89 02 48 8D 64 24 F8 48 89 04 24 48 8D 05
-	// Entered through a push/ret, so the load is not adjacent to the store and
-	// the split signature never matches it.
 	constexpr uint64_t eax_obfuscated_healing_offsets[] =
 	{
 		0x11C4EB49,
@@ -515,5 +513,11 @@ namespace sp
 		0xF18168C,
 		0xF28CE54,
 		0xF528FD2,
+	};
+
+	// 89 02 48 8D 64 24 F8 48 89 04 24 48 8D 05
+	constexpr uint64_t eax_obfuscated_healing_offsets[] =
+	{
+		0xEF563BD,
 	};
 }
