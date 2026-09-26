@@ -271,7 +271,7 @@ Do not use `setprestige` on this profile to test #22: the catch-up pays every le
 
 1. Start the local server (0.3; `scr_gun_cycleCount 2` makes Gun Game's limit 36). Wait for its first match to start (`status` answers).
 2. Launch the client, `connect 127.0.0.1:27017`, join mid-match. The client console prints `Hosted dedicated lobby: gun limits 36/1/1.` The HUD reads `GUN RANK: 0 / 36`, not `0 / 75`, and the scoreboard shows the same limit.
-3. Let the rotation move to Domination (or end the match from the server console). After the load, look for a `Hosted dedicated lobby: dom limits ...` line; the HUD's maximum is its first number.
+3. Let the rotation move to Domination (or end the match from the server console). After the load, look for a `Hosted dedicated lobby: dom limits ...` line; its first number is the score limit (200 by default). Domination's HUD shows the team scores only, so the console line is the check here.
 4. Rotate back to Gun Game: `0 / 36` again.
 5. Stop the server, start it again and join during its first match: the limit shows there too (the fresh-host case, which reads 0 without the fix).
 6. Let one Gun Game match run to its end, bots will do it: the match ends at 36. The release notes' known issue says Gun Game runs to 75 on a dedicated server; the server-side trace says it ends at the ladder length. Record what you see; the known-issues line depends on it.
