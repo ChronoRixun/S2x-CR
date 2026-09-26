@@ -99,24 +99,37 @@ Copy-Item "$game\players2" "D:\S2x\build\backups\players2-$stamp" -Recurse
 
 Launch the client from a shortcut, with Steam running and signed in: `C:\Users\Owen\Desktop\S2x Development.lnk` (`-noupdate -multiplayer`) and `D:\S2x\build\backups\S2x Zombies Dev.lnk` (`-noupdate -zombies`). `-demonware_debug` is not needed for anything below.
 
-A local dedicated server for section 2, on a port that does not collide with box 4, from a cmd window in the game folder:
+A local dedicated server for section 2, on a port that does not collide with box 4. Its settings go in a cfg, not on the command line: `+set master_server_enable 0` is ignored for that dvar (tested on rc2 and rc3), while `set` in a cfg works, and the leftover `s2x\server.cfg` from earlier sessions would override a command-line rotation. Put this in `<game folder>c-test.cfg`:
+
+```
+set sv_hostname "rc test"
+set master_server_enable 0
+set party_maxplayers 18
+set party_matchStartDelay 15
+set bot_fill 8
+set bot_names nostalgia
+set scr_gun_cycleCount 2
+set sv_maprotation "gametype gun map mp_shipment_s2 gametype dom map mp_shipment_s2"
+```
+
+Then, from a cmd window in the game folder:
 
 ```bat
 cd /d "D:\Program Files\Steam\steamapps\common\Call of Duty WWII"
-start "" s2x.exe -noupdate -dedicated +set net_port 27017 +set party_maxplayers 18 +set party_matchStartDelay 15 +set bot_fill 8 +set bot_names nostalgia +set sv_hostname "rc test" +set master_server_enable 0 +set sv_maprotation "gametype gun map mp_shipment_s2 gametype dom map mp_shipment_s2" +exec server.cfg +set scr_gun_cycleCount 2 +map_rotate
+start "" s2x.exe -noupdate -dedicated +set net_port 27017 +exec rc-test.cfg +map_rotate
 ```
 
 The same launch from PowerShell, where `cd /d` and `start ""` do not work:
 
 ```powershell
-Set-Location 'D:\Program Files\Steam\steamapps\common\Call of Duty WWII'; Start-Process -FilePath '.\s2x.exe' -WorkingDirectory (Get-Location) -ArgumentList '-noupdate -dedicated +set net_port 27017 +set party_maxplayers 18 +set party_matchStartDelay 15 +set bot_fill 8 +set bot_names nostalgia +set sv_hostname "rc test" +set master_server_enable 0 +set sv_maprotation "gametype gun map mp_shipment_s2 gametype dom map mp_shipment_s2" +exec server.cfg +set scr_gun_cycleCount 2 +map_rotate'
+Set-Location 'D:\Program Files\Steam\steamapps\common\Call of Duty WWII'; Start-Process -FilePath '.\s2x.exe' -WorkingDirectory (Get-Location) -ArgumentList '-noupdate -dedicated +set net_port 27017 +exec rc-test.cfg +map_rotate'
 ```
 
-`master_server_enable 0` keeps the test server off the public list (it is the setting the Manager's "Advertise off" writes); section 2 step 7 checks that it no longer sticks to your client.
+`master_server_enable 0` keeps the test server off the public list (it is the setting the Manager's "Advertise off" writes into its cfg); section 2 step 7 checks that it no longer sticks to your client.
 
 Start the server before the client, or give it a port other than 27016: a client already running on this PC holds UDP 27016, and a server asked for a taken port moves to the next free one without saying so. To see where a server really is: `Get-NetUDPEndpoint | Where-Object OwningProcess -eq <server pid>`.
 
-`server.cfg` in the game folder sets the box 4 hostname and rotation; if the first map is not Gun Game, edit it for the pass. Things that look wrong and aren't: `Dedicated party: failed to select match-rules gametype 'dom'` prints on a working server; `status` answers `Server is not running.` until the first match starts; a map load takes 40–50 seconds; the first `bot_fill` line often reads `the engine added 16 of 17` and a second line tops it up.
+Things that look wrong and aren't: `Dedicated party: failed to select match-rules gametype 'dom'` prints on a working server; `status` answers `Server is not running.` until the first match starts; a map load takes 40–50 seconds; the first `bot_fill` line often reads `the engine added 16 of 17` and a second line tops it up.
 
 Reading the console: `<game>\s2x\logs\console.log` is shared by every instance and only ever appended to, so note the line count before a test and read the tail.
 
