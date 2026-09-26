@@ -207,7 +207,7 @@ If drops climb: leave HQ at once, quit, note the count and the time, and restore
 **Time:** 20 minutes. Skip it if you are at a master rank: 1.2 was the real test. Otherwise this is the only run of #37 and #27 on the merged build; skipping leaves them proven by the harnesses on the merged tree and in the game only on the branch build.
 
 1. Quit the game. Back up again with the 0.2 commands: this is the copy you restore in step 6.
-2. Launch MP. At the main menu console: `setrank 101 10`, then `uploadStats` (it prints `set user file: mpdata`). Quit.
+2. Launch MP and press PLAY: at the main menu `setrank` answers `player stats are not available`, the stats load in the Multiplayer menu. Do not pick Headquarters. Console: `setrank 101 10` (it prints `prestige 10, level 101 applied`), then `uploadStats`. Quit.
 3. Relaunch, note the console line count, PLAY > Headquarters, stay 3 minutes.
 4. Expect `[HQ AE] prestige 3: granted its helmet and calling card` through `prestige 10` (v1.5.0's prestige catch-up: the copy jumped to prestige 10), exactly 46 `[HQ AE] rank up: granted a Rare Supply Drop` lines within about 10 seconds, `[HQ AE] master rank 56: granted its rewards` and `[HQ AE] master rank 100: granted its rewards` once each, then no new `[HQ AE]` line. `Show-Store`: `drops 2` up by 46, `master progress 101/1000 inProgress`.
 5. In HQ, `hqownership 0x6632116`, `0x704001E` and `0x6000039` (the level 56 helmet and camo, the level 100 uniform): `usable=1 lock=0` and `CAC=Unlocked`; `0x6021039` (level 200) is not owned. If you can spare a minute, find the helmet in Barracks > Special Helmets or the camo in Create-a-Class: nobody has looked at a master item on screen. Quit, relaunch, one minute in HQ: no grant line, `drops 2` unchanged.
