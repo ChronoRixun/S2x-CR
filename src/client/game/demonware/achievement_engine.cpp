@@ -281,6 +281,19 @@ namespace demonware::achievement_engine
 			}
 			return result;
 		}
+
+		// Pawnable items retail gave only as rewards (the acquisition-parity list in #24, with #28's
+		// division uniforms and #32's community items). Their own issues grant them, so they never drop.
+		constexpr std::uint32_t reward_only[]
+		{
+			0x240025C, 0x240025D, 0x240025E, 0x240025F, 0x2400260, 0x2400261, 0x2400262, 0x2400263, 0x2400264, 0x2400265, 0x2400266, // #29 ZM prestige
+			0x6000039, 0x6010039, 0x6011039, 0x6020039, 0x6021039, 0x6030039, 0x6003039, 0x6013039, 0x6023039, 0x6033039, // #27 master uniforms
+			0x6002001, 0x6002003, 0x6002009, 0x600200D, 0x6002010, 0x600201E, 0x6032032, 0x603003A, // #28 division uniforms
+			0x240026C, 0x240026E, 0x240026F, 0x20005F, 0x200066, // #30 social rank cards and emotes
+			0x6003001, 0x6003003, 0x6003009, 0x600300D, 0x6003010, // #31 pre-order uniforms
+			0x2400499, 0x240049A, 0x240049B, 0x240049C, 0x240049D, 0x240049E, 0x240049F, 0x24004A0, 0x24004A1, 0x24004A2, // #32 anniversary
+			0x2400270, 0x24003CD, 0x24003F7, 0x4000C0, 0x7000062, 0x7000095, // #32 community cards, grip and charms
+		};
 	}
 
 	std::uint64_t period_end(const int kind, const std::uint64_t day)
@@ -480,7 +493,10 @@ namespace demonware::achievement_engine
 	void set_loot_catalog(std::vector<std::uint32_t> items, std::map<std::uint32_t, std::uint32_t> duplicate_credits,
 		const std::map<std::uint32_t, unsigned>& rarities)
 	{
-		std::erase_if(items, [](const auto id) { return id <= 2 || id > INT32_MAX; });
+		std::erase_if(items, [](const auto id)
+		{
+			return id <= 2 || id > INT32_MAX || std::find(std::begin(reward_only), std::end(reward_only), id) != std::end(reward_only);
+		});
 		std::sort(items.begin(), items.end());
 		items.erase(std::unique(items.begin(), items.end()), items.end());
 		if (items.size() > 10000) items.clear();

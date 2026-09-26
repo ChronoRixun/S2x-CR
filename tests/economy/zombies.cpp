@@ -434,8 +434,17 @@ void tier_drop_checks()
 		"Rare drop refused and kept without a Rare-or-better item");
 	seed(1, 1);
 	require(ok(open("sd_mp", "common-only")) && !hq_economy::snapshot().inventory.at({1, 0}).quantity, "common drop opens from Common items");
+	// A Zombies prestige card and a division uniform are reward-only: they never drop.
+	achievement_engine::set_loot_catalog({0x20000D, 0x240025C, 0x6002001}, {}, {{0x20000D, 1}, {0x240025C, 1}, {0x6002001, 1}});
+	seed(1, 20);
+	for (unsigned i = 0; i < 20; ++i)
+	{
+		const auto result = open("sd_mp", "reward-only-" + std::to_string(i));
+		require(ok(result) && result["GrantedItems"].Size() == 3, "common drop opens three cards");
+		for (const auto& card : result["GrantedItems"].GetArray()) require(card["id"].GetUint() == 0x20000Du, "reward-only items never drop");
+	}
 	require(hq_economy::transact([&](auto& next) { next = saved; return true; }), "restore prior economy fixture");
-	std::cout << "PASS: tier-then-item drops, Rare-or-better first card incl. Heroic, empty-tier re-roll, refused floor keeps the drop\n";
+	std::cout << "PASS: tier-then-item drops, Rare-or-better first card incl. Heroic, empty-tier re-roll, refused floor keeps the drop, reward-only items never drop\n";
 }
 
 void item_data_receipt_checks()
