@@ -117,10 +117,8 @@ namespace hq_economy
 					}
 					demonware::achievement_engine::set_zombies_loot_catalog(std::move(zombies_pool));
 				}
-				const auto* collections = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/collections.csv", false).stringTable;
 				const auto* items = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/itemscollections.csv", false).stringTable;
-				if (!collections || !items) return;
-				std::vector<std::uint32_t> pool;
+				if (!items) return;
 				std::map<std::string, std::uint32_t> rewards;
 				for (int row = 0; row < items->rowCount; ++row)
 				{
@@ -128,43 +126,11 @@ namespace hq_economy
 					std::uint32_t collection{}, reward{};
 					if (parse_number(cell(items, row, 0), collection) && parse_number(cell(items, row, 1), reward))
 						rewards[demonware::hq_vendor::rule_id("Collection_" + std::to_string(collection))] = reward;
-					bool known{};
-					for (int c = 0; c < collections->rowCount; ++c)
-						known |= std::string_view{cell(items, row, 0)} == cell(collections, c, 0);
-					std::uint32_t count{};
-					if (!known || !parse_number(cell(items, row, 2), count) || count > 64) continue;
-					for (std::uint32_t col = 3; col < 3 + count; ++col)
-					{
-						std::uint32_t id{};
-						if (parse_number(cell(items, row, static_cast<int>(col)), id)) pool.push_back(id);
-					}
 				}
 				{
 					std::lock_guard lock{demonware::hq_vendor::collections_mutex};
 					demonware::hq_vendor::collection_rewards = std::move(rewards);
 				}
-				// Retail drops also held Epic and Heroic weapon variants (29 = 3 or 4): rows with
-				// a base weapon (28) that the Armory shows (22), except collection rewards (47).
-				for (int row = 0; stats && row < stats->rowCount; ++row)
-				{
-					std::uint32_t id{};
-					const std::string_view rarity{cell(stats, row, 29)};
-					if (*cell(stats, row, 28) && std::string_view{cell(stats, row, 22)} == "1" &&
-						std::string_view{cell(stats, row, 47)} != "1" && (rarity == "3" || rarity == "4") &&
-						parse_number(cell(stats, row, 18), id)) pool.push_back(id);
-				}
-				std::map<std::uint32_t, unsigned> rarities;
-				std::map<std::uint32_t, std::string> types;
-				for (const auto id : pool)
-				{
-					const auto rarity = utils::hook::invoke<int>(0x652330_g, id);
-					if (rarity >= 0) rarities[id] = static_cast<unsigned>(rarity);
-					// 0x652330 calls this same GUID-column reader for rarity (29).
-					const auto* type = utils::hook::invoke<const char*>(0xD1BA0_g, id, 0);
-					if (type) types[id] = type;
-				}
-				demonware::hq_marketplace::set_rarities(rarities);
-				demonware::hq_marketplace::set_item_types(types);
 				// Duplicates reach the store from more than the pool (rewards, grants, older
 				// drops), so value every item the client would trade in: 0x276330 queues rows
 				// that are not a stock row (24) and are pawnable (30). The tables do not change
@@ -173,6 +139,9 @@ namespace hq_economy
 				const auto* pawn = game::DB_FindXAssetHeader(game::ASSET_TYPE_STRINGTABLE, "mp/pawnValues.csv", false).stringTable;
 				if (duplicate_credits.empty() && stats && pawn && pawn->values && pawn->rowCount > 0 && pawn->columnCount > 2)
 				{
+					std::vector<std::uint32_t> pool;
+					std::map<std::uint32_t, unsigned> rarities;
+					std::map<std::uint32_t, std::string> types;
 					for (int row = 0; row < stats->rowCount; ++row)
 					{
 						std::uint32_t id{};
@@ -183,17 +152,20 @@ namespace hq_economy
 						// column rarity + 2. The packed return is currency low / amount high.
 						// Resolve on the game thread; never call asset code from DW dispatch.
 						const auto value = utils::hook::invoke<std::uint64_t>(0x274CF0_g, id);
-						if (static_cast<std::uint32_t>(value) == demonware::hq_economy::armory_credits)
-							duplicate_credits[id] = static_cast<std::uint32_t>(value >> 32);
+						if (static_cast<std::uint32_t>(value) != demonware::hq_economy::armory_credits) continue;
+						duplicate_credits[id] = static_cast<std::uint32_t>(value >> 32);
+						// Drops hold every item with a trade-in value, as retail's did. Weapon variants only
+						// when the Armory shows them (22) and they are Epic or Heroic (29), as since #23.
+						const std::string_view rarity{cell(stats, row, 29)};
+						if (*cell(stats, row, 28) && (std::string_view{cell(stats, row, 22)} != "1" || (rarity != "3" && rarity != "4"))) continue;
+						pool.push_back(id);
+						rarities[id] = std::atoi(cell(stats, row, 29));
+						types[id] = cell(stats, row, 0);
 					}
+					demonware::hq_marketplace::set_rarities(rarities);
+					demonware::hq_marketplace::set_item_types(types);
+					demonware::achievement_engine::set_loot_catalog(std::move(pool), duplicate_credits, rarities);
 				}
-				const auto unvalued = std::count_if(pool.begin(), pool.end(), [](const auto id) { return !duplicate_credits.contains(id); });
-				if (unvalued)
-				{
-					console::warn("[HQ economy] %zu of %zu loot items have no Armory Credit pawn value; their duplicates grant nothing extra\n",
-						static_cast<std::size_t>(unvalued), pool.size());
-				}
-				demonware::achievement_engine::set_loot_catalog(std::move(pool), duplicate_credits, rarities);
 			}
 			catch (const std::exception& error)
 			{

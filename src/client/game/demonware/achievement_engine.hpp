@@ -36,7 +36,8 @@ namespace demonware::achievement_engine
 	void set_catalog(std::vector<hq_economy::achievement> catalog);
 	// Non-consumable duplicates convert to Armory Credits when the ID has a pawn
 	// value; the rest roll as plain grants. Drops roll a rarity tier (StatsTable
-	// column 29, 0 Common to 4 Heroic) and then an item in it; unrated items are Common.
+	// column 29, 0 Common to 4 Heroic) and then an item in it; unrated items are Common,
+	// and reward-only items never drop.
 	void set_loot_catalog(std::vector<std::uint32_t> items, std::map<std::uint32_t, std::uint32_t> duplicate_credits = {},
 		const std::map<std::uint32_t, unsigned>& rarities = {});
 	std::uint32_t duplicate_credit(std::uint32_t id);

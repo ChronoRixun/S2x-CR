@@ -170,7 +170,7 @@ One launch of each mode before testing anything specific, so a broken menu is fo
 - [ ] Zombies frontend reaches the main menu; UNLOCKS tab present with the Zombies rows
 - [ ] New console lines from both launches contain no `error` you have not seen before and no `FAILED`
 - [ ] No new file in `<game>\minidumps` newer than the start of the pass
-- [ ] No `[HQ economy] N of M loot items have no Armory Credit pawn value` line once HQ has loaded: since `a22cea8` every pool item has a value (the #23 test saw none over 1,110 pool items). A line with `N` equal to `M` means the pawn table did not load; stop and report that
+- [ ] A drop opens once HQ has loaded. Drops refused but kept after HQ load mean the pawn table did not load; stop and report that
 
 ---
 
@@ -203,7 +203,7 @@ Do not use `setprestige` on this profile to test #22: the catch-up pays every le
 ## 1.2 Multiplayer drops
 
 1. HQ menu > E Supply Drops > Rare Supply Drop > ENTER, then "Open Next" for two or three drops (you hold Rare drops; if not, `hqgrant item 2 3`). Every reveal finishes with three cards.
-2. Card 1 of every Rare drop is Rare or better. Weapon variants can appear on any card (9 in 26 drops on the test run); Heroic is rare (2–3%).
+2. Card 1 of every Rare drop is Rare or better. Weapon variants can appear on any card (about 1 drop in 10); Heroic is rare (2–3%).
 3. A duplicate card pays its displayed value: AC before plus the duplicates equals `hqwallet` after.
 4. If a weapon variant dropped, find it in Create-a-Class: it is selectable. That screen itself was never checked by eye; `hqownership <guid>` in HQ read `usable=1 lock=0` and `CAC=Unlocked` for dropped variants.
 5. Optional: one common drop (`sd_mp`) opens as before.
