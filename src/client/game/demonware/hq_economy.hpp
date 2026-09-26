@@ -24,6 +24,8 @@ namespace demonware::hq_economy
 	inline constexpr std::uint8_t legacy_credit_currencies[]{7, 2};
 	// Local policy; retail payroll amount has not been recovered.
 	inline constexpr std::uint32_t payroll_amount = 200;
+	// Local policy: Social Score for the two win dailies; retail's 250 was on the 1v1 Pit daily, unreachable solo.
+	inline constexpr std::uint32_t social_score_daily = 250;
 	bool migrate_payroll(struct state& data);
 
 	struct item

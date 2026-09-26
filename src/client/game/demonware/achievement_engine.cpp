@@ -38,6 +38,14 @@ namespace demonware::achievement_engine
 				kind == 1 ? "above_beyond_daily" : "above_beyond_weekly";
 		}
 
+		// Social rank N's reward: RankID N-1 of mp/socialScoreTable.csv. Currency 6 is Armory
+		// Credits, items 1 and 2 the MP common and Rare Supply Drops.
+		const hq_economy::reward social_rank_rewards[20]{
+			{"GRANT_CURRENCY", 6, 500}, {"GRANT_PRODUCT", 0x240026F, 1}, {"GRANT_PRODUCT", 1, 1}, {"GRANT_CURRENCY", 6, 1000},
+			{"GRANT_PRODUCT", 0x1012200, 1}, {"GRANT_PRODUCT", 0x240026E, 1}, {"GRANT_PRODUCT", 0x200066, 1}, {"GRANT_PRODUCT", 1, 1},
+			{"GRANT_CURRENCY", 6, 3500}, {"GRANT_PRODUCT", 0x1015200, 1}, {"GRANT_PRODUCT", 1, 1}, {"GRANT_PRODUCT", 0x240026C, 1},
+			{"GRANT_PRODUCT", 2, 1}, {"GRANT_CURRENCY", 6, 10000}, {"GRANT_PRODUCT", 0x1016102, 1}, {"GRANT_PRODUCT", 2, 1},
+			{"GRANT_CURRENCY", 6, 15000}, {"GRANT_PRODUCT", 0x20005F, 1}, {"GRANT_PRODUCT", 0x1055302, 1}, {"GRANT_PRODUCT", 0x8000D1, 1}};
 
 		rapidjson::Value text(const std::string_view value, allocator& alloc)
 		{
@@ -648,6 +656,21 @@ namespace demonware::achievement_engine
 					data.transactions[receipt] = std::to_string(event.timestamp);
 					changed = true;
 					console::info("[HQ AE] prestige %u: granted its helmet and calling card\n", offset);
+				}
+			// Social rank N is social_score {1 = N}. The client sends it when currency 7 crosses a
+			// socialScoreTable threshold, and again on every achievements fetch for each reached rank
+			// whose hit_social_rank_N record is unfulfilled, which it always is here. So a permanent
+			// receipt pays each rank's reward once.
+			if (event_type == 27)
+				for (const auto& [selector, rank] : parameters)
+				{
+					if (selector != 1 || rank < 1 || rank > 20) continue;
+					const auto receipt = "social:rank:" + std::to_string(rank);
+					if (data.transactions.contains(receipt)) continue;
+					if (!hq_economy::grant(data, social_rank_rewards[rank - 1])) return false;
+					data.transactions[receipt] = std::to_string(event.timestamp);
+					changed = true;
+					console::info("[HQ AE] social rank %u: granted its reward\n", static_cast<unsigned>(rank));
 				}
 			if (payroll)
 			{

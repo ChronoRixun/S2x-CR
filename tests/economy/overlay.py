@@ -63,6 +63,7 @@ Engine = {
 }
 S2xZombiesOrders = {}
 S2xZombiesContracts = {}
+S2xSocialScoreDaily = 250
 records = {{ ID = 10 }, { ID = 999999, reward = "untouched" }}
 ''')
     for index, (id, kind, name, target, title, description, _) in enumerate(entries, 1):
@@ -75,6 +76,7 @@ records = {{ ID = 10 }, { ID = 999999, reward = "untouched" }}
             id=int(id), name=name, title=title, description=description,
             target=int(target), seconds=int(seconds), token=token.lower()))
         lua.globals().records[index + len(entries) + 2] = lua.table_from(dict(ID=int(id)))
+    lua.globals().records[len(entries) + len(contracts) + 3] = lua.table_from(dict(ID=12))
     lua.execute(policy)
     lookup = lua.globals().Engine.TableLookup
     file = 'mp/periodicChallengeTable.csv'
@@ -114,6 +116,8 @@ records = {{ ID = 10 }, { ID = 999999, reward = "untouched" }}
                 assert records[index].timeLimit == int(entry[5])
             else:
                 assert records[index].reward is None
+        win = records[len(entries) + len(contracts) + 3].reward
+        assert win is None if zombies else (win.currencyID == 7 and win.currencyAmount == 250)
     if zombies and a.research_root:
         utils = (a.research_root / 'luafiles/dec/ui_utility_mp_achievementengineutils.dec.lua').read_text()
         lua.execute(utils[:utils.index('AchievementEngineUtils.GetSpecialZMMaterialByMTX')])

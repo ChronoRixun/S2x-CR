@@ -324,7 +324,8 @@ namespace hq_economy
 					{"daily_ch_shovel_kills", 5, 1, 500},
 					{"daily_ch_assault_headshots", 5, 0, 1}, {"daily_ch_sniper_headshots", 3, 0, 1},
 					{"daily_ch_lmg_headshots", 5, 0, 1},
-					{"daily_ch_dom_wins", 1, 0, 1}, {"daily_ch_tdm_wins", 1, 0, 1},
+					{"daily_ch_dom_wins", 1, 7, demonware::hq_economy::social_score_daily},
+					{"daily_ch_tdm_wins", 1, 7, demonware::hq_economy::social_score_daily},
 					{"daily_ch_killstreak", 3, 1, 300}, {"daily_ch_dom_caps", 5, 1, 250},
 					{"daily_ch_assists", 10, 1, 250}, {"daily_ch_destroy_scorestreaks", 2, 1, 300},
 					{"daily_ch_equipment_kills", 5, 0, 1}, {"daily_ch_ffa_killer", 15, 0, 1}})

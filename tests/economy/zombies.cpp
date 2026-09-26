@@ -462,6 +462,37 @@ void item_data_receipt_checks()
 	std::cout << "PASS: item-data receipts keep the newest 256, retire legacy first, and still guard replays\n";
 }
 
+void social_rank_checks(std::int64_t timestamp)
+{
+	// Social rank N is social_score {1 = N}: sent at the threshold and again on every achievements fetch.
+	const auto saved = hq_economy::snapshot();
+	const auto held = [](const std::uint32_t id) {
+		const auto state = hq_economy::snapshot(); const auto entry = state.inventory.find({id, 0});
+		return entry == state.inventory.end() ? 0u : entry->second.quantity;
+	};
+	const auto credits = [] { const auto state = hq_economy::snapshot(); return state.currencies.contains(6) ? state.currencies.at(6) : 0u; };
+	const auto rank = [&](const char* selector, const std::uint64_t value) { return reward_game_events::event{"27", timestamp++, {{selector, value}}}; };
+	const auto ac = credits(), drops = held(1), card = held(0x240026F), variant = held(0x1012200), mark = held(0x8000D1);
+	std::vector<reward_game_events::event> batch{rank("1", 1), rank("1", 2), rank("1", 3)};
+	batch[0].name = "social_score";
+	require(achievement_engine::submit_events(batch), "social ranks 1-3 accepted");
+	const auto paid = [&] { return credits() == ac + 500 && held(0x240026F) == card + 1 && held(1) == drops + 1; };
+	require(paid(), "ranks 1-3 pay 500 AC, the rank 2 card and a common drop");
+	require(achievement_engine::submit_events(batch) && achievement_engine::submit_events({rank("1", 1), rank("1", 2), rank("1", 3)}), "replay and catch-up accepted");
+	require(paid(), "replay and catch-up pay nothing more");
+	require(achievement_engine::submit_events({rank("1", 0), rank("1", 21), rank("2", 5)}), "bad ranks and selectors accepted");
+	require(achievement_engine::submit_event(rank("1", 20)) && achievement_engine::submit_event(rank("1", 20)), "rank 20 accepted twice");
+	require(paid() && held(0x1012200) == variant && held(0x8000D1) == mark + 1, "rank 20 pays once; bad ranks and selectors pay nothing");
+	std::vector<reward_game_events::event> noise;
+	for (unsigned i = 0; i < 2100; ++i) noise.push_back({"37", timestamp++, {{"1", 1}}});
+	require(achievement_engine::submit_events(noise) && achievement_engine::submit_events(batch), "first batch again after 2,100 events");
+	hq_economy::invalidate();
+	require(paid() && held(0x8000D1) == mark + 1 && std::ranges::count_if(hq_economy::snapshot().transactions,
+		[](const auto& entry) { return entry.first.starts_with("social:rank:"); }) == 4, "rank receipts outlive the event ring and persist");
+	require(hq_economy::transact([&](auto& next) { next = saved; return true; }), "restore prior economy fixture");
+	std::cout << "PASS: social ranks pay once; replay, catch-up, event-ring eviction and reload pay nothing more; bad ranks pay nothing\n";
+}
+
 int main(int argc, char** argv)
 {
 	try
@@ -752,6 +783,7 @@ int main(int argc, char** argv)
 		duplicate_drop_checks();
 		tier_drop_checks();
 		item_data_receipt_checks();
+		social_rank_checks(timestamp);
 		achievement_engine::set_catalog({mp});
 		auto mp_offers = request(R"({"Action":"get_scheduled_user_achievements"})");
 		for (const auto& entry : mp_offers["Achievements"].GetArray()) require(entry["kind"].GetInt() < 8, "MP catalog excludes persisted ZM orders");
