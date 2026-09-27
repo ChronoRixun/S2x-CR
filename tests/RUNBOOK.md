@@ -386,7 +386,7 @@ A crash with `0xC0000409` is what this change is about: record it and stop. An a
 ## What to test
 
 1. Start the local server (0.3) and wait for its first match (`status` answers).
-2. Launch the client, `connect 127.0.0.1:27017`. The client console prints `Joining hosted dedicated lobby on map 'mp_shipment_s2' gametype 'gun'.` and `Hosted dedicated lobby: gun limits 36/1/1.` The HUD reads `GUN RANK: 0 / 36`.
+2. Launch the client and press PLAY (at the main menu `connect` answers `Cannot connect: virtual lobby is not loaded.`), then `connect 127.0.0.1:27017`. The client console prints `Joining hosted dedicated lobby on map 'mp_shipment_s2' gametype 'gun'.` and `Hosted dedicated lobby: gun limits 36/1/1.` The HUD reads `GUN RANK: 0 / 36`.
 3. Once you are in the match (not on the loading screen), send `endMatch` to the server: `Hosted dedicated lobby: match updated to mp_shipment_s2 dom.` and `Hosted dedicated lobby: dom limits 200/1/2.` Domination loads with its A, B and C flags. Its HUD shows team scores only, so the console line is the check.
 4. `endMatch` again: `Hosted dedicated lobby: gun limits 36/1/1.` and `0 / 36` again.
 5. Quit the server and the client. Launch the client the normal way and open the server browser: the console logs `[server_list] requesting S2 servers from ...` and `queued <n> server(s) from master`, and the list fills. Do this after any LAN-only server has run from this folder.
