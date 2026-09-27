@@ -498,17 +498,17 @@ A crash with `0xC0000409` is what this change is about: record it and stop. An a
 
 | Check | Pass / fail / skipped | Notes |
 |---|---|---|
-| 0 Install, backup, updater, baseline | | |
-| 1 First HQ entry, master replay, prestige rewards | | |
-| 2 Supply drops | | |
-| 3 Contracts and daily orders | | |
-| 4 Quartermaster packs and Mail | | |
-| 5 Zombies | | |
-| 6 Singleplayer startup | | |
-| 7 Dedicated lobby | | |
-| 8 Fresh profile, second PC | | |
-| 9 Regression list | | |
-| 10 Box 4 upgrade | | |
+| 0 Install, backup, updater, baseline | pass | rc1 installed 16:20 with players2 backed up; 0.4 by a launch without `-noupdate` (updater line in the console window, no data folder); 0.5 version `v1.5.0-28-gc45126a`, browser, UNLOCKS |
+| 1 First HQ entry, master replay, prestige rewards | pass | 1.2 four minutes in HQ at prestige 2: nothing granted, store untouched. 1.3 on a throwaway copy at 101: exactly 46 drops in one burst, prestige 3-10 and master 56/100 once, then silence; items unlocked and on screen; restored by hash. 1.4 skipped |
+| 2 Supply drops | pass | three Rare drops: card 1 Legendary/Rare/Epic, 7 of 9 cards new to the pool, one duplicate paid 12 AC; a new uniform and calling card selectable on screen |
+| 3 Contracts and daily orders | pass | Orso contract bought by holding the button: one 2,500 debit, activated. After the reset the board rotated to the Lewis variant orders with their pictures; the English Oak order finished in real play and paid the weapon. 3.4 skipped (no win daily until 2026-09-29) |
+| 4 Quartermaster packs and Mail | pass | C.O.D.E. Pack: one 1,000 debit, items unlocked, tile moved on (MP and Zombies); both new Mail messages collected; anniversary cards and Redacted on screen |
+| 5 Zombies | pass | UNLOCKS rows; C.O.D.E. items unlocked in Zombies; three card uses wrote three `sequence:` receipts and each count went down by one; a level-up paid a Rare Zombie drop |
+| 6 Singleplayer startup | pass | launched without `-noupdate`: loaded, alive 100 s, no crash, no minidump (campaign menu not seen by eye) |
+| 7 Dedicated lobby | pass | join `gun limits 36/1/1`, endMatch to `dom limits 200/1/2` and back to `gun limits 36/1/1`; a fresh client afterwards had `master_server_enable 1`. `connect` needs PLAY first |
+| 8 Fresh profile, second PC | pass (on this PC) | empty profile on Owen's PC: no prompts, six dailies from the new pool, three Mail messages collected (+500 AC, 21 items), packs and nine contracts render, Zombies menu; profile restored by hash. Not done: first-match level-up (proven on Owen's profile), the second PC and its Zombies check |
+| 9 Regression list | pass | browser after a LAN-only server (7), HUD limits (7), launch profiles and the status card on Box 4 (10), Zombies consumables (5) |
+| 10 Box 4 upgrade | pass | rc1 on Box 4; all six servers on the master and answering; card 6 servers with the right Zombies lines. Joining a Box 4 server for its HUD not done (limits passed in 7) |
 | 11 Release | | |
 
-Not tested in this pass: (add what the pass skipped). Known before it starts: a first-run SmartScreen prompt on a machine that never ran the fork; a contract finished in real play; the 22 variant dailies that are not offered; 256 card uses live; weekly order rotation; a remote client on a Gun Game server.
+Not tested in this pass: the second PC (the empty-profile checks ran on this PC instead) and its Zombies loadout check; a first-match level-up on an empty profile; 1.4 (a real division prestige); 3.4 (no win daily on the board); Known before it starts: a first-run SmartScreen prompt on a machine that never ran the fork; a contract finished in real play; the 22 variant dailies that are not offered; 256 card uses live; weekly order rotation; a remote client on a Gun Game server.
