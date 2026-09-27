@@ -509,6 +509,6 @@ A crash with `0xC0000409` is what this change is about: record it and stop. An a
 | 8 Fresh profile, second PC | pass (on this PC) | empty profile on Owen's PC: no prompts, six dailies from the new pool, three Mail messages collected (+500 AC, 21 items), packs and nine contracts render, Zombies menu; profile restored by hash. Not done: first-match level-up (proven on Owen's profile), the second PC and its Zombies check |
 | 9 Regression list | pass | browser after a LAN-only server (7), HUD limits (7), launch profiles and the status card on Box 4 (10), Zombies consumables (5) |
 | 10 Box 4 upgrade | pass | rc1 on Box 4; all six servers on the master and answering; card 6 servers with the right Zombies lines. Joining a Box 4 server for its HUD not done (limits passed in 7) |
-| 11 Release | | |
+| 11 Release | pass | tag v1.6.0 at 619dde0 pushed; rebuilt at the tag (console `S2x: v1.6.0`, browser fills); release published with s2x-cr-v1.6.0.zip 2026-09-26 |
 
 Not tested in this pass: the second PC (the empty-profile checks ran on this PC instead) and its Zombies loadout check; a first-match level-up on an empty profile; 1.4 (a real division prestige); 3.4 (no win daily on the board); Known before it starts: a first-run SmartScreen prompt on a machine that never ran the fork; a contract finished in real play; the 22 variant dailies that are not offered; 256 card uses live; weekly order rotation; a remote client on a Gun Game server.
