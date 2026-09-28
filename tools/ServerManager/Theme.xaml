@@ -159,25 +159,30 @@
     <Setter Property="Effect" Value="{DynamicResource TextGlow}"/>
   </Style>
 
-  <!-- The state dot. A server that is up but has not answered yet blinks. -->
+  <!-- The state dot. A server that is up but has not answered yet blinks, while it is on
+       screen (see the badge's breath). -->
   <Style x:Key="StateDot" TargetType="Rectangle">
     <Setter Property="Width" Value="7"/>
     <Setter Property="Height" Value="7"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
     <Style.Triggers>
-      <DataTrigger Binding="{Binding IsStarting}" Value="True">
-        <DataTrigger.EnterActions>
+      <MultiDataTrigger>
+        <MultiDataTrigger.Conditions>
+          <Condition Binding="{Binding IsStarting}" Value="True"/>
+          <Condition Binding="{Binding IsVisible, RelativeSource={RelativeSource Self}}" Value="True"/>
+        </MultiDataTrigger.Conditions>
+        <MultiDataTrigger.EnterActions>
           <BeginStoryboard x:Name="PulseDot">
             <Storyboard Timeline.DesiredFrameRate="20">
               <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.3"
                                Duration="0:0:0.5" AutoReverse="True" RepeatBehavior="Forever"/>
             </Storyboard>
           </BeginStoryboard>
-        </DataTrigger.EnterActions>
-        <DataTrigger.ExitActions>
-          <StopStoryboard BeginStoryboardName="PulseDot"/>
-        </DataTrigger.ExitActions>
-      </DataTrigger>
+        </MultiDataTrigger.EnterActions>
+        <MultiDataTrigger.ExitActions>
+          <RemoveStoryboard BeginStoryboardName="PulseDot"/>
+        </MultiDataTrigger.ExitActions>
+      </MultiDataTrigger>
     </Style.Triggers>
   </Style>
 
@@ -223,8 +228,16 @@
               <Setter TargetName="square" Property="Visibility" Value="Collapsed"/>
               <Setter TargetName="dot" Property="Visibility" Value="Visible"/>
               <Setter TargetName="frame" Property="Effect" Value="{DynamicResource OkGlow}"/>
-              <Trigger.EnterActions>
-                <!-- The one animation in the app: a slow breath at a low frame rate. -->
+            </Trigger>
+            <!-- The one animation in the app: a slow breath at a low frame rate, and only while
+                 the badge is on screen. A breath that never stops keeps its clock ticking for a
+                 hidden screen, a window in the tray, and a closed one until it is collected. -->
+            <MultiTrigger>
+              <MultiTrigger.Conditions>
+                <Condition Property="Pulse" Value="True"/>
+                <Condition Property="IsVisible" Value="True"/>
+              </MultiTrigger.Conditions>
+              <MultiTrigger.EnterActions>
                 <BeginStoryboard x:Name="Breathe">
                   <Storyboard Timeline.DesiredFrameRate="24">
                     <DoubleAnimation Storyboard.TargetName="dot" Storyboard.TargetProperty="Opacity"
@@ -241,11 +254,11 @@
                     </DoubleAnimation>
                   </Storyboard>
                 </BeginStoryboard>
-              </Trigger.EnterActions>
-              <Trigger.ExitActions>
-                <StopStoryboard BeginStoryboardName="Breathe"/>
-              </Trigger.ExitActions>
-            </Trigger>
+              </MultiTrigger.EnterActions>
+              <MultiTrigger.ExitActions>
+                <RemoveStoryboard BeginStoryboardName="Breathe"/>
+              </MultiTrigger.ExitActions>
+            </MultiTrigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
       </Setter.Value>

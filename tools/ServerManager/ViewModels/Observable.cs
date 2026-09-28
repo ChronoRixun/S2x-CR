@@ -30,6 +30,19 @@ namespace S2x.ServerManager.ViewModels
         }
     }
 
+    /// <summary>
+    /// A row a template binds to that is built once and never changes: a pip, a segment, a
+    /// swatch, a log line. It says it implements INotifyPropertyChanged, with nothing to raise,
+    /// because WPF watches a plain object's properties through PropertyDescriptor.ValueChanged
+    /// instead, and that table holds the row itself for as long as anything is bound to it. A
+    /// row with a command holds its view model, the view model holds the view, and so a closed
+    /// window was never collected.
+    /// </summary>
+    internal abstract class Unchanging : INotifyPropertyChanged
+    {
+        event PropertyChangedEventHandler INotifyPropertyChanged.PropertyChanged { add { } remove { } }
+    }
+
     internal sealed class RelayCommand : ICommand
     {
         private readonly Action _run;

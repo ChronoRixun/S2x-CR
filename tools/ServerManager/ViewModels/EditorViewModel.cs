@@ -11,7 +11,7 @@ using S2x.ServerManager.Views;
 
 namespace S2x.ServerManager.ViewModels
 {
-    internal sealed class SwatchViewModel
+    internal sealed class SwatchViewModel : Unchanging
     {
         public Brush Fill { get; set; }
         public Brush Stroke { get; set; }
@@ -20,7 +20,7 @@ namespace S2x.ServerManager.ViewModels
     }
 
     /// <summary>One button of a segmented control: mode, name pool, difficulty.</summary>
-    internal sealed class SegmentOption
+    internal sealed class SegmentOption : Unchanging
     {
         public string Label { get; set; }
         /// <summary>The chosen one: the Segment style lights it.</summary>
@@ -28,7 +28,7 @@ namespace S2x.ServerManager.ViewModels
         public RelayCommand PickCommand { get; set; }
     }
 
-    internal sealed class PickOption
+    internal sealed class PickOption : Unchanging
     {
         public string Key { get; set; }
         public string Label { get; set; }
@@ -37,7 +37,7 @@ namespace S2x.ServerManager.ViewModels
         public override string ToString() { return Label; }
     }
 
-    internal sealed class PipViewModel
+    internal sealed class PipViewModel : Unchanging
     {
         public Brush Fill { get; set; }
         public Brush Stroke { get; set; }

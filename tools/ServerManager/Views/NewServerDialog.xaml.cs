@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -6,8 +7,11 @@ using System.Windows.Input;
 namespace S2x.ServerManager.Views
 {
     /// <summary>One line of the + New server dialog: a bundled starter, or the blank server.</summary>
-    public sealed class StarterChoice
+    public sealed class StarterChoice : INotifyPropertyChanged
     {
+        // Never changes: see ViewModels.Unchanging for why it still implements the interface.
+        event PropertyChangedEventHandler INotifyPropertyChanged.PropertyChanged { add { } remove { } }
+
         public string Title { get; set; }
         public string Summary { get; set; }
         public string Meta { get; set; }

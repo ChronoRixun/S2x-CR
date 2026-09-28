@@ -8,13 +8,13 @@ using S2x.ServerManager.Views;
 
 namespace S2x.ServerManager.ViewModels
 {
-    internal sealed class SlotTick
+    internal sealed class SlotTick : Unchanging
     {
         public Brush Fill { get; set; }
         public Brush Stroke { get; set; }
     }
 
-    internal sealed class PingBar
+    internal sealed class PingBar : Unchanging
     {
         public double Height { get; set; }
         public Brush Fill { get; set; }

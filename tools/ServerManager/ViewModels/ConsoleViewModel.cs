@@ -15,7 +15,7 @@ using S2x.ServerManager.Views;
 namespace S2x.ServerManager.ViewModels
 {
     /// <summary>One line of the log, with the colour its text earned.</summary>
-    internal sealed class LogLine
+    internal sealed class LogLine : Unchanging
     {
         public string Text { get; set; }
         public Brush Fill { get; set; }

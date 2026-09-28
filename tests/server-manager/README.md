@@ -40,6 +40,14 @@ rules, a long Discord line and every note) and Settings off-screen in all nine t
 at 1160 x 740 and at the 1000 x 620 minimum, with the embedded fonts, and fails on any text
 a clip cuts without an ellipsis. It hosts a plain WPF Application with Theme.xaml rather than
 the Manager's App, whose startup would otherwise run on the real game folder and settings.
+WindowLeakTests.cs hosts the same plain Application and opens and closes the fleet, the
+roster, the editor, Settings, the master browser (demo rows, no refresh) and the admin window
+(an empty ownership store, so nothing is sent) three times each across the themes, keeping
+their view models alive the way the Manager keeps its fleet. It fails when a closed window is
+still reachable after garbage collection, when a window binds to an object that neither raises
+PropertyChanged nor is a DependencyObject (WPF holds those through PropertyDescriptor), or
+when a running server's badge breathes while it is not on screen (a collapsed pane, the window
+closed to the tray, a closed window).
 Add -LiveMaster for one bounded read-only live query.
 No test launches or controls game servers. Native-pointer drag gestures are not
 automated; the actual WPF drop handlers and visual-tree exclusions are exercised.

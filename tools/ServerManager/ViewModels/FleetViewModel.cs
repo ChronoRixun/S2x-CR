@@ -13,7 +13,7 @@ using S2x.ServerManager.Views;
 
 namespace S2x.ServerManager.ViewModels
 {
-    internal sealed class StarterViewModel
+    internal sealed class StarterViewModel : Unchanging
     {
         public string Index { get; set; }
         public string Title { get; set; }

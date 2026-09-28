@@ -28,6 +28,11 @@ try {
   & $ps -NoProfile -STA -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot $test)
   if($LASTEXITCODE){throw "$test failed"}
  }
+ $leakTest=(Resolve-Path tests/server-manager/WindowLeakTests.cs).Path
+ & $RoslynCsc /nologo "/out:$out/window-leak-tests.exe" "/r:$wpf/PresentationFramework.dll" "/r:$wpf/PresentationCore.dll" "/r:$wpf/WindowsBase.dll" /r:System.Xaml.dll $leakTest
+ if($LASTEXITCODE){throw 'Window leak test compile failed'}
+ & "$out/window-leak-tests.exe" (Resolve-Path tools/ServerManager/bin/Release/net48/S2xServerManager.exe).Path
+ if($LASTEXITCODE){throw 'Window leak tests failed'}
  $profileTest=(Resolve-Path tests/server-manager/SurvivalProfileTests.cs).Path
  & $RoslynCsc /nologo /r:System.Core.dll "/out:$out/profile-tests.exe" $profileTest
  if($LASTEXITCODE){throw 'Profile test compile failed'}

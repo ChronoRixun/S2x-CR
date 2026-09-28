@@ -11,7 +11,7 @@ using S2x.ServerManager.Services;
 
 namespace S2x.ServerManager.ViewModels
 {
-    internal sealed class BrowserRow
+    internal sealed class BrowserRow : Unchanging
     {
         public MasterServerRow Source { get; private set; }
         public BrowserRow(MasterServerRow row) { Source = row; }

@@ -88,8 +88,8 @@ function Fleet([string]$kind,[string]$state){
 # The chat commands and map vote sections at their fullest: five long rules (each over the 120
 # bytes the server takes) and a sixth, so the counter is red and both rules notes show, a
 # Discord line longer than the box, and the vote on with every note (the demo's empty rotation
-# adds the three-entries one). One screen, on the stopped demo server, because every window
-# this run opens makes the ones after it slower to lay out.
+# adds the three-entries one). One screen, on the stopped demo server, because every screen
+# is laid out 18 times (nine themes, two sizes).
 $longRules=@(
     'Be respectful to every player on the server, whatever team they are on, and keep the chat clean and friendly for everyone who joins',
     'No spawn camping, spawn trapping or boosting; play the objective when the mode has one and do not hold the match hostage for kills',
