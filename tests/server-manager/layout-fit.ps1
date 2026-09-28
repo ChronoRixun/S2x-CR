@@ -85,6 +85,23 @@ function Fleet([string]$kind,[string]$state){
     $fleet=$fleetType.GetMethod($kind,$static).Invoke($null,@($state))
     return $fleet
 }
+# The chat commands and map vote sections at their fullest: long rules (each over the 120 the
+# server takes, so its note shows), a Discord line longer than the box, and the vote's notes.
+# $extra adds a sixth rule, which turns the counter red and adds the second rules note.
+$longRules=@(
+    'Be respectful to every player on the server, whatever team they are on, and keep the chat clean and friendly for everyone who joins',
+    'No spawn camping, spawn trapping or boosting; play the objective when the mode has one and do not hold the match hostage for kills',
+    'No cheating, exploits, macros or glitching out of the map; report anyone you see doing it in our Discord with a clip if you can',
+    'English in all chat please, so the admins can read it; team chat for call-outs, and keep voice chat free of music and background noise',
+    'Have fun, say gg at the end of the match, and invite your friends: the server fills faster with humans and the bots leave as you join')
+function ChatAndVote($fleet,[bool]$extra){
+    $editor=$fleet.Editor
+    $editor.ChatCommands=$true
+    $editor.RulesText=(@($longRules) + $(if($extra){ @('A sixth rule, one more than the server takes') } else { @() })) -join [Environment]::NewLine
+    $editor.Discord='https://discord.gg/a-very-long-invite-code-for-the-whole-community-server'
+    $editor.MapVote=$true
+    return $fleet
+}
 
 $screens=@(
     @{Name='fleet'; Make={ $f=Fleet 'Demo' 'three-notanswering'; $w=New-Object S2x.ServerManager.MainWindow; $w.DataContext=$f; $w }},
@@ -93,6 +110,8 @@ $screens=@(
     @{Name='roster'; Make={ $f=Fleet 'Demo' 'three-notanswering'; $f.ViewMode='roster'; $w=New-Object S2x.ServerManager.MainWindow; $w.DataContext=$f; $w }},
     @{Name='editor mp'; Make={ $f=Fleet 'DemoEditor' 'mp'; $w=New-Object S2x.ServerManager.MainWindow; $w.DataContext=$f; $w }},
     @{Name='editor zombies'; Make={ $f=Fleet 'DemoEditor' 'zombies'; $w=New-Object S2x.ServerManager.MainWindow; $w.DataContext=$f; $w }},
+    @{Name='editor chat and vote'; Make={ $f=ChatAndVote (Fleet 'DemoEditor' 'mp') $false; $w=New-Object S2x.ServerManager.MainWindow; $w.DataContext=$f; $w }},
+    @{Name='editor chat and vote, every note'; Make={ $f=ChatAndVote (Fleet 'DemoEditor' 'empty') $true; $w=New-Object S2x.ServerManager.MainWindow; $w.DataContext=$f; $w }},
     @{Name='settings'; Size=@(0,0); Make={ New-Object S2x.ServerManager.Views.SettingsDialog }}
 )
 $failures=New-Object System.Collections.Generic.List[string]
@@ -109,7 +128,7 @@ foreach($mode in [Enum]::GetValues([S2x.ServerManager.Services.ThemeMode])){
             $window.Close()
         }
     }
-    Write-Output "PASS $mode checked: fleet (three states), roster, editor (mp, zombies) at 1160x740 and 1000x620, settings"
+    Write-Output "PASS $mode checked: fleet (three states), roster, editor (mp, zombies, chat commands and map vote) at 1160x740 and 1000x620, settings"
 }
 if($failures.Count){ $failures | ForEach-Object { Write-Output "CUT $_" }; throw "FAIL $($failures.Count) pieces of text are cut without an ellipsis" }
 Write-Output 'PASS no text is cut without an ellipsis in any theme'

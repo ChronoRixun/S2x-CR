@@ -106,6 +106,12 @@ namespace S2x.ServerManager.ViewModels
         private string _delayText;
         private bool _advertise;
         private bool _autoBalance;
+        private bool _chatCommands;
+        private string _rulesText;
+        private string _discord;
+        private bool _mapVote;
+        private int _voteChoices;
+        private int _voteSeconds;
         private string _extraText;
         private string _saved;
         private RotationRowViewModel _selectedRow;
@@ -134,6 +140,12 @@ namespace S2x.ServerManager.ViewModels
             _delayText = preset.StartDelay.ToString();
             _advertise = preset.Advertise;
             _autoBalance = preset.AutoBalance;
+            _chatCommands = preset.ChatCommands;
+            _rulesText = string.Join(Environment.NewLine, preset.Rules);
+            _discord = preset.Discord ?? "";
+            _mapVote = preset.MapVote;
+            _voteChoices = preset.VoteChoices;
+            _voteSeconds = preset.VoteSeconds;
             if (preset.IsProfile) { _launchId = preset.LaunchProfileId; _launchKey = preset.LaunchEntryKey; }
             _extraText = string.Join(Environment.NewLine, preset.ExtraLines);
             foreach (var pair in GameData.DefaultScoreLimits)
@@ -474,7 +486,177 @@ namespace S2x.ServerManager.ViewModels
             }
         }
 
-        // ── 05 lobby ──────────────────────────────────────────────────────────────
+        // ── 05 chat commands ──────────────────────────────────────────────────────
+        /// <summary>
+        /// s2x_servercmds.gsc runs the chat commands and the map vote. Multiplayer only, and not
+        /// for a profile server, whose package writes its own cfg.
+        /// </summary>
+        public bool ServerCmdsEnabled { get { return !_isZombies && !IsProfile; } }
+        public Visibility ServerCmdsNoteVisibility { get { return IsProfile ? Visibility.Visible : Visibility.Collapsed; } }
+
+        /// <summary>Off wherever it cannot apply, which is also what Save writes there.</summary>
+        public bool ChatCommands
+        {
+            get { return _chatCommands && ServerCmdsEnabled; }
+            set
+            {
+                if (!ServerCmdsEnabled || !Set(ref _chatCommands, value)) return;
+                Raise("ChatSummary");
+                Touched();
+            }
+        }
+
+        /// <summary>The rules box: one rule per line.</summary>
+        public string RulesText
+        {
+            get { return _rulesText; }
+            set
+            {
+                if (!Set(ref _rulesText, value ?? "")) return;
+                Raise("RulesCount"); Raise("RulesCountBrush"); Raise("RulesNote"); Raise("RulesNoteVisibility");
+                Raise("RulesPlaceholderVisibility"); Raise("ChatSummary");
+                Touched();
+            }
+        }
+
+        /// <summary>Every rule typed: the box's lines that are not blank, trimmed.</summary>
+        private List<string> TypedRules
+        {
+            get { return NonBlankLines(_rulesText).Select(line => line.Trim()).ToList(); }
+        }
+
+        /// <summary>The rules Save writes: the first five typed.</summary>
+        public List<string> Rules { get { return TypedRules.Take(ServerPreset.MaxRules).ToList(); } }
+
+        public string RulesCount { get { return TypedRules.Count + "/" + ServerPreset.MaxRules; } }
+        public Brush RulesCountBrush { get { return TypedRules.Count > ServerPreset.MaxRules ? Palette.Danger : Palette.Faint; } }
+
+        /// <summary>Advice only: what the server will not get of what was typed.</summary>
+        public string RulesNote
+        {
+            get
+            {
+                var notes = new List<string>();
+                if (TypedRules.Count > ServerPreset.MaxRules) notes.Add("Only the first " + ServerPreset.MaxRules + " rules are used.");
+                if (Rules.Any(rule => CfgText.Bytes(rule) > CfgText.RuleBytes))
+                    notes.Add("A rule is cut at " + CfgText.RuleBytes + " bytes; accented letters and emoji take 2 to 4 each.");
+                return string.Join(Environment.NewLine, notes);
+            }
+        }
+
+        public Visibility RulesNoteVisibility { get { return RulesNote.Length == 0 ? Visibility.Collapsed : Visibility.Visible; } }
+        public Visibility RulesPlaceholderVisibility { get { return string.IsNullOrEmpty(_rulesText) ? Visibility.Visible : Visibility.Collapsed; } }
+
+        public string Discord
+        {
+            get { return _discord; }
+            set
+            {
+                if (!Set(ref _discord, value ?? "")) return;
+                Raise("DiscordPlaceholderVisibility"); Raise("ChatSummary");
+                Touched();
+            }
+        }
+
+        public Visibility DiscordPlaceholderVisibility { get { return string.IsNullOrEmpty(_discord) ? Visibility.Visible : Visibility.Collapsed; } }
+
+        public string ChatSummary
+        {
+            get
+            {
+                if (!ChatCommands) return "off";
+                var count = Rules.Count;
+                var text = "on " + GameData.MiddleDot + " " + (count == 0 ? "no rules" : count + (count == 1 ? " rule" : " rules"));
+                return _discord.Trim().Length > 0 ? text + " " + GameData.MiddleDot + " discord" : text;
+            }
+        }
+
+        // ── 06 map vote ───────────────────────────────────────────────────────────
+        /// <summary>The vote times on offer, in seconds; a preset file may hold any value from 10 to 30.</summary>
+        public static readonly int[] VoteTimes = { 10, 15, 20, 30 };
+
+        /// <summary>Off wherever it cannot apply, which is also what Save writes there.</summary>
+        public bool MapVote
+        {
+            get { return _mapVote && ServerCmdsEnabled; }
+            set
+            {
+                if (!ServerCmdsEnabled || !Set(ref _mapVote, value)) return;
+                Raise("MapVoteSummary"); Raise("MapVoteNote"); Raise("MapVoteNoteVisibility");
+                Touched();
+            }
+        }
+
+        public int VoteChoices { get { return _voteChoices; } }
+        public int VoteSeconds { get { return _voteSeconds; } }
+
+        public List<SegmentOption> ChoiceOptions
+        {
+            get
+            {
+                return Enumerable.Range(ServerPreset.MinVoteChoices, ServerPreset.MaxVoteChoices - ServerPreset.MinVoteChoices + 1)
+                    .Select(count => Segment(count.ToString(), _voteChoices == count, () =>
+                    {
+                        _voteChoices = count;
+                        Raise("VoteChoices"); Raise("ChoiceOptions"); Raise("MapVoteSummary"); Touched();
+                    })).ToList();
+            }
+        }
+
+        public List<SegmentOption> TimeOptions
+        {
+            get
+            {
+                return VoteTimes.Select(seconds => Segment(seconds.ToString(), _voteSeconds == seconds, () =>
+                {
+                    _voteSeconds = seconds;
+                    Raise("VoteSeconds"); Raise("TimeOptions"); Raise("MapVoteSummary"); Touched();
+                })).ToList();
+            }
+        }
+
+        public string MapVoteSummary
+        {
+            get { return MapVote ? _voteChoices + " choices " + GameData.MiddleDot + " " + _voteSeconds + " s" : "off"; }
+        }
+
+        public Visibility MapVoteNoteVisibility { get { return MapVote ? Visibility.Visible : Visibility.Collapsed; } }
+
+        /// <summary>
+        /// How the vote treats the rotation, and what this server needs for it to show. Advice
+        /// only: nothing here stops a save or a launch.
+        /// </summary>
+        public string MapVoteNote
+        {
+            get
+            {
+                if (!MapVote) return "";
+                var notes = new List<string>
+                {
+                    "Choice 1 is always the rotation's next map; a tie or no votes keeps the rotation. A voted map replaces the next rotation entry.",
+                };
+                // The current match is never on the ballot and choice 1 is the next one, so two
+                // other entries are the least that leaves something to choose.
+                if (Rotation.Select(row => row.Entry.Map + " " + row.Entry.Gametype).Distinct().Count() < 3)
+                    notes.Add("Needs at least 3 rotation entries to offer a choice.");
+                notes.Add("Needs the S2x build with map-vote support; older builds show no vote.");
+                return string.Join(Environment.NewLine, notes);
+            }
+        }
+
+        private void ServerCmdsChanged()
+        {
+            Raise("ServerCmdsEnabled"); Raise("ServerCmdsNoteVisibility");
+            Raise("ChatCommands"); Raise("ChatSummary");
+            Raise("MapVote"); Raise("MapVoteSummary"); Raise("MapVoteNote"); Raise("MapVoteNoteVisibility");
+        }
+
+        private static IEnumerable<string> NonBlankLines(string text)
+        {
+            return (text ?? "").Split(new[] { "\r\n", "\n" }, StringSplitOptions.None).Where(line => !string.IsNullOrWhiteSpace(line));
+        }
+
+        // ── 07 lobby ──────────────────────────────────────────────────────────────
         public int Cap
         {
             get
@@ -593,11 +775,12 @@ namespace S2x.ServerManager.ViewModels
         public Visibility LobbyFieldsVisibility { get { return IsProfile ? Visibility.Collapsed : Visibility.Visible; } }
         public Visibility LobbyTextVisibility { get { return IsProfile ? Visibility.Visible : Visibility.Collapsed; } }
 
-        public string LobbyNumber { get { return _isZombies ? "03" : "05"; } }
-        public string VisibilityNumber { get { return _isZombies ? "04" : "06"; } }
-        public string AdvancedNumber { get { return _isZombies ? "05" : "07"; } }
+        // Multiplayer has rules, bots, chat commands and the map vote before these; Zombies none.
+        public string LobbyNumber { get { return _isZombies ? "03" : "07"; } }
+        public string VisibilityNumber { get { return _isZombies ? "04" : "08"; } }
+        public string AdvancedNumber { get { return _isZombies ? "05" : "09"; } }
 
-        // ── 06 visibility ─────────────────────────────────────────────────────────
+        // ── 08 visibility ─────────────────────────────────────────────────────────
         public bool Advertise
         {
             get { return _advertise; }
@@ -622,7 +805,7 @@ namespace S2x.ServerManager.ViewModels
             }
         }
 
-        // ── 07 advanced ───────────────────────────────────────────────────────────
+        // ── 09 advanced ───────────────────────────────────────────────────────────
         public string ExtraText
         {
             get { return _extraText; }
@@ -1043,6 +1226,8 @@ namespace S2x.ServerManager.ViewModels
             Raise("AdvancedEnabled"); Raise("AdvancedNoteVisibility"); Raise("WritesTo");
             // A profile server cannot take auto-balance, and the rotation decides the note.
             AutoBalanceChanged();
+            // Nor the chat commands or the vote, and the rotation decides the vote's note too.
+            ServerCmdsChanged();
             RandomizeCommand.Refresh();
         }
 
@@ -1100,6 +1285,9 @@ namespace S2x.ServerManager.ViewModels
                 .Append(_advertise).Append('').Append(string.Join("\n", ExtraLines)).Append('')
                 .Append(_launchId).Append('').Append(_launchKey).Append('')
                 .Append(AutoBalance).Append('');
+            text.Append(ChatCommands).Append('\u0001').Append(string.Join("\n", Rules)).Append('\u0001')
+                .Append(_discord.Trim()).Append('\u0001').Append(MapVote).Append('\u0001')
+                .Append(_voteChoices).Append('\u0001').Append(_voteSeconds).Append('\u0001');
             foreach (var row in Rotation) text.Append(row.Entry.Gametype).Append(' ').Append(row.Entry.Map).Append(',');
             text.Append('');
             foreach (var mode in Modes()) text.Append(mode).Append('=').Append(_scores[mode]).Append(',');
@@ -1122,6 +1310,13 @@ namespace S2x.ServerManager.ViewModels
             target.StartDelay = StartDelay;
             target.Advertise = _advertise;
             target.AutoBalance = AutoBalance;
+            target.ChatCommands = ChatCommands;
+            target.Rules.Clear();
+            target.Rules.AddRange(Rules);
+            target.Discord = _discord.Trim();
+            target.MapVote = MapVote;
+            target.VoteChoices = _voteChoices;
+            target.VoteSeconds = _voteSeconds;
             target.LaunchProfileId = _launchId;
             target.LaunchEntryKey = _launchKey;
             target.ExtraLines.Clear();

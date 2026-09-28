@@ -323,8 +323,10 @@ namespace S2x.ServerManager.ViewModels
         {
             get
             {
-                return string.Format("{0} in rotation {1} {2} {1} cap {3}",
-                    Preset.Rotation.Count, GameData.MiddleDot, PlannedBots, Cap);
+                // "vote": the NEXT line is still the rotation's, which a vote may change.
+                return string.Format("{0} in rotation {1} {2} {1} cap {3}{4}",
+                    Preset.Rotation.Count, GameData.MiddleDot, PlannedBots, Cap,
+                    Preset.UsesMapVote ? " " + GameData.MiddleDot + " vote" : "");
             }
         }
 

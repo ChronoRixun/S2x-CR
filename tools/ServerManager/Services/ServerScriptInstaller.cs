@@ -49,11 +49,43 @@ namespace S2x.ServerManager.Services
     }
 
     /// <summary>
+    /// One server script this exe carries: its manifest resource (the csproj's LogicalName) and
+    /// where it goes, relative to the game folder.
+    /// </summary>
+    internal sealed class EmbeddedScript
+    {
+        public EmbeddedScript(string resource, string[] targets)
+        {
+            Resource = resource;
+            Targets = targets;
+        }
+
+        public string Resource { get; private set; }
+        public string[] Targets { get; private set; }
+
+        /// <summary>The bytes this exe carries.</summary>
+        public byte[] Load()
+        {
+            using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(Resource))
+            {
+                if (stream == null) throw new InvalidOperationException("This build does not carry " + Resource + ".");
+                using (var copy = new MemoryStream())
+                {
+                    stream.CopyTo(copy);
+                    return copy.ToArray();
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// Puts the server scripts this exe carries into the game folder, so the release stays one
     /// file. A copy is written only where there is none, or where the one there is a copy a
     /// Manager wrote: one changed by hand, or brought from somewhere else, is the host's and is
     /// never written over. Nothing here deletes a script: other servers run from the same
-    /// folder, and a script is inert until its dvar is set.
+    /// folder, and a script is inert until its dvar is set. Each script is installed on its own
+    /// and only for a launch that uses it; the record of hashes is kept per target path, so
+    /// scripts share it without touching each other's entries.
     /// </summary>
     internal sealed class ServerScriptInstaller
     {
@@ -67,6 +99,21 @@ namespace S2x.ServerManager.Services
         {
             @"s2x\scripts\mp\s2x_autobalance.gsc",
         };
+
+        public const string ServerCmdsResource = "S2x.ServerManager.ServerScripts.s2x_servercmds.gsc";
+
+        /// <summary>Where the chat commands and map vote script goes, relative to the game folder.</summary>
+        public static readonly string[] ServerCmdsTargets =
+        {
+            @"s2x\scripts\mp\s2x_servercmds.gsc",
+        };
+
+        // Declared after the target lists: static fields are set in the order they are written.
+        public static readonly EmbeddedScript AutoBalance = new EmbeddedScript(AutoBalanceResource, AutoBalanceTargets);
+        public static readonly EmbeddedScript ServerCmds = new EmbeddedScript(ServerCmdsResource, ServerCmdsTargets);
+
+        /// <summary>Every script this exe carries. A new one is an entry here and an EmbeddedResource in the csproj.</summary>
+        public static readonly EmbeddedScript[] Catalog = { AutoBalance, ServerCmds };
 
         public const string RecordFileName = "installed-scripts.json";
 
@@ -91,22 +138,21 @@ namespace S2x.ServerManager.Services
         /// <summary>Every hash a Manager wrote to each target, so a later version knows what it may replace.</summary>
         public string RecordPath { get; private set; }
 
-        public static byte[] AutoBalanceScript()
-        {
-            using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(AutoBalanceResource))
-            {
-                if (stream == null) throw new InvalidOperationException("This build does not carry " + AutoBalanceResource + ".");
-                using (var copy = new MemoryStream())
-                {
-                    stream.CopyTo(copy);
-                    return copy.ToArray();
-                }
-            }
-        }
+        public static byte[] AutoBalanceScript() { return AutoBalance.Load(); }
 
-        public ScriptInstallResult InstallAutoBalance(string gameDir)
+        public ScriptInstallResult InstallAutoBalance(string gameDir) { return InstallScript(gameDir, AutoBalance); }
+
+        public static byte[] ServerCmdsScript() { return ServerCmds.Load(); }
+
+        public ScriptInstallResult InstallServerCmds(string gameDir) { return InstallScript(gameDir, ServerCmds); }
+
+        /// <summary>
+        /// Makes every target of <paramref name="script"/> hold the copy this exe carries, unless the
+        /// copy there is somebody else's. Not an overload of Install: the tests find methods by name.
+        /// </summary>
+        public ScriptInstallResult InstallScript(string gameDir, EmbeddedScript script)
         {
-            return Install(gameDir, AutoBalanceScript(), AutoBalanceTargets);
+            return Install(gameDir, script.Load(), script.Targets);
         }
 
         /// <summary>Makes every target hold <paramref name="script"/>, unless the copy there is somebody else's.</summary>

@@ -247,6 +247,101 @@ it, and it does nothing unless `s2x_autobalance` is 1. Where it goes is one list
 The PowerShell launcher ignores the `autoBalance` key and drops it when it saves a preset, which
 turns auto-balance off for that server.
 
+## Chat commands
+
+05 · CHAT COMMANDS in the editor gives a multiplayer server chat commands. Players type them in
+chat and the reply goes only to the player who asked; chat itself cannot be hidden, so everyone
+sees the typed command:
+
+    !help      the commands this server has
+    !rules     the server's rules, one line each
+    !discord   the server's Discord line
+    !nextmap   the next map and mode (and whether the map vote may change it)
+    !vote      the ballot while a map vote is open (only when the vote is on)
+
+A player can ask once every 2 seconds. A `!` word the script does not know gets no reply, so
+another script can have its own. The work is done by a second server script this exe carries,
+`s2x_servercmds.gsc`, which also runs the map vote (below); chat commands need no s2x.exe change.
+They are off unless switched on, and not offered for Zombies or for a launch profile's server:
+Save writes them off for both, as it does auto-balance.
+
+The Rules box takes one rule per line, up to five; the count beside it says how many there are,
+and turns red with a note when there are more than five, which are not saved. The Discord box
+takes the invite as you would say it (`discord.gg/yourcode`). With chat commands on, the cfg
+carries, after the auto-balance lines:
+
+    set s2x_chatcmds 1
+    set s2x_rules1 "<first rule>"          one line per rule, numbered 1 to 5 with no gaps
+    set s2x_discord "<Discord line>"       only when there is one
+
+and with them off only `set s2x_chatcmds 0`. The text is written as typed apart from quotes,
+control characters and a trailing backslash: it goes between the quotes of a `set` line, and a
+probe of the game's command buffer found that only a double quote (which ends the value), a line
+break (which ends the command) and a backslash just before the closing quote (which escapes it)
+do harm there, while `;`, `//` (so `https://` links), `%`, `^` colour codes and UTF-8 arrive byte
+for byte. So, when the cfg is written (Services\CfgText.cs; the preset keeps the text as typed):
+
+- control characters are dropped, and a double quote becomes an apostrophe;
+- the text is trimmed, cut to 120 bytes a rule and 64 for Discord on a character boundary (an
+  accented letter takes 2 bytes, an emoji 4), and a backslash left at the end goes;
+- a rule with nothing left is skipped and the rules after it move up.
+
+Colour codes (`^1` to `^7`) work in rules and in the Discord line.
+
+## Map vote
+
+06 · MAP VOTE in the editor lets the players of a multiplayer server pick the next map when a
+match ends. After the Victory/Defeat screen, a ballot of 2 to 5 choices (Choices, 3 by default)
+opens for 10, 15, 20 or 30 seconds (Vote time, 15 by default; a preset file may hold any value
+from 10 to 30). Players type `!1` to `!N` (or `!vote N`) and can change their vote; the vote
+closes when the time is up, or three seconds after everyone has voted. Bots do not vote, and a
+match with no people in it has no vote.
+
+- Choice 1 is always the rotation's own next map, marked `(next)`. Choices 2 to N are other
+  entries of the rotation, different maps first; the match just played is never on the ballot.
+- The most votes wins. A tie, or no votes, keeps the rotation, as does a vote for choice 1.
+- A winning choice 2 to N **replaces the next rotation entry**; it is not added to the rotation.
+  If the entry after that is the same map and mode, that one is used up too, so a match never
+  plays twice in a row and the rotation still moves one entry per match. An operator's `map`
+  command outranks the vote.
+- It needs at least three different map-and-mode entries in the rotation to offer a choice; the
+  editor says so under the switch when there are fewer.
+- It holds the end of the match for the vote: at 15 s, up to about 12 s more than the game's own
+  wait before the next map.
+
+Making the winning map load next is done by s2x.exe, not the script: it **needs an S2x build with
+map-vote support**, which reads the script's pick (`s2x_nextmap`), tells it the next rotation
+entry (`s2x_nextmap_preview`) and says it can (`s2x_nextmap_api 1`). On an older build the script
+never opens the vote, and chat commands still work; the note under the switch says this too. The
+card's rotation line ends in `vote` for a server with it on; its NEXT line is still the
+rotation's order, which a vote may change.
+
+With the vote on, the cfg carries, after the chat command lines:
+
+    set s2x_mapvote 1
+    set s2x_mapvote_choices <2-5>
+    set s2x_mapvote_time <10-30>
+
+and with it off only `set s2x_mapvote 0`. A Zombies cfg gets none of the chat command or map vote
+lines. The advanced block still comes after them, so a line there wins.
+
+### s2x_servercmds.gsc in the game folder
+
+Before a server with chat commands or the vote on starts, the Manager makes sure
+`<game>\s2x\scripts\mp\s2x_servercmds.gsc` is the copy it carries, the way it does for
+auto-balance's script: written only where there is none or where the copy there is one a Manager
+wrote (its SHA-256 is in the same installed-scripts.json, one entry per target), and never over
+a copy changed by hand, which the server then starts with while the toast says a custom copy of
+s2x_servercmds.gsc is in use. If it cannot be written, the server still starts, with chat
+commands and the vote off for that launch only, and the toast says they are not active and why;
+auto-balance is not affected, and the other way round. Nothing deletes it: every multiplayer
+server in the folder loads it, which is why the cfg always says 0 for what is off. Where it goes
+is `ServerCmdsTargets` in Services\ServerScriptInstaller.cs.
+
+The PowerShell launcher ignores the `chatCommands` and `mapVote` keys and drops them when it saves
+a preset, which turns both off for that server; a server it starts never sets their dvars, so the
+script stays idle there.
+
 ## Hiding and deleting a server
 
 HIDE on a card takes a server off the fleet: out of the counts, out of the attention line, out of
@@ -374,6 +469,8 @@ untouched, on the preset and on each line of its rotation:
 | `shuffleOnLaunch` | true, false | false |
 | `hidden` | true, false | false |
 | `autoBalance` | true, false (multiplayer, not a launch profile) | false |
+| `chatCommands` | `enabled` true, false; `rules` up to 5 lines of text; `discord` text (multiplayer, not a launch profile) | off, no rules, "" |
+| `mapVote` | `enabled` true, false; `choices` 2-5; `seconds` 10-30 (multiplayer, not a launch profile) | off, 3, 15 |
 | `launch` | `profile` and `entry` of a launch profile | absent |
 
 The file is written the way `Save-Preset` writes it under Windows PowerShell: `ConvertTo-Json`
@@ -389,9 +486,11 @@ the text the launcher wrote: `sv_hostname`, `scr_<gt>_scorelimit` for each mode 
 `bot_names`, `sv_maprotation`. Then the editor's: `bot_DifficultyDefault`, `party_maxplayers`,
 `party_minplayers`, `party_matchStartDelay`, and `master_server_enable 1` with `sv_lanOnly 0`
 when the server advertises, 0 and 1 when it does not, then `s2x_autobalance` (with it on,
-`bot_fill` is 0 and two more lines follow; see Auto-balance). The advanced block is last,
-verbatim, so it wins. In Zombies the score limits, `bot_fill`, `bot_names` and the auto-balance
-lines are left out: bots do not run there and the modes do not match. A quote or a line break in
+`bot_fill` is 0 and two more lines follow; see Auto-balance), then `s2x_chatcmds` and
+`s2x_mapvote` (with them on, the rules, Discord, choices and time follow; see Chat commands and
+Map vote). The advanced block is last, verbatim, so it wins. In Zombies the score limits,
+`bot_fill`, `bot_names`, the auto-balance lines and the chat command and map vote lines are left
+out: bots do not run there, the modes do not match, and the script is multiplayer only. A quote or a line break in
 the server name is dropped before the name is quoted; colour codes stay. Shuffle on every launch
 shuffles the rotation the cfg gets, not the one in the preset.
 
@@ -402,8 +501,8 @@ killed) and the server's own query reply on `127.0.0.1:<port>`, the same packet
 has not answered yet and is less than 90 s old. Not answering means alive but three misses in a
 row. Crashed means the pid file is there and the process is not.
 
-Start puts the auto-balance script in place when the server uses it (see Auto-balance), writes the
-cfg, then runs
+Start puts the auto-balance script and s2x_servercmds.gsc in place when the server uses them (see
+Auto-balance, Chat commands and Map vote), writes the cfg, then runs
 `s2x.exe -server-manager-admin <nonce> -noupdate -dedicated[ -zombies +zombiesMode 1]
 +set net_port <port> +set sv_lanOnly <0|1> +set master_server_enable <1|0> +set g_consoleLog
 s2x\logs\server-<port>.log +exec server-<port>.cfg +map_rotate`

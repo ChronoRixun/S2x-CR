@@ -254,4 +254,30 @@ namespace S2x.ServerManager.Views
             throw new NotSupportedException();
         }
     }
+
+    /// <summary>
+    /// The height of a text box that shows the parameter's number of lines in its own font, from
+    /// its FontSize, FontFamily, Padding and BorderThickness (in that order), so a theme with a
+    /// taller font gets a taller box. TextBox.MinLines/MaxLines would do this, but a TextBox with
+    /// them inside a collapsed view (the fleet window holds a hidden editor) never finishes its
+    /// layout and keeps the dispatcher busy for good.
+    /// </summary>
+    public sealed class LinesHeight : System.Windows.Data.IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            var size = values.Length > 0 && values[0] is double ? (double)values[0] : 12;
+            var family = values.Length > 1 ? values[1] as System.Windows.Media.FontFamily : null;
+            var padding = values.Length > 2 && values[2] is Thickness ? (Thickness)values[2] : new Thickness();
+            var border = values.Length > 3 && values[3] is Thickness ? (Thickness)values[3] : new Thickness();
+            var lines = System.Convert.ToInt32(parameter, System.Globalization.CultureInfo.InvariantCulture);
+            var spacing = family != null && family.LineSpacing > 0 ? family.LineSpacing : 1.3;
+            return Math.Ceiling(lines * spacing * size + padding.Top + padding.Bottom + border.Top + border.Bottom);
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotSupportedException();
+        }
+    }
 }

@@ -21,6 +21,7 @@
     </DataTemplate>
 
     <views:WidthAtLeast x:Key="WidthAtLeast"/>
+    <views:LinesHeight x:Key="LinesHeight"/>
 
     <!-- Name, mode and port share a row while the name box keeps a useful width beside the
          other two; below that (a narrow window, a wide theme font) mode and port go under it. -->
@@ -311,7 +312,7 @@
         </Grid>
       </Border>
 
-      <!-- ── right: rules, bots, lobby, visibility, advanced ──────────────── -->
+      <!-- ── right: rules, bots, chat commands, map vote, lobby, visibility, advanced ── -->
       <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
         <StackPanel>
 
@@ -411,6 +412,125 @@
                   <TextBlock Text="{Binding AutoBalanceNote}" Visibility="{Binding AutoBalanceNoteVisibility}"
                              FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Dim}" TextWrapping="Wrap"
                              Margin="40,8,0,0"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <!-- s2x_servercmds.gsc: the chat commands. -->
+            <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
+              <StackPanel>
+                <!-- The section title keeps its width; a summary too long for the rest trims. -->
+                <Grid Margin="20,14,20,10">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock views:TextEffects.Tracked="05 &#xB7; CHAT COMMANDS" Style="{StaticResource SectionTitle}"/>
+                  <TextBlock Grid.Column="1" Text="{Binding ChatSummary}" Style="{StaticResource Mono}" Margin="12,0,0,0" TextAlignment="Right"
+                             TextTrimming="CharacterEllipsis" ToolTip="{Binding ChatSummary}"/>
+                </Grid>
+                <TextBlock Text="Not available for profile servers: the profile writes its own cfg."
+                           Visibility="{Binding ServerCmdsNoteVisibility}" FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Dim}"
+                           TextWrapping="Wrap" Margin="20,0,20,8"/>
+                <StackPanel Margin="20,0,20,16" Style="{StaticResource Greyed}" IsEnabled="{Binding ServerCmdsEnabled}">
+                  <DockPanel>
+                    <ToggleButton x:Name="tglChatCommands" DockPanel.Dock="Left" Style="{StaticResource Switch}"
+                                  IsChecked="{Binding ChatCommands, Mode=TwoWay}" VerticalAlignment="Center"/>
+                    <TextBlock Text="Chat commands" FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Label}"
+                               Margin="10,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                  </DockPanel>
+                  <!-- Label and count share a line when they fit; in a wide label font the count
+                       goes under the label instead of covering it. -->
+                  <views:SplitRow Margin="0,14,0,6">
+                    <TextBlock FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Label}" VerticalAlignment="Center">
+                      <Run Text="Rules "/><Run Text="one per line" Foreground="{DynamicResource Faint}"/>
+                    </TextBlock>
+                    <TextBlock Text="{Binding RulesCount}" Style="{StaticResource Mono}" Foreground="{Binding RulesCountBrush}"
+                               VerticalAlignment="Center"/>
+                  </views:SplitRow>
+                  <Grid>
+                    <!-- One rule per line, five lines tall in any theme font; a longer rule scrolls
+                         sideways rather than wrapping into what looks like a second rule. -->
+                    <TextBox Style="{StaticResource Entry}" AcceptsReturn="True"
+                             FontSize="{DynamicResource SizeBodyS}" VerticalScrollBarVisibility="Auto" SpellCheck.IsEnabled="False"
+                             Text="{Binding RulesText, UpdateSourceTrigger=PropertyChanged}">
+                      <TextBox.Height>
+                        <MultiBinding Converter="{StaticResource LinesHeight}" ConverterParameter="5">
+                          <Binding Path="FontSize" RelativeSource="{RelativeSource Self}"/>
+                          <Binding Path="FontFamily" RelativeSource="{RelativeSource Self}"/>
+                          <Binding Path="Padding" RelativeSource="{RelativeSource Self}"/>
+                          <Binding Path="BorderThickness" RelativeSource="{RelativeSource Self}"/>
+                        </MultiBinding>
+                      </TextBox.Height>
+                    </TextBox>
+                    <TextBlock Text="e.g.  No spawn camping" IsHitTestVisible="False" TextTrimming="CharacterEllipsis"
+                               Visibility="{Binding RulesPlaceholderVisibility}" FontSize="{DynamicResource SizeBodyS}"
+                               Foreground="{DynamicResource Faint}" Margin="10,6,10,0" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                  </Grid>
+                  <TextBlock Text="{Binding RulesNote}" Visibility="{Binding RulesNoteVisibility}"
+                             FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Accent}" TextWrapping="Wrap"
+                             Margin="0,6,0,0"/>
+                  <TextBlock Text="Discord" FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Label}"
+                             Margin="0,14,0,6" TextWrapping="Wrap"/>
+                  <Grid>
+                    <TextBox Style="{StaticResource Entry}" FontSize="{DynamicResource SizeBodyS}"
+                             SpellCheck.IsEnabled="False" Text="{Binding Discord, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="discord.gg/yourcode" IsHitTestVisible="False" TextTrimming="CharacterEllipsis"
+                               Visibility="{Binding DiscordPlaceholderVisibility}" FontSize="{DynamicResource SizeBodyS}"
+                               Foreground="{DynamicResource Faint}" Margin="10,6,10,0" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                  </Grid>
+                  <TextBlock Text="Players type !help, !rules, !discord, !nextmap. Everyone sees the typed command; only the asker sees the reply."
+                             FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Dim}" TextWrapping="Wrap"
+                             Margin="0,10,0,0"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <!-- s2x_servercmds.gsc: the vote for the next map at match end. -->
+            <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
+              <StackPanel>
+                <!-- The section title keeps its width; a summary too long for the rest trims. -->
+                <Grid Margin="20,14,20,10">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock views:TextEffects.Tracked="06 &#xB7; MAP VOTE" Style="{StaticResource SectionTitle}"/>
+                  <TextBlock Grid.Column="1" Text="{Binding MapVoteSummary}" Style="{StaticResource Mono}" Margin="12,0,0,0" TextAlignment="Right"
+                             TextTrimming="CharacterEllipsis" ToolTip="{Binding MapVoteSummary}"/>
+                </Grid>
+                <TextBlock Text="Not available for profile servers: the profile writes its own cfg."
+                           Visibility="{Binding ServerCmdsNoteVisibility}" FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Dim}"
+                           TextWrapping="Wrap" Margin="20,0,20,8"/>
+                <StackPanel Margin="20,0,20,16" Style="{StaticResource Greyed}" IsEnabled="{Binding ServerCmdsEnabled}">
+                  <DockPanel>
+                    <ToggleButton x:Name="tglMapVote" DockPanel.Dock="Left" Style="{StaticResource Switch}"
+                                  IsChecked="{Binding MapVote, Mode=TwoWay}" VerticalAlignment="Center"/>
+                    <TextBlock Text="Vote for the next map at match end" FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Label}"
+                               Margin="10,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                  </DockPanel>
+                  <!-- Label and buttons share a line when they fit; in a wide label font the
+                       buttons go under the label instead of covering it. -->
+                  <views:SplitRow Margin="0,14,0,10">
+                    <TextBlock Text="Choices" FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Label}"
+                               VerticalAlignment="Center"/>
+                    <Border Style="{StaticResource SegmentGroup}" Height="28">
+                      <ItemsControl ItemsSource="{Binding ChoiceOptions}" ItemTemplate="{StaticResource SegmentTemplate}" Margin="-1,0,0,0">
+                        <ItemsControl.ItemsPanel>
+                          <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                      </ItemsControl>
+                    </Border>
+                  </views:SplitRow>
+                  <views:SplitRow>
+                    <TextBlock FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Label}" VerticalAlignment="Center">
+                      <Run Text="Vote time "/><Run Text="seconds" Foreground="{DynamicResource Faint}"/>
+                    </TextBlock>
+                    <Border Style="{StaticResource SegmentGroup}" Height="28">
+                      <ItemsControl ItemsSource="{Binding TimeOptions}" ItemTemplate="{StaticResource SegmentTemplate}" Margin="-1,0,0,0">
+                        <ItemsControl.ItemsPanel>
+                          <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                      </ItemsControl>
+                    </Border>
+                  </views:SplitRow>
+                  <TextBlock Text="{Binding MapVoteNote}" Visibility="{Binding MapVoteNoteVisibility}"
+                             FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Dim}" TextWrapping="Wrap"
+                             Margin="0,12,0,0"/>
                 </StackPanel>
               </StackPanel>
             </Border>

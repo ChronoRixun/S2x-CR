@@ -77,8 +77,8 @@ namespace S2x.ServerManager.Services
 
                 if (snapshot.IsProfile) return StartProfile(snapshot, port);
 
-                // The script goes into the game folder before the cfg that switches it on.
-                var note = PrepareAutoBalance(snapshot);
+                // The scripts go into the game folder before the cfg that switches them on.
+                var note = PrepareScripts(snapshot);
 
                 var cfgPath = GameFolder.CfgPath(_gameDir, port);
                 Directory.CreateDirectory(Path.GetDirectoryName(cfgPath));
@@ -122,6 +122,18 @@ namespace S2x.ServerManager.Services
         }
 
         /// <summary>
+        /// Every server script this launch uses, in place before its cfg is written, and what
+        /// the host should be told about them as one note for the start toast, or null. Each
+        /// script stands on its own: one that cannot be put in place turns off only what it runs.
+        /// </summary>
+        public string PrepareScripts(ServerPreset snapshot)
+        {
+            var notes = new[] { PrepareAutoBalance(snapshot), PrepareServerCmds(snapshot) }
+                .Where(note => note != null).ToList();
+            return notes.Count == 0 ? null : string.Join(" ", notes);
+        }
+
+        /// <summary>
         /// Puts s2x_autobalance.gsc into the game folder for a launch that uses it, and returns
         /// what the host should be told, or null. A script that could not be put in place turns
         /// auto-balance off for this launch only: the snapshot is the launch's own copy, so the
@@ -143,6 +155,34 @@ namespace S2x.ServerManager.Services
             }
             snapshot.AutoBalance = false;
             return "Auto-balance is not active (" + problem + "); bots use the normal bot fill.";
+        }
+
+        /// <summary>
+        /// Puts s2x_servercmds.gsc into the game folder for a launch that uses the chat commands
+        /// or the map vote, and returns what the host should be told, or null. A script that
+        /// could not be put in place turns both off for this launch only (the snapshot is the
+        /// launch's own copy): the cfg then says 0 for them, and the server starts without them.
+        /// </summary>
+        public string PrepareServerCmds(ServerPreset snapshot)
+        {
+            if (!snapshot.UsesServerCmds) return null;
+            string problem;
+            try
+            {
+                var result = _scripts.InstallServerCmds(_gameDir);
+                if (!result.Failed) return result.Custom ? Capital(result.Message) + "." : null;
+                problem = result.Message;
+            }
+            catch (Exception ex)
+            {
+                problem = ex.Message.Trim().TrimEnd('.');
+            }
+            // Only what was on is named, so the note never claims more than this server had.
+            var what = snapshot.UsesChatCommands && snapshot.UsesMapVote ? "Chat commands and the map vote are"
+                : snapshot.UsesChatCommands ? "Chat commands are" : "The map vote is";
+            snapshot.ChatCommands = false;
+            snapshot.MapVote = false;
+            return what + " not active (" + problem + ").";
         }
 
         private static string Capital(string text)
@@ -347,7 +387,8 @@ namespace S2x.ServerManager.Services
         /// <summary>
         /// Build-ServerCfg's lines in its order first, so a preset the PowerShell launcher wrote
         /// still comes out as the text it wrote, then the editor's own lines, then the host's
-        /// advanced block last so it wins. Bots, auto-balance and score limits are multiplayer only.
+        /// advanced block last so it wins. Bots, auto-balance, score limits, chat commands and the
+        /// map vote are multiplayer only.
         /// </summary>
         public static string BuildServerCfg(ServerPreset preset)
         {
@@ -421,11 +462,48 @@ namespace S2x.ServerManager.Services
                 lines.Add("set s2x_autobalance 0");
             }
 
+            // s2x_servercmds.gsc: chat commands and the end-of-match map vote. Off is written
+            // too, for the reason auto-balance's is: every multiplayer server in the folder loads
+            // the script. The host's text is cleaned for the cfg here, never when it is saved.
+            if (!zombies) lines.AddRange(ServerCmdsLines(preset));
+
             // Passed through as written: a blank line is dropped, anything else goes as typed.
             foreach (var line in preset.ExtraLines)
                 if (!string.IsNullOrWhiteSpace(line)) lines.Add(line);
 
             return string.Join("\n", lines);
+        }
+
+        /// <summary>
+        /// The chat commands' and the map vote's lines, each off line always there. Rules are
+        /// numbered 1..k in order, a rule with nothing left once cleaned taking no number, since
+        /// the script stops at the first one that is empty.
+        /// </summary>
+        private static IEnumerable<string> ServerCmdsLines(ServerPreset preset)
+        {
+            var chat = preset.UsesChatCommands;
+            yield return "set s2x_chatcmds " + (chat ? 1 : 0);
+            if (chat)
+            {
+                var number = 0;
+                foreach (var rule in preset.Rules)
+                {
+                    var text = CfgText.Clean(rule, CfgText.RuleBytes);
+                    if (text.Length == 0) continue;
+                    if (++number > ServerPreset.MaxRules) break;
+                    yield return "set s2x_rules" + number + " \"" + text + "\"";
+                }
+                var discord = CfgText.Clean(preset.Discord, CfgText.DiscordBytes);
+                if (discord.Length > 0) yield return "set s2x_discord \"" + discord + "\"";
+            }
+
+            var vote = preset.UsesMapVote;
+            yield return "set s2x_mapvote " + (vote ? 1 : 0);
+            if (vote)
+            {
+                yield return "set s2x_mapvote_choices " + Math.Max(ServerPreset.MinVoteChoices, Math.Min(ServerPreset.MaxVoteChoices, preset.VoteChoices));
+                yield return "set s2x_mapvote_time " + Math.Max(ServerPreset.MinVoteSeconds, Math.Min(ServerPreset.MaxVoteSeconds, preset.VoteSeconds));
+            }
         }
     }
 }

@@ -25,10 +25,18 @@ This builds the application and runs the UDP backend, browser UI state, themes,
 card persistence, and disconnected-WPF drag/drop behavior tests, and autobalance.ps1:
 the `autoBalance` preset key, its cfg lines, the embedded script installer (fresh,
 current, upgrade, custom copy refused, held-open and unwritable targets, several
-targets) and the editor switch's gating. Theme/card/auto-balance tests use temporary
+targets) and the editor switch's gating. server-scripts.ps1 covers chat commands and the
+map vote: the `chatCommands` and `mapVote` groups (defaults, clamps, deep copy, unknown
+nested keys kept), their cfg lines (order, the explicit off lines, nothing for Zombies and
+only off lines for a launch profile), the cfg text sanitiser, s2x_servercmds.gsc's installer
+states and start path (a failure turns off only these two, for that launch), the script's
+map and mode names against GameData, a lint of the script (no getarraykeys(, no ternary, no
+variable named size, settext only in mv_text and mv_hud_result), the editor sections and
+the card. Theme/card/auto-balance/server-script tests use temporary
 directories; the installer never sees a real game folder or the real
 installed-scripts.json. layout-fit.ps1 lays out the fleet (running, crashed and empty),
-the roster, the editor (multiplayer and Zombies) and Settings off-screen in all nine themes,
+the roster, the editor (multiplayer, Zombies, and chat commands and the map vote with long
+rules, a long Discord line and every note) and Settings off-screen in all nine themes,
 at 1160 x 740 and at the 1000 x 620 minimum, with the embedded fonts, and fails on any text
 a clip cuts without an ellipsis. It hosts a plain WPF Application with Theme.xaml rather than
 the Manager's App, whose startup would otherwise run on the real game folder and settings.
