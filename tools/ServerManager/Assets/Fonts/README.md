@@ -1,8 +1,9 @@
 # Theme pack fonts
 
-The theme pack (design/S2x Theme Pack.dc.html) names 18 Google Fonts families. None of them is
-checked in yet: downloading them needs the owner's approval. Until they are here, every theme
-draws with an installed Windows font instead (the fallback column), and nothing else changes.
+The theme pack (design/S2x Theme Pack.dc.html) names 18 Google Fonts families. All 23 files
+below are checked in (downloaded from github.com/google/fonts on 2026-09-28 with the owner's
+approval, each checked against the repository's blob hash) and built into the exe. A theme role
+whose family is missing still falls back to the installed Windows font in the fallback column.
 
 ## Adding them
 

@@ -45,7 +45,8 @@ foreach($m in @($modes)+@($Mode::Undead)) {
     }
     $expected=$Res::For($m,$true).Colors['Ink']
     if($ink.Color -ne $expected){throw "FAIL $m did not recolour Ink in place"}
-    if($app.FindResource('SizeBody') -lt 11 -or $app.FindResource('SizeBody') -gt 16){throw "FAIL $m body size out of range"}
+    # Phosphor's embedded VT323 is drawn at the design's 1.4 scale (18.2): the pixel face reads small.
+    if($app.FindResource('SizeBody') -lt 11 -or $app.FindResource('SizeBody') -gt 19){throw "FAIL $m body size out of range"}
     $window=New-Object S2x.ServerManager.Views.SettingsDialog
     $content=$window.Content
     $content.Measure([Windows.Size]::new(600,1200));$content.Arrange([Windows.Rect]::new(0,0,600,$content.DesiredSize.Height));$content.UpdateLayout()
