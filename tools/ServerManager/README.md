@@ -4,9 +4,26 @@ A Windows desktop app for hosting several S2x dedicated servers out of one Call 
 folder. It shows one card per server, tells you what each one is doing, starts and stops them,
 and edits what each one runs. C# on WPF, .NET Framework 4.8, one exe with nothing beside it.
 
-Version 1.1.0 adds saved appearance themes, persistent card ordering, and a read-only master-server browser.
-The Bodega Cervantes and U.S.S. Mount Olympus survival maps are included in the map picker,
-so their registered two/three-bot launch profiles appear. The bot mods remain separate packages.
+Version 1.1.1 adds local player administration for servers this Manager started: player list,
+announcements, warnings and kicks, from the console drawer's ADMIN button. It needs the 1.1.1 core
+s2x.exe; see ADMINISTRATION.md. Version 1.1.0 added saved appearance themes, persistent card
+ordering, and a read-only master-server browser. The Bodega Cervantes and U.S.S. Mount Olympus
+survival maps are included in the map picker, so their registered two/three-bot launch profiles
+appear. The bot mods remain separate packages.
+
+## New in 1.1.1
+
+- ADMIN in the console drawer opens player administration for that card's server. It works only
+  for a server this Manager started with the 1.1.1 core s2x.exe; old or adopted processes say why
+  they are unavailable. Every action asks first, protects bots and local hosts, targets a
+  connection token rather than a slot, and is logged. No bans, no team balancing.
+- Every Manager launch passes `-server-manager-admin <nonce>` and records the process identity
+  under %LOCALAPPDATA%/S2x/ServerManager/managed-servers.
+- Zombies launches pass `+zombiesMode 1`. Without it s2x.exe relaunches itself, so the process
+  the Manager started (and wrote to the pid file) was not the one left running.
+- The launch line also sets `sv_lanOnly` and `master_server_enable` from the preset's advertise
+  setting, ahead of the cfg that sets them the same way.
+- Launch profile entries can opt in with an `admin` argument template (ADMINISTRATION.md).
 
 ## New in 1.1.0
 
@@ -260,9 +277,10 @@ has not answered yet and is less than 90 s old. Not answering means alive but th
 row. Crashed means the pid file is there and the process is not.
 
 Start writes the cfg, then runs
-`s2x.exe -noupdate -dedicated[ -zombies] +set net_port <port> +set g_consoleLog
+`s2x.exe -server-manager-admin <nonce> -noupdate -dedicated[ -zombies +zombiesMode 1]
++set net_port <port> +set sv_lanOnly <0|1> +set master_server_enable <1|0> +set g_consoleLog
 s2x\logs\server-<port>.log +exec server-<port>.cfg +map_rotate`
-from the game folder, then writes the pid file. Never `+map`: it runs before the dedicated party
+from the game folder, then writes the pid file and the administration ownership record. Never `+map`: it runs before the dedicated party
 exists and is dropped. A launch profile's server is started by its own script instead (see
 Launch profiles).
 
@@ -286,9 +304,5 @@ tray icon is the same one, read back off the running exe rather than composed ag
 
 - The console shows the lines as the fork writes them, which carry no timestamps, so there is no
   time column. The mockup has one; the file has nothing to put in it.
-
-## Administration in 1.1.1
-Console -> ADMIN provides slot-free notices, player listing, warnings and kicks only for verified
-Manager launches with a compatible local server bridge. See ADMINISTRATION.md for installation,
-ownership, profile compatibility and validation limits. Bot-alpha upgrades and team balancing are
-separate follow-up work.
+- Administration for the zombie-bot alpha runtimes needs their own rebuilt binaries, and team
+  balancing is separate follow-up work.

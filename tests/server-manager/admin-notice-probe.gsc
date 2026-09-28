@@ -22,20 +22,7 @@ observe_notices()
     {
         self waittill("s2x_admin_notice", message, warning);
         self.admin_probe_sequence++;
-        println("ADMIN PROBE received slot=" + self getentitynumber() + " warning=" + warning + " sequence=" + self.admin_probe_sequence);
-        self thread verify_hud(self.admin_probe_sequence);
+        // The helper prints with iprintlnbold, which leaves no server-side HUD state to inspect.
+        println("ADMIN PROBE received slot=" + self getentitynumber() + " warning=" + warning + " sequence=" + self.admin_probe_sequence + " text=" + message);
     }
-}
-verify_hud(sequence)
-{
-    self endon("disconnect");
-    level endon("game_ended");
-    wait 0.1;
-    if (!isdefined(self.s2x_admin_notice_hud)) { println("ADMIN PROBE FAIL no HUD"); return; }
-    hud = self.s2x_admin_notice_hud;
-    println("ADMIN PROBE HUD alpha=" + hud.alpha + " x=" + hud.x + " y=" + hud.y + " color=" + hud.color);
-    wait 10.2;
-    if (self.admin_probe_sequence != sequence) { println("ADMIN PROBE replaced old sequence=" + sequence); return; }
-    if (isdefined(hud)) println("ADMIN PROBE expired alpha=" + hud.alpha);
-    else println("ADMIN PROBE HUD destroyed");
 }

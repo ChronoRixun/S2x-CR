@@ -90,7 +90,6 @@ namespace S2x.ServerManager.Services
                 {
                     FileName = GameFolder.ExePath(_gameDir),
                     Arguments = args,
-                    WindowStyle = ProcessWindowStyle.Hidden,
                     WorkingDirectory = _gameDir,
                     UseShellExecute = false,
                 });

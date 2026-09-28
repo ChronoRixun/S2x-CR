@@ -41,6 +41,10 @@ try {
     try{$store.Register($owner.Id,$port,[Guid]::NewGuid().ToString('N'))}catch{$refused=$true}
     if(!$refused -or $store.Read($port).Instance -ne $nonce){throw 'Mismatched launch nonce adopted or overwritten'}
     Write-Output 'PASS launch nonce mismatch cannot adopt a process'
+    # An owned process without a bridge stands in for a pre-1.1.1 s2x.exe.
+    $reply=$client.RequestAsync($port,'players',$null,$null).GetAwaiter().GetResult()
+    if($reply.ok -or $reply.message -notmatch 'No administration bridge answered' -or $reply.message -notmatch 'No action was sent'){throw 'Missing bridge was not explained'}
+    Write-Output 'PASS server without a bridge explained, nothing sent'
     $impostor=Start-Process -FilePath $fixture -ArgumentList @('success',$nonce) -WindowStyle Hidden -PassThru
     $helpers+=$impostor
     $reply=$client.RequestAsync($port,'players',$null,$null).GetAwaiter().GetResult()

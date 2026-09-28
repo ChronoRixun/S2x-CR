@@ -43,50 +43,16 @@ watch_notices()
     for (;;)
     {
         self waittill("s2x_admin_notice", message, warning);
-        self thread show_notice(message, warning);
+        // Bold print carries the text in the server command itself. Never settext here:
+        // each distinct HUD string permanently takes an engine string slot for the map,
+        // and running out of slots crashes the server.
+        if (warning) self iprintlnbold("^3SERVER WARNING:^7 " + message);
+        else self iprintlnbold("^2SERVER NOTICE:^7 " + message);
     }
-}
-show_notice(message, warning)
-{
-    self notify("s2x_admin_notice_replace");
-    self endon("s2x_admin_notice_replace");
-    self endon("disconnect");
-    level endon("game_ended");
-    if (!isdefined(self.s2x_admin_notice_hud))
-    {
-        hud = newclienthudelem(self);
-        hud.alignx = "center";
-        hud.aligny = "top";
-        hud._id_00C6 = "center";
-        hud._id_01CA = "top";
-        hud.x = 0;
-        hud.y = 60;
-        hud.fontscale = 1.2;
-        hud.foreground = 1;
-        hud.sort = 35;
-        hud.archived = 0;
-        self.s2x_admin_notice_hud = hud;
-    }
-    hud = self.s2x_admin_notice_hud;
-    title = "SERVER NOTICE";
-    hud.color = (0.85, 1, 0.85);
-    if (warning) { title = "SERVER WARNING"; hud.color = (1, 0.72, 0.25); }
-    hud settext(title + "\n" + message);
-    hud.alpha = 1;
-    wait 10;
-    if (isdefined(hud)) hud.alpha = 0;
 }
 cleanup_notice(player, slot)
 {
     common_scripts\utility::_id_A70E(level, "game_ended", player, "disconnect");
     serveradminnoticeready(slot, 0);
-    if (isdefined(player))
-    {
-        player.s2x_admin_notice_listening = 0;
-        if (isdefined(player.s2x_admin_notice_hud))
-        {
-            player.s2x_admin_notice_hud destroy();
-            player.s2x_admin_notice_hud = undefined;
-        }
-    }
+    if (isdefined(player)) player.s2x_admin_notice_listening = 0;
 }

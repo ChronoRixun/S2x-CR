@@ -67,6 +67,22 @@ int main()
         char body[5]{};check(io::transfer(pipe.value,body,5,false,stop.value,stopping)&&std::string(body,5)=="hello","framed body read");
         check(io::transfer(pipe.value,body,5,true,stop.value,stopping)&&client.get()=="hello","reply delivered");
         DisconnectNamedPipe(pipe.value);
+        // The server keeps one instance for its lifetime; the name is never released between clients.
+        ResetEvent(event.value);ov={};ov.hEvent=event.value;
+        check(!ConnectNamedPipe(pipe.value,&ov) && GetLastError()==ERROR_IO_PENDING,"disconnected instance listens again");
+        auto second=std::async(std::launch::async,[&]
+        {
+            io::handle c(CreateFileW(name.c_str(),GENERIC_READ|GENERIC_WRITE,0,nullptr,OPEN_EXISTING,0,nullptr));
+            if(c.value==INVALID_HANDLE_VALUE)throw std::runtime_error("second client connect");
+            DWORD sent{};unsigned int length=5;
+            WriteFile(c.value,&length,4,&sent,nullptr);WriteFile(c.value,"again",5,&sent,nullptr);
+            char response[5]{};ReadFile(c.value,response,5,&sent,nullptr);
+            return std::string(response,sent);
+        });
+        check(io::wait_io(pipe.value,ov,bytes,std::chrono::steady_clock::now()+2s,stop.value),"reused instance accepted a second client");
+        check(io::transfer(pipe.value,&size,4,false,stop.value,stopping)&&size==5&&io::transfer(pipe.value,body,5,false,stop.value,stopping)
+            &&io::transfer(pipe.value,body,5,true,stop.value,stopping)&&second.get()=="again","second request served on the same instance");
+        DisconnectNamedPipe(pipe.value);
         ResetEvent(event.value);ov={};ov.hEvent=event.value;
         ConnectNamedPipe(pipe.value,&ov);
         auto start=std::chrono::steady_clock::now();SetEvent(stop.value);

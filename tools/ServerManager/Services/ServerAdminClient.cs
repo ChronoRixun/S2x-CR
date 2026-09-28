@@ -59,9 +59,11 @@ namespace S2x.ServerManager.Services
                 using (var pipe = new NamedPipeClientStream(".", "S2x.ServerAdmin." + record.Instance, PipeDirection.InOut, PipeOptions.Asynchronous))
                 using (var timeout = new Timer(s => { try { pipe.Dispose(); } catch { } }, null, 5000, Timeout.Infinite))
                 {
-                    pipe.Connect(2000);
+                    // An s2x.exe from before 1.1.1 ignores the launch flag and never opens the pipe.
+                    try { pipe.Connect(2000); }
+                    catch (TimeoutException) { throw new TimeoutException("No administration bridge answered. The server needs the 1.1.1 core s2x.exe, started from this Manager; if it has only just started, wait a moment and refresh."); }
                     uint pipePid;
-                    if (!GetNamedPipeServerProcessId(pipe.SafePipeHandle, out pipePid) || pipePid != record.Pid) throw new InvalidOperationException("Administration pipe belongs to another process. No request was sent.");
+                    if (!GetNamedPipeServerProcessId(pipe.SafePipeHandle, out pipePid) || pipePid != record.Pid) throw new InvalidOperationException("Administration pipe belongs to another process.");
                     _store.Validate(record);
                     var request = new { version = 1, id, operation, instance = record.Instance, target, message };
                     var json = new JavaScriptSerializer();

@@ -101,11 +101,14 @@ namespace S2x.ServerManager.Services
         {
             if (record == null || record.Port < 1 || record.Port > 65535 || record.Pid <= 0 || !Regex.IsMatch(record.Instance ?? "", "^[0-9a-f]{32}$"))
                 throw new InvalidOperationException("Administration is unavailable: no compatible Manager administration launch is recorded. Relaunch with a compatible server build or profile.");
-            using (var process = Process.GetProcessById(record.Pid))
+            Process process;
+            try { process = Process.GetProcessById(record.Pid); }
+            catch (ArgumentException) { throw new InvalidOperationException("The server this Manager started on :" + record.Port + " is no longer running."); }
+            using (process)
             {
                 if (process.StartTime.ToUniversalTime().Ticks != record.CreatedUtcTicks ||
                     !string.Equals(Path.GetFullPath(ExecutablePath(process.Id)), record.ExePath, StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidOperationException("The saved server process identity no longer matches. No request was sent.");
+                    throw new InvalidOperationException("The saved server process identity no longer matches.");
             }
             using (var search = new ManagementObjectSearcher("SELECT CommandLine FROM Win32_Process WHERE ProcessId = " + record.Pid))
             {
@@ -120,7 +123,7 @@ namespace S2x.ServerManager.Services
                     if (Regex.IsMatch(command, @"(?:^|\s)-dedicated(?=\s|$)", RegexOptions.IgnoreCase) && HasNonce(command, record.Instance) &&
                         Regex.Matches(command, @"(?:^|\s)net_port\s+(\d+)(?=\s|$)").Count == 1 &&
                         Regex.IsMatch(command, @"(?:^|\s)net_port\s+" + record.Port + @"(?=\s|$)")) return;
-                    throw new InvalidOperationException("The running server does not match this Manager launch. No request was sent.");
+                    throw new InvalidOperationException("The running server does not match this Manager launch.");
                 }
             }
             }
