@@ -255,8 +255,7 @@ namespace S2x.ServerManager.ViewModels
             {
                 if (!Set(ref _viewMode, value)) return;
                 Raise("CardsVisibility"); Raise("RosterVisibility");
-                Raise("CardsButtonBackground"); Raise("CardsButtonForeground");
-                Raise("RosterButtonBackground"); Raise("RosterButtonForeground");
+                Raise("IsCardsView"); Raise("IsRosterView");
                 Console.Placement();
                 // The roster shows one server; the drawer shows the one it is showing.
                 if (_viewMode == "roster") Console.Follow(Selected);
@@ -278,8 +277,6 @@ namespace S2x.ServerManager.ViewModels
         public int HiddenCount { get; private set; }
         public string ShowHiddenLabel { get { return "SHOW HIDDEN (" + HiddenCount + ")"; } }
         public Visibility ShowHiddenVisibility { get { return HiddenCount > 0 ? Visibility.Visible : Visibility.Collapsed; } }
-        public Brush ShowHiddenBackground { get { return _showHidden ? Palette.TagBg : Palette.Transparent; } }
-        public Brush ShowHiddenForeground { get { return _showHidden ? Palette.Accent : Palette.Muted; } }
 
         /// <summary>
         /// HIDE and UNHIDE on a card: the same preset file, one key different. Written the way
@@ -318,10 +315,9 @@ namespace S2x.ServerManager.ViewModels
         public Visibility EmptyVisibility { get { return Servers.Count == 0 ? Visibility.Visible : Visibility.Collapsed; } }
         public Visibility CardsVisibility { get { return Servers.Count > 0 && _viewMode == "cards" ? Visibility.Visible : Visibility.Collapsed; } }
         public Visibility RosterVisibility { get { return Servers.Count > 0 && _viewMode == "roster" ? Visibility.Visible : Visibility.Collapsed; } }
-        public Brush CardsButtonBackground { get { return _viewMode == "cards" ? Palette.TagBg : Palette.Transparent; } }
-        public Brush CardsButtonForeground { get { return _viewMode == "cards" ? Palette.Accent : Palette.Muted; } }
-        public Brush RosterButtonBackground { get { return _viewMode == "roster" ? Palette.TagBg : Palette.Transparent; } }
-        public Brush RosterButtonForeground { get { return _viewMode == "roster" ? Palette.Accent : Palette.Muted; } }
+        /// <summary>Which half of CARDS | ROSTER is lit.</summary>
+        public bool IsCardsView { get { return _viewMode == "cards"; } }
+        public bool IsRosterView { get { return _viewMode == "roster"; } }
 
         private ServerCardViewModel _selected;
 

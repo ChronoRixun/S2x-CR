@@ -7,9 +7,23 @@ and edits what each one runs. C# on WPF, .NET Framework 4.8, one exe with nothin
 Version 1.1.1 adds local player administration for servers this Manager started: player list,
 announcements, warnings and kicks, from the console drawer's ADMIN button. It needs the 1.1.1 core
 s2x.exe; see ADMINISTRATION.md. Version 1.1.0 added saved appearance themes, persistent card
-ordering, and a read-only master-server browser. The Bodega Cervantes and U.S.S. Mount Olympus
+ordering, and a read-only master-server browser. The theme pack (see Themes, below) replaces
+1.1.0's Classic and Light themes with eight new ones and keeps High contrast. The Bodega Cervantes and U.S.S. Mount Olympus
 survival maps are included in the map picker, so their registered two/three-bot launch profiles
 appear. The bot mods remain separate packages.
+
+## Theme pack (unreleased)
+
+- Settings → Appearance is a grid of nine themes, each tile drawn in its own colours, fonts and
+  texture: Field Ops, **Undead** (the default for new users), Phosphor, Outrun, Pack-a-Punch,
+  Night Vision, Arcade and Prestige from design/S2x Theme Pack, plus High contrast.
+- **Textures & glow** (on by default) switches the themes' textures, scanline/vignette
+  overlays, glows, text shadows and card shadows on or off. Off is the same theme in flat colours,
+  applied at once. High contrast is always flat.
+- Status badges follow the theme: border width and style (solid, dashed, double), radius,
+  tilt or skew, a tint of the status colour, and a slowly breathing dot while a server runs.
+- 1.1.0 settings carry over: Classic opens as Phosphor (the dark amber one), Light as Field Ops,
+  HighContrast stays. See Themes for the details.
 
 ## New in 1.1.1
 
@@ -27,9 +41,10 @@ appear. The bot mods remain separate packages.
 
 ## New in 1.1.0
 
-- Settings in the title bar offers Classic (dark amber), Light, and High contrast (dark).
-  The choice applies immediately and is saved per Windows user at
-  %LOCALAPPDATA%/S2x/ServerManager/settings.json.
+- Settings in the title bar offered Classic (dark amber), Light, and High contrast (dark),
+  applied immediately and saved per Windows user at
+  %LOCALAPPDATA%/S2x/ServerManager/settings.json. The theme pack has since replaced Classic and
+  Light (see Themes).
 - Card order: drag a card by its header or blank area; drop on the left or right half
   of another card to place it before or after. Buttons and text inputs do not start drags.
   Keyboard: focus a card and use Alt+Left/Right. The order is saved for the current preset
@@ -68,7 +83,8 @@ to ship with it: no NuGet packages, no DLLs, only framework assemblies.
     S2xServerManager.exe --demo-editor mp out.png
     S2xServerManager.exe --screenshot-console out.png
     S2xServerManager.exe --demo-roster out.png
-    S2xServerManager.exe --demo-master out.png --theme Light
+    S2xServerManager.exe --demo-master out.png --theme Phosphor
+    S2xServerManager.exe --screenshot-settings out.png --theme Outrun --effects off
     S2xServerManager.exe --demo empty --screenshot out.png --theme HighContrast
 
 `--demo` takes `empty`, `one`, `three-notanswering` or `three-crashed`. `--demo-editor` takes
@@ -77,7 +93,8 @@ to ship with it: no NuGet packages, no DLLs, only framework assemblies.
 one when no name is given. `--screenshot-console` renders the editor with the console drawer
 open, on a log it writes into the temp folder itself: a build machine has no server running, and
 the game folder's logs are not this switch's to write. `--demo-roster` renders the roster on the
-demo fleet. All of them render 1160 x 740 and exit. `--presets` points the preset folder
+demo fleet. All of them render 1160 x 740 and exit. `--screenshot-settings` renders the
+Settings → Appearance dialog on its own, at its own size, and `--demo-master` the master list. `--presets` points the preset folder
 somewhere other than the game folder, which is how the editor gets exercised without touching a
 real one.
 
@@ -94,9 +111,68 @@ app 476600, this exe's own folder walking up, the folder a launcher remembered i
 `%LOCALAPPDATA%\s2x\launcher-gamedir.txt`, then a folder picker. A folder counts when it holds
 `s2x.exe`.
 
-Rendering may override the theme with --theme Classic|Light|HighContrast without saving it.
---settings-path <file> selects a separate preference file for isolated tests. The master preview
+Rendering may override the theme with `--theme <name>` (FieldOps, Undead, Phosphor, Outrun,
+PackAPunch, NightVision, Arcade, Prestige or HighContrast; the design's ids such as `packapunch`
+and the old Classic and Light work too) and Textures & glow with `--effects on|off`, without
+saving either. --settings-path <file> selects a separate preference file for isolated tests. The master preview
 uses clearly labeled synthetic rows and sends no network requests.
+
+## Themes
+
+Settings in the title bar opens Appearance: one tile per theme, drawn in that theme's own colours,
+display font and texture, with a ring round the one showing. Picking a tile applies it at once;
+the Textures & glow switch below it does the same for effects, and the badges under PREVIEW show
+the result. DONE (or Esc) closes it. Both choices are saved per Windows user in
+%LOCALAPPDATA%/S2x/ServerManager/settings.json:
+
+    {"Theme":"Undead","Effects":true}
+
+The file is written beside itself and swapped in, so an interrupted write never leaves half a
+file, and keys this version does not know are kept. A save that fails (a read-only profile, a
+locked file) says so in the dialog and leaves the visible theme and switch as they were.
+
+| Theme | Look | Fonts (design; Windows fallback until the font files are added) |
+| --- | --- | --- |
+| Field Ops | olive drab, stencil, crosshatch, vignette, tilted 2px badges | Black Ops One / Barlow Condensed / Special Elite; Bahnschrift Bold, Bahnschrift Condensed, Courier New |
+| Undead (default) | rust and bone, red gradient fill, red and green washes, vignette | Creepster / Oswald / JetBrains Mono; Impact, Bahnschrift SemiCondensed, Cascadia Mono |
+| Phosphor | amber CRT, glowing text, scanlines, vignette | VT323 throughout; Consolas |
+| Outrun | synthwave grid, pink-purple fill, pill badges | Orbitron / Rajdhani / Share Tech Mono; Bahnschrift SemiBold, Bahnschrift SemiCondensed, Consolas |
+| Pack-a-Punch | violet gradient, neon glow, skewed badges | Russo One / Chakra Petch / JetBrains Mono; Bahnschrift Bold, Bahnschrift, Cascadia Mono |
+| Night Vision | green tube, fine scanlines, dashed badges | Share Tech Mono throughout; Consolas |
+| Arcade | 8-bit checker, hard black offset shadows | Press Start 2P / Pixelify Sans / Space Mono; Lucida Console, Bahnschrift, Cascadia Mono |
+| Prestige | black and gold gradient, double-ruled badges | Cinzel / Manrope / IBM Plex Mono; Palatino Linotype, Segoe UI, Cascadia Mono |
+| High contrast | 1.1.0's accessibility theme: black, white, yellow, no effects | Segoe UI, Consolas |
+
+Settings from 1.1.0 are read without being rewritten: Classic reads as Phosphor, Light as Field
+Ops, HighContrast stays. A name that is not recognised, or a file that cannot be read, falls back
+to Undead and says so in the dialog; nothing crashes. The file changes only when the user picks
+something, so an older Manager reading it later still finds its own name until then.
+
+How the design's tokens become WPF (Services/ThemeCatalog.cs holds them as the design writes
+them, Services/ThemeResources.cs converts them):
+
+- Colours become the existing resource keys (Panel is the window, Bar the chrome and cards, Ink
+  the text, Knob the text on a filled button), live brushes recoloured in place, plus Surface,
+  Fill, FillHot, FillInk and the badge tints. The in-between greys are mixed from each theme's
+  own colours. `tests/server-manager/themes.ps1` checks their contrast in every theme.
+- Gradient fills become LinearGradientBrush with the CSS angle mapped into the element's box
+  (exact for 0/90/180/270 and square boxes; a diagonal runs corner to corner).
+- Glows and shadows become DropShadowEffect: a glow has no depth, a hard shadow such as Arcade's
+  `4px 4px 0 #000` keeps its direction and distance with no blur. WPF draws one shadow per
+  element, so the first outer layer is used; inset and spread-only layers have no equivalent.
+- Textures (stripes, grids, checker, rings, radial washes) are drawn as frozen tiled or radial
+  brushes behind the cards; overlays (scanlines, vignette) are a layer over each window that never
+  takes input. Vignettes are drawn at half the design's strength so the brand, first stat and
+  close button in the corners stay readable.
+- The only animation is the running badge's dot, at 24 frames a second.
+- Letter spacing has no WPF equivalent and is not reproduced per theme; small caps labels keep
+  the Manager's thin-space tracking, whose spaces are set in a proportional font so monospace
+  themes do not double their width.
+
+Fonts: the exe stays one file. Font files dropped into Assets/Fonts are built in as WPF
+Resources and used automatically; until then each role uses the installed Windows fallback in
+the table, scaled to match. Assets/Fonts/README.md lists the 23 files, where they come from and
+where their licence texts go.
 
 ## The editor
 

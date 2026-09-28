@@ -5,25 +5,24 @@
         Title="S2x Server Manager" Width="420" SizeToContent="Height"
         WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource Panel}" Foreground="{DynamicResource Ink}"
+        Style="{StaticResource ThemedWindow}"
         BorderBrush="{DynamicResource WindowEdge}" BorderThickness="1"
-        FontFamily="Segoe UI" FontSize="13"
         UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
   <StackPanel>
     <Border x:Name="barTitle" Background="{DynamicResource Bar}" BorderBrush="{DynamicResource Line}"
             BorderThickness="0,0,0,1" Padding="16,0" Height="36">
-      <TextBlock x:Name="lblTitle" views:TextEffects.Tracked="DELETE PRESET" FontSize="10.5" FontWeight="Bold"
+      <TextBlock x:Name="lblTitle" views:TextEffects.Tracked="DELETE PRESET" Style="{StaticResource CapsL}"
                  Foreground="{DynamicResource Danger}" VerticalAlignment="Center"/>
     </Border>
     <StackPanel Margin="20,18,20,18">
-      <TextBlock x:Name="lblQuestion" Text="Delete this preset?" FontSize="14" FontWeight="SemiBold"
+      <TextBlock x:Name="lblQuestion" Text="Delete this preset?" FontSize="{DynamicResource SizeBodyL}" FontWeight="SemiBold"
                  TextWrapping="Wrap"/>
-      <TextBlock x:Name="lblDetail" FontSize="11.5" Foreground="{DynamicResource Muted}"
-                 TextWrapping="Wrap" LineHeight="18" Margin="0,8,0,0"/>
+      <TextBlock x:Name="lblDetail" FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Muted}"
+                 TextWrapping="Wrap" Margin="0,8,0,0"/>
       <DockPanel Margin="0,18,0,0" LastChildFill="False">
         <Button DockPanel.Dock="Right" x:Name="btnOk" Style="{StaticResource DangerGhost}" Content="DELETE"
-                FontWeight="Bold"/>
-        <Button DockPanel.Dock="Right" x:Name="btnCancel" Style="{StaticResource Outline}" Content="Cancel"
+                FontWeight="Bold" Foreground="{DynamicResource Danger}"/>
+        <Button DockPanel.Dock="Right" x:Name="btnCancel" Style="{StaticResource Outline}" Content="CANCEL"
                 IsCancel="True" IsDefault="True" Margin="0,0,8,0"/>
       </DockPanel>
     </StackPanel>

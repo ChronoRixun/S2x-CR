@@ -29,11 +29,9 @@ namespace S2x.ServerManager.Services
             var menu = new ContextMenuStrip
             {
                 RenderMode = ToolStripRenderMode.System,
-                BackColor = Color.FromArgb(0x16, 0x19, 0x1C),
-                ForeColor = Color.FromArgb(0xE6, 0xE8, 0xEA),
                 ShowImageMargin = false,
             };
-            menu.Opening += (s, e) => Build(menu);
+            menu.Opening += (s, e) => { Paint(menu); Build(menu); };
 
             _closeToTray = new ToolStripMenuItem("Close to tray") { Checked = true, CheckOnClick = true };
 
@@ -95,6 +93,15 @@ namespace S2x.ServerManager.Services
             menu.Items.Add(_closeToTray);
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add(Item("Exit  (servers keep running)", Exit, true));
+        }
+
+        /// <summary>The menu in the current theme's field and text colours, read as it opens.</summary>
+        private static void Paint(ContextMenuStrip menu)
+        {
+            var back = ThemeManager.Token("Field");
+            var fore = ThemeManager.Token("Ink");
+            menu.BackColor = Color.FromArgb(back.R, back.G, back.B);
+            menu.ForeColor = Color.FromArgb(fore.R, fore.G, fore.B);
         }
 
         private static ToolStripMenuItem Item(string text, Action run, bool enabled)

@@ -6,9 +6,8 @@
         Width="1160" Height="740" MinWidth="1000" MinHeight="620"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None" ResizeMode="CanResize"
-        Background="{DynamicResource Panel}" Foreground="{DynamicResource Ink}"
+        Style="{StaticResource ThemedWindow}"
         BorderBrush="{DynamicResource WindowEdge}" BorderThickness="1"
-        FontFamily="Segoe UI" FontSize="13"
         UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
 
   <Window.InputBindings>
@@ -20,52 +19,55 @@
 
   <Grid>
     <Grid.RowDefinitions>
-      <RowDefinition Height="40"/>
+      <RowDefinition Height="44"/>
       <RowDefinition Height="*"/>
     </Grid.RowDefinitions>
 
     <!-- Title bar: no WindowChrome, drag and caption buttons wired in code. -->
     <Border x:Name="barTitle" Background="{DynamicResource Bar}"
             BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
+      <!-- The right-hand controls are docked first, so a long editor breadcrumb trims itself
+           instead of pushing LAUNCH PROFILES off the bar. -->
       <DockPanel LastChildFill="False">
-        <Border DockPanel.Dock="Left" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0" Padding="16,0">
+        <Button DockPanel.Dock="Right" x:Name="btnClose" Style="{StaticResource CaptionClose}" Content="&#x2715;" Height="44"/>
+        <Button DockPanel.Dock="Right" x:Name="btnMaximize" Style="{StaticResource Caption}" Content="&#x2610;" FontSize="11" Height="44"/>
+        <Button DockPanel.Dock="Right" x:Name="btnMinimize" Style="{StaticResource Caption}" Content="&#x2014;" Height="44"/>
+        <TextBlock DockPanel.Dock="Right" Text="{Binding Clock}" Style="{StaticResource Mono}" Foreground="{DynamicResource Muted}"
+                   VerticalAlignment="Center" Margin="6,0,14,0"/>
+        <Button DockPanel.Dock="Right" Style="{StaticResource Flat}" Click="OpenSettings"
+                Foreground="{DynamicResource Muted}" Padding="14,0" ToolTip="Themes and application settings">
+          <TextBlock views:TextEffects.Tracked="SETTINGS" FontSize="{DynamicResource SizeLabel}"/>
+        </Button>
+        <Button DockPanel.Dock="Right" Style="{StaticResource Flat}" Click="OpenMasterList"
+                Foreground="{DynamicResource Muted}" Padding="14,0" ToolTip="Browse advertised S2x servers and their current maps">
+          <TextBlock views:TextEffects.Tracked="MASTER LIST" FontSize="{DynamicResource SizeLabel}"/>
+        </Button>
+        <!-- Up here rather than beside + New server: that row is full at the default width once
+             SHOW HIDDEN is in it, and this reaches the editor screen too. -->
+        <Button DockPanel.Dock="Right" Style="{StaticResource Flat}" Command="{Binding LaunchProfilesCommand}"
+                Foreground="{DynamicResource Muted}" Padding="16,0" Margin="0,0,4,0"
+                BorderBrush="{DynamicResource Line}" BorderThickness="1,0,1,0"
+                ToolTip="Server packages that start their own servers">
+          <TextBlock views:TextEffects.Tracked="LAUNCH PROFILES&#x2026;" FontSize="{DynamicResource SizeLabel}"/>
+        </Button>
+
+        <Border DockPanel.Dock="Left" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0" Padding="18,0">
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-            <Polygon Points="0,0 10,0 10,10" Fill="{DynamicResource Accent}" Margin="0,0,10,0"/>
-            <TextBlock views:TextEffects.Tracked="S2x" FontWeight="Bold" FontSize="13"/>
+            <Polygon Points="0,0 12,0 12,12" Fill="{DynamicResource Fill}" Effect="{DynamicResource Glow}"
+                     Margin="0,0,10,0" VerticalAlignment="Center"/>
+            <TextBlock Text="S2x" Style="{StaticResource Display}" FontSize="{DynamicResource SizeBrand}"
+                       VerticalAlignment="Center"/>
           </StackPanel>
         </Border>
         <Button DockPanel.Dock="Left" Style="{StaticResource Flat}" Content="&#x2039; FLEET"
                 Visibility="{Binding BackVisibility}" Command="{Binding BackCommand}"
                 Foreground="{DynamicResource Accent}" Padding="14,0"
                 BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0"/>
-        <TextBlock DockPanel.Dock="Left" Margin="16,0" VerticalAlignment="Center"
-                   views:TextEffects.Tracked="{Binding Breadcrumb}"
-                   FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource Muted}"
-                   TextTrimming="CharacterEllipsis"/>
+        <TextBlock DockPanel.Dock="Left" Margin="18,0,12,0" VerticalAlignment="Center"
+                   views:TextEffects.Tracked="{Binding Breadcrumb}" Style="{StaticResource CapsL}"
+                   Foreground="{DynamicResource Muted}" TextTrimming="CharacterEllipsis"/>
         <TextBlock x:Name="txtVersion" DockPanel.Dock="Left" VerticalAlignment="Center"
-                   FontSize="9.5" Foreground="{DynamicResource Dim}"/>
-
-        <Button DockPanel.Dock="Right" x:Name="btnClose" Style="{StaticResource CaptionClose}" Content="&#x2715;"/>
-        <Button DockPanel.Dock="Right" x:Name="btnMaximize" Style="{StaticResource Caption}" Content="&#x2610;" FontSize="11"/>
-        <Button DockPanel.Dock="Right" x:Name="btnMinimize" Style="{StaticResource Caption}" Content="&#x2014;"/>
-        <TextBlock DockPanel.Dock="Right" Text="{Binding Clock}" Style="{StaticResource Mono}"
-                   VerticalAlignment="Center" Margin="0,0,16,0"/>
-        <Button DockPanel.Dock="Right" Style="{StaticResource Flat}" Click="OpenSettings"
-                Foreground="{DynamicResource Muted}" Padding="12,0" ToolTip="Themes and application settings">
-          <TextBlock Text="SETTINGS" FontSize="10" FontWeight="SemiBold"/>
-        </Button>
-        <Button DockPanel.Dock="Right" Style="{StaticResource Flat}" Click="OpenMasterList"
-                Foreground="{DynamicResource Muted}" Padding="12,0" ToolTip="Browse advertised S2x servers and their current maps">
-          <TextBlock Text="MASTER LIST" FontSize="10" FontWeight="SemiBold"/>
-        </Button>
-        <!-- Up here rather than beside + New server: that row is full at the default width once
-             SHOW HIDDEN is in it, and this reaches the editor screen too. -->
-        <Button DockPanel.Dock="Right" Style="{StaticResource Flat}" Command="{Binding LaunchProfilesCommand}"
-                Foreground="{DynamicResource Muted}" Padding="14,0" Margin="0,0,8,0"
-                BorderBrush="{DynamicResource Line}" BorderThickness="1,0,1,0"
-                ToolTip="Server packages that start their own servers">
-          <TextBlock views:TextEffects.Tracked="LAUNCH PROFILES&#x2026;" FontSize="10" FontWeight="SemiBold"/>
-        </Button>
+                   Style="{StaticResource Mono}" Foreground="{DynamicResource Muted}"/>
       </DockPanel>
     </Border>
 

@@ -2,7 +2,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:views="clr-namespace:S2x.ServerManager.Views"
-             FontFamily="Segoe UI" FontSize="13" Foreground="{DynamicResource Ink}"
+             Foreground="{DynamicResource Ink}"
              Background="{DynamicResource Panel}">
 
   <UserControl.Resources>
@@ -14,10 +14,10 @@
     </DataTemplate>
 
     <DataTemplate x:Key="SegmentTemplate">
-      <Button Style="{StaticResource Flat}" Content="{Binding Label}" Command="{Binding PickCommand}"
-              Background="{Binding Background}" Foreground="{Binding Foreground}"
-              BorderBrush="{DynamicResource Edge}" BorderThickness="1,0,0,0"
-              FontSize="10.5" Padding="10,0"/>
+      <Button Style="{StaticResource Segment}" Content="{Binding Label}" Command="{Binding PickCommand}"
+              views:ThemeAssist.Active="{Binding IsOn}"
+              BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0"
+              FontSize="{DynamicResource SizeLabelL}" Padding="10,0"/>
     </DataTemplate>
 
     <!-- A group a launch profile takes over: still on screen, visibly not in use. -->
@@ -27,6 +27,11 @@
           <Setter Property="Opacity" Value="0.4"/>
         </Trigger>
       </Style.Triggers>
+    </Style>
+
+    <!-- A numbered section title: 03 · MATCH RULES. -->
+    <Style x:Key="SectionTitle" TargetType="TextBlock" BasedOn="{StaticResource Caps}">
+      <Setter Property="Foreground" Value="{DynamicResource Muted}"/>
     </Style>
 
     <DataTemplate x:Key="PipTemplate">
@@ -39,7 +44,7 @@
         <DockPanel>
           <TextBox DockPanel.Dock="Right" Width="52" Style="{StaticResource Number}"
                    Text="{Binding ValueText, UpdateSourceTrigger=PropertyChanged}"/>
-          <TextBlock Text="{Binding Label}" FontSize="12" Foreground="{DynamicResource Label}"
+          <TextBlock Text="{Binding Label}" FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Label}"
                      VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
         </DockPanel>
         <Line X1="0" Y1="0" X2="1" Y2="0" Stretch="Fill" Stroke="{DynamicResource Line}"
@@ -50,6 +55,7 @@
     <!-- ── one rotation line ─────────────────────────────────────────────── -->
     <DataTemplate x:Key="RotationRowTemplate">
       <Border Background="{Binding Background}" BorderBrush="{Binding Edge}" BorderThickness="1"
+              CornerRadius="{DynamicResource Radius}"
               Opacity="{Binding Opacity}" Padding="0,8,10,8" views:DragReorder.Enabled="True">
         <Grid>
           <Grid.ColumnDefinitions>
@@ -65,37 +71,38 @@
                      HorizontalAlignment="Center" VerticalAlignment="Center" Cursor="SizeAll"
                      ToolTip="Drag to reorder"/>
 
-          <Border Grid.Column="1" Width="26" Height="22" Background="{Binding NumberBackground}"
-                  BorderBrush="{Binding NumberEdge}" BorderThickness="1" HorizontalAlignment="Center">
-            <TextBlock Text="{Binding Number}" FontFamily="Consolas" FontSize="11"
+          <Border Grid.Column="1" Width="28" Height="22" Background="{Binding NumberBackground}"
+                  BorderBrush="{Binding NumberEdge}" BorderThickness="1" HorizontalAlignment="Center"
+                  views:ThemeAssist.FitRadius="{DynamicResource RadiusBadgeValue}">
+            <TextBlock Text="{Binding Number}" FontFamily="{DynamicResource FontMono}" FontSize="{DynamicResource SizeMono}"
                        Foreground="{Binding NumberForeground}"
                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
           </Border>
 
           <StackPanel Grid.Column="2" Margin="12,0,8,0" VerticalAlignment="Center">
             <StackPanel Orientation="Horizontal">
-              <TextBlock Text="{Binding MapName}" FontSize="13.5" FontWeight="SemiBold"
+              <TextBlock Text="{Binding MapName}" FontSize="{DynamicResource SizeBodyL}" FontWeight="SemiBold"
                          TextTrimming="CharacterEllipsis"/>
-              <Border Visibility="{Binding PackVisibility}" BorderBrush="{DynamicResource Edge}"
-                      BorderThickness="1" Padding="5,1" Margin="8,0,0,0" VerticalAlignment="Center">
-                <TextBlock views:TextEffects.Tracked="{Binding Pack}" FontSize="9.5" FontWeight="Bold"
+              <Border Visibility="{Binding PackVisibility}" Style="{StaticResource Tag}" BorderBrush="{DynamicResource Edge}"
+                      Margin="8,0,0,0" VerticalAlignment="Center">
+                <TextBlock views:TextEffects.Tracked="{Binding Pack}" Style="{StaticResource Caps}"
                            Foreground="{DynamicResource Muted}"/>
               </Border>
               <TextBlock views:TextEffects.Tracked="&#x25B6; NOW" Visibility="{Binding NowVisibility}"
-                         FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource Ok}"
+                         Style="{StaticResource Caps}" Foreground="{DynamicResource Ok}" Effect="{DynamicResource TextGlow}"
                          Margin="8,0,0,0" VerticalAlignment="Center"/>
             </StackPanel>
             <TextBlock Text="{Binding Line}" Style="{StaticResource Mono}" Margin="0,3,0,0"
                        TextTrimming="CharacterEllipsis"/>
           </StackPanel>
 
-          <Border Grid.Column="3" Background="{DynamicResource TagBg}" BorderBrush="{DynamicResource TagEdge}"
-                  BorderThickness="1" Padding="8,4" Margin="0,0,12,0" VerticalAlignment="Center">
-            <TextBlock views:TextEffects.Tracked="{Binding GametypeCaps}" FontSize="10.5" FontWeight="Bold"
-                       Foreground="{DynamicResource Accent}"/>
+          <Border Grid.Column="3" Style="{StaticResource Tag}" Background="{DynamicResource TagBg}"
+                  BorderBrush="{DynamicResource TagEdge}" Padding="8,3" Margin="0,0,12,0" VerticalAlignment="Center">
+            <TextBlock views:TextEffects.Tracked="{Binding GametypeCaps}" Style="{StaticResource TagText}"
+                       FontSize="{DynamicResource SizeLabelL}"/>
           </Border>
 
-          <TextBlock Grid.Column="4" Text="{Binding Limit}" Style="{StaticResource Mono}" Width="48"
+          <TextBlock Grid.Column="4" Text="{Binding Limit}" Style="{StaticResource Mono}" Width="52"
                      TextAlignment="Right" Margin="0,0,12,0" VerticalAlignment="Center"/>
 
           <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
@@ -118,7 +125,7 @@
     <Grid.RowDefinitions>
       <RowDefinition Height="*"/>
       <RowDefinition Height="Auto"/>
-      <RowDefinition Height="70"/>
+      <RowDefinition Height="72"/>
     </Grid.RowDefinitions>
 
     <Grid>
@@ -145,13 +152,13 @@
               </Grid.ColumnDefinitions>
 
               <StackPanel Grid.Column="0" Margin="0,0,14,0">
-                <TextBlock views:TextEffects.Tracked="01 &#xB7; SERVER NAME" FontSize="10" FontWeight="SemiBold"
-                           Foreground="{DynamicResource Dim}" Margin="0,0,0,6"/>
-                <Border Background="{DynamicResource Field}" BorderBrush="{DynamicResource Edge}" BorderThickness="1">
-                  <DockPanel>
-                    <Rectangle DockPanel.Dock="Left" Width="3" Fill="{DynamicResource Accent}"/>
+                <TextBlock views:TextEffects.Tracked="01 &#xB7; SERVER NAME" Style="{StaticResource SectionTitle}" Margin="0,0,0,6"/>
+                <Border Background="{DynamicResource Field}" BorderBrush="{DynamicResource Edge}" BorderThickness="1"
+                        CornerRadius="{DynamicResource Radius}">
+                  <DockPanel views:ThemeAssist.ClipRadius="{DynamicResource RadiusValue}">
+                    <Rectangle DockPanel.Dock="Left" Width="3" Fill="{DynamicResource Fill}"/>
                     <TextBox x:Name="txtName" Style="{StaticResource Entry}" BorderThickness="0"
-                             Background="Transparent" FontSize="14" Padding="10,8"
+                             Background="Transparent" FontSize="{DynamicResource SizeBodyL}" Padding="10,8"
                              Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
                   </DockPanel>
                 </Border>
@@ -162,11 +169,11 @@
                       <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                   </ItemsControl>
-                  <TextBlock DockPanel.Dock="Left" views:TextEffects.Tracked="IN BROWSER" FontSize="9.5"
-                             FontWeight="Bold" Foreground="{DynamicResource Faint}"
+                  <TextBlock DockPanel.Dock="Left" views:TextEffects.Tracked="IN BROWSER"
                              Margin="8,0,10,0" VerticalAlignment="Center">
                     <TextBlock.Style>
-                      <Style TargetType="TextBlock">
+                      <Style TargetType="TextBlock" BasedOn="{StaticResource Caps}">
+                        <Setter Property="Foreground" Value="{DynamicResource Faint}"/>
                         <Style.Triggers>
                           <DataTrigger Value="True"
                                        Binding="{Binding Compact, RelativeSource={RelativeSource AncestorType=views:EditorView}}">
@@ -177,36 +184,34 @@
                     </TextBlock.Style>
                   </TextBlock>
                   <Border Background="{DynamicResource Panel}" BorderBrush="{DynamicResource Line}"
-                          BorderThickness="1" Padding="8,2">
-                    <TextBlock views:TextEffects.ColorName="{Binding Name}" FontSize="13"
+                          BorderThickness="1" Padding="8,2" CornerRadius="{DynamicResource Radius}">
+                    <TextBlock views:TextEffects.ColorName="{Binding Name}" FontSize="{DynamicResource SizeBody}"
                                TextTrimming="CharacterEllipsis"/>
                   </Border>
                 </DockPanel>
               </StackPanel>
 
               <StackPanel Grid.Column="1" Margin="0,0,14,0">
-                <TextBlock views:TextEffects.Tracked="MODE" FontSize="10" FontWeight="SemiBold"
-                           Foreground="{DynamicResource Dim}" Margin="0,0,0,6"/>
-                <Border BorderBrush="{DynamicResource Edge}" BorderThickness="1" Height="36">
+                <TextBlock views:TextEffects.Tracked="MODE" Style="{StaticResource SectionTitle}" Margin="0,0,0,6"/>
+                <Border Style="{StaticResource SegmentGroup}" Height="36">
                   <StackPanel Orientation="Horizontal">
-                    <Button Style="{StaticResource Flat}" Content="MULTIPLAYER" Padding="14,0"
+                    <Button Style="{StaticResource Segment}" Content="MULTIPLAYER" Padding="14,0"
                             Command="{Binding SetMultiplayerCommand}"
-                            Background="{Binding MpBackground}" Foreground="{Binding MpForeground}"/>
-                    <Button Style="{StaticResource Flat}" Content="ZOMBIES" Padding="14,0"
+                            views:ThemeAssist.Active="{Binding IsMultiplayer, Mode=OneWay}"/>
+                    <Button Style="{StaticResource Segment}" Content="ZOMBIES" Padding="14,0"
                             Command="{Binding SetZombiesCommand}"
-                            Background="{Binding ZmBackground}" Foreground="{Binding ZmForeground}"
-                            BorderBrush="{DynamicResource Edge}" BorderThickness="1,0,0,0"/>
+                            views:ThemeAssist.Active="{Binding IsZombies, Mode=OneWay}"
+                            BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0"/>
                   </StackPanel>
                 </Border>
               </StackPanel>
 
               <StackPanel Grid.Column="2">
-                <TextBlock views:TextEffects.Tracked="UDP PORT" FontSize="10" FontWeight="SemiBold"
-                           Foreground="{DynamicResource Dim}" Margin="0,0,0,6"/>
-                <TextBox Width="92" Height="36" Style="{StaticResource Number}" FontSize="14"
+                <TextBlock views:TextEffects.Tracked="UDP PORT" Style="{StaticResource SectionTitle}" Margin="0,0,0,6"/>
+                <TextBox Width="92" Height="36" Style="{StaticResource Number}" FontSize="{DynamicResource SizeBodyL}"
                          Text="{Binding PortText, UpdateSourceTrigger=PropertyChanged}"/>
                 <TextBlock Text="{Binding PortWarning}" Visibility="{Binding PortWarningVisibility}"
-                           FontSize="10.5" Foreground="{DynamicResource Accent}" Margin="0,5,0,0"
+                           FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Accent}" Margin="0,5,0,0"
                            MaxWidth="150" TextWrapping="Wrap"/>
               </StackPanel>
             </Grid>
@@ -224,7 +229,7 @@
                 <StackPanel Orientation="Horizontal" Style="{StaticResource Greyed}" IsEnabled="{Binding ShuffleEnabled}">
                   <ToggleButton Style="{StaticResource Switch}" IsChecked="{Binding ShuffleOnLaunch, Mode=TwoWay}"
                                 VerticalAlignment="Center"/>
-                  <TextBlock FontSize="11.5" Foreground="{DynamicResource Label}"
+                  <TextBlock FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Label}"
                              Margin="8,0,14,0" VerticalAlignment="Center" ToolTip="Shuffle on every launch">
                     <TextBlock.Style>
                       <Style TargetType="TextBlock">
@@ -239,8 +244,8 @@
                     </TextBlock.Style>
                   </TextBlock>
                 </StackPanel>
-                <Button Style="{StaticResource Outline}" Content="&#x2928; RANDOMIZE" FontSize="11"
-                        FontWeight="SemiBold" Padding="12,6" Command="{Binding RandomizeCommand}"/>
+                <Button Style="{StaticResource Outline}" Content="&#x2928; RANDOMIZE"
+                        Padding="12,6" Command="{Binding RandomizeCommand}"/>
                 <Button Style="{StaticResource Link}" Content="Clear all" Margin="14,0,0,0"
                         Command="{Binding ClearCommand}"/>
               </StackPanel>
@@ -248,11 +253,11 @@
                    under the controls on the right. -->
               <DockPanel VerticalAlignment="Center" Margin="0,0,14,0">
                 <TextBlock DockPanel.Dock="Left" views:TextEffects.Tracked="{Binding RotationTitle, StringFormat=02 &#xB7; {0}}"
-                           FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource Dim}"/>
-                <TextBlock DockPanel.Dock="Left" Text="{Binding RotationCount}" FontFamily="Consolas" FontSize="12"
-                           Foreground="{DynamicResource Accent}" Margin="12,0,0,0"/>
+                           Style="{StaticResource SectionTitle}" VerticalAlignment="Center"/>
+                <TextBlock DockPanel.Dock="Left" Text="{Binding RotationCount}" Style="{StaticResource Mono}" FontSize="{DynamicResource SizeMonoL}"
+                           Foreground="{DynamicResource Accent}" Margin="12,0,0,0" VerticalAlignment="Center"/>
                 <TextBlock Text="{Binding RotationMeta}" Style="{StaticResource Mono}" Margin="12,0,0,0"
-                           TextTrimming="CharacterEllipsis"/>
+                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
               </DockPanel>
             </DockPanel>
 
@@ -268,7 +273,7 @@
               <ComboBox Grid.Column="1" Style="{StaticResource Picker}" Margin="0,0,8,0"
                         ItemsSource="{Binding GametypeOptions}" SelectedItem="{Binding PickedGametype, Mode=TwoWay}"
                         DisplayMemberPath="Label"/>
-              <Button Grid.Column="2" Style="{StaticResource Primary}" Content="+ ADD" Height="36"
+              <Button Grid.Column="2" Style="{StaticResource Primary}" Content="+ ADD" Height="36" Padding="8,0"
                       Command="{Binding AddCommand}"/>
             </Grid>
 
@@ -280,10 +285,10 @@
                        ItemsSource="{Binding Rotation}" SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
                        ItemTemplate="{StaticResource RotationRowTemplate}"/>
               <Grid Visibility="{Binding EmptyRotationVisibility}" VerticalAlignment="Top" Height="86">
-                <Rectangle Fill="{DynamicResource Panel}" Stroke="{DynamicResource Edge}" StrokeThickness="1"
-                           StrokeDashArray="3 3"/>
-                <TextBlock Text="Empty rotation. Pick a map and a mode above, then Add." FontSize="12.5"
-                           Foreground="{DynamicResource Dim}"
+                <Rectangle Fill="{DynamicResource Panel}" Stroke="{DynamicResource Line}" StrokeThickness="1"
+                           StrokeDashArray="4 3" RadiusX="{DynamicResource RadiusValue}" RadiusY="{DynamicResource RadiusValue}"/>
+                <TextBlock Text="Empty rotation. Pick a map and a mode above, then Add." FontSize="{DynamicResource SizeBodyS}"
+                           Foreground="{DynamicResource Muted}"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </Grid>
             </Grid>
@@ -300,11 +305,10 @@
               <StackPanel>
                 <DockPanel Margin="20,14,20,10">
                   <TextBlock DockPanel.Dock="Right" Text="{Binding ScoreSummary}" Style="{StaticResource Mono}"/>
-                  <TextBlock views:TextEffects.Tracked="03 &#xB7; MATCH RULES" FontSize="10" FontWeight="SemiBold"
-                             Foreground="{DynamicResource Dim}"/>
+                  <TextBlock views:TextEffects.Tracked="03 &#xB7; MATCH RULES" Style="{StaticResource SectionTitle}"/>
                 </DockPanel>
                 <StackPanel Margin="20,0,20,16">
-                  <TextBlock Text="Score limits for the modes in this rotation." FontSize="11"
+                  <TextBlock Text="Score limits for the modes in this rotation." FontSize="{DynamicResource SizeBodyXS}"
                              Foreground="{DynamicResource Dim}" Margin="0,0,0,10"/>
                   <ItemsControl ItemsSource="{Binding ScoreRows}" ItemTemplate="{StaticResource ScoreRowTemplate}">
                     <ItemsControl.ItemsPanel>
@@ -314,7 +318,7 @@
                   <StackPanel Orientation="Horizontal" Margin="0,4,0,0" Visibility="{Binding DomVisibility}">
                     <ToggleButton Style="{StaticResource Switch}" IsChecked="{Binding SingleRoundDom, Mode=TwoWay}"
                                   VerticalAlignment="Center"/>
-                    <TextBlock Text="Single-round Domination (no halftime)" FontSize="12"
+                    <TextBlock Text="Single-round Domination (no halftime)" FontSize="{DynamicResource SizeBodyS}"
                                Foreground="{DynamicResource Label}" Margin="10,0,0,0" VerticalAlignment="Center"/>
                   </StackPanel>
                 </StackPanel>
@@ -325,14 +329,14 @@
               <StackPanel>
                 <DockPanel Margin="20,14,20,10">
                   <TextBlock DockPanel.Dock="Right" Text="{Binding BotSummary}" Style="{StaticResource Mono}"/>
-                  <TextBlock views:TextEffects.Tracked="04 &#xB7; BOTS" FontSize="10" FontWeight="SemiBold"
-                             Foreground="{DynamicResource Dim}"/>
+                  <TextBlock views:TextEffects.Tracked="04 &#xB7; BOTS" Style="{StaticResource SectionTitle}"/>
                 </DockPanel>
                 <StackPanel Margin="20,0,20,16">
                   <DockPanel>
-                    <TextBlock DockPanel.Dock="Right" Text="{Binding BotFill}" FontFamily="Consolas"
-                               FontSize="20" Foreground="{DynamicResource Accent}"/>
-                    <TextBlock Text="Bot fill" FontSize="12" Foreground="{DynamicResource Label}"
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding BotFill}" FontFamily="{DynamicResource FontMono}"
+                               FontSize="{DynamicResource SizeMonoXL}" Foreground="{DynamicResource Accent}"
+                               Effect="{DynamicResource TextGlow}"/>
+                    <TextBlock Text="Bot fill" FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Label}"
                                VerticalAlignment="Bottom"/>
                   </DockPanel>
                   <ItemsControl ItemsSource="{Binding BotPips}" ItemTemplate="{StaticResource PipTemplate}"
@@ -344,31 +348,31 @@
                   <Slider Style="{StaticResource FillSlider}" Minimum="0" Maximum="{Binding Cap}"
                           Value="{Binding BotFill, Mode=TwoWay}" IsSnapToTickEnabled="True" TickFrequency="1"/>
                   <DockPanel Margin="0,2,0,14">
-                    <TextBlock DockPanel.Dock="Left" Text="0" Style="{StaticResource Mono}" FontSize="10.5"/>
-                    <TextBlock DockPanel.Dock="Right" Text="{Binding Cap}" Style="{StaticResource Mono}" FontSize="10.5"/>
-                    <TextBlock Text="bots leave as humans join" Style="{StaticResource Mono}" FontSize="10.5"
+                    <TextBlock DockPanel.Dock="Left" Text="0" Style="{StaticResource Mono}" FontSize="{DynamicResource SizeMonoS}"/>
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding Cap}" Style="{StaticResource Mono}" FontSize="{DynamicResource SizeMonoS}"/>
+                    <TextBlock Text="bots leave as humans join" Style="{StaticResource Mono}" FontSize="{DynamicResource SizeMonoS}"
                                HorizontalAlignment="Center"/>
                   </DockPanel>
                   <DockPanel Margin="0,0,0,10">
-                    <Border DockPanel.Dock="Right" BorderBrush="{DynamicResource Edge}" BorderThickness="1" Height="28">
-                      <ItemsControl ItemsSource="{Binding PoolOptions}" ItemTemplate="{StaticResource SegmentTemplate}">
+                    <Border DockPanel.Dock="Right" Style="{StaticResource SegmentGroup}" Height="28">
+                      <ItemsControl ItemsSource="{Binding PoolOptions}" ItemTemplate="{StaticResource SegmentTemplate}" Margin="-1,0,0,0">
                         <ItemsControl.ItemsPanel>
                           <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                       </ItemsControl>
                     </Border>
-                    <TextBlock Text="Name pool" FontSize="12" Foreground="{DynamicResource Label}"
+                    <TextBlock Text="Name pool" FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Label}"
                                VerticalAlignment="Center"/>
                   </DockPanel>
                   <DockPanel>
-                    <Border DockPanel.Dock="Right" BorderBrush="{DynamicResource Edge}" BorderThickness="1" Height="28">
-                      <ItemsControl ItemsSource="{Binding DifficultyOptions}" ItemTemplate="{StaticResource SegmentTemplate}">
+                    <Border DockPanel.Dock="Right" Style="{StaticResource SegmentGroup}" Height="28">
+                      <ItemsControl ItemsSource="{Binding DifficultyOptions}" ItemTemplate="{StaticResource SegmentTemplate}" Margin="-1,0,0,0">
                         <ItemsControl.ItemsPanel>
                           <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                       </ItemsControl>
                     </Border>
-                    <TextBlock Text="Difficulty" FontSize="12" Foreground="{DynamicResource Label}"
+                    <TextBlock Text="Difficulty" FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Label}"
                                VerticalAlignment="Center"/>
                   </DockPanel>
                   <!-- With this on, s2x_autobalance.gsc runs the bots and bot fill is the match size. -->
@@ -376,11 +380,11 @@
                               IsEnabled="{Binding AutoBalanceEnabled}">
                     <ToggleButton x:Name="tglAutoBalance" Style="{StaticResource Switch}"
                                   IsChecked="{Binding AutoBalance, Mode=TwoWay}" VerticalAlignment="Center"/>
-                    <TextBlock Text="Auto-balance" FontSize="12" Foreground="{DynamicResource Label}"
+                    <TextBlock Text="Auto-balance" FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Label}"
                                Margin="10,0,0,0" VerticalAlignment="Center"/>
                   </StackPanel>
                   <TextBlock Text="{Binding AutoBalanceNote}" Visibility="{Binding AutoBalanceNoteVisibility}"
-                             FontSize="11" Foreground="{DynamicResource Dim}" TextWrapping="Wrap" LineHeight="16"
+                             FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Dim}" TextWrapping="Wrap"
                              Margin="40,8,0,0"/>
                 </StackPanel>
               </StackPanel>
@@ -392,16 +396,16 @@
               <DockPanel Margin="20,14,20,10">
                 <TextBlock DockPanel.Dock="Right" Text="{Binding LobbySummary}" Style="{StaticResource Mono}"/>
                 <TextBlock views:TextEffects.Tracked="{Binding LobbyNumber, StringFormat={}{0} &#xB7; LOBBY}"
-                           FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource Dim}"/>
+                           Style="{StaticResource SectionTitle}"/>
               </DockPanel>
               <!-- A profile server's party is the package's, so there is nothing to type here. -->
-              <TextBlock Text="{Binding LobbyText}" Visibility="{Binding LobbyTextVisibility}" FontSize="12"
+              <TextBlock Text="{Binding LobbyText}" Visibility="{Binding LobbyTextVisibility}" FontSize="{DynamicResource SizeBodyS}"
                          Foreground="{DynamicResource Label}" TextWrapping="Wrap" Margin="20,0,20,16"/>
               <StackPanel Margin="20,0,20,16" Visibility="{Binding LobbyFieldsVisibility}">
                 <DockPanel>
                   <TextBox DockPanel.Dock="Right" Width="52" Style="{StaticResource Number}"
                            Text="{Binding CapText, UpdateSourceTrigger=PropertyChanged}"/>
-                  <TextBlock FontSize="12" Foreground="{DynamicResource Label}" VerticalAlignment="Center">
+                  <TextBlock FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Label}" VerticalAlignment="Center">
                     <Run Text="Player cap "/><Run Text="{Binding CapRange, Mode=OneWay}" Foreground="{DynamicResource Faint}"/>
                   </TextBlock>
                 </DockPanel>
@@ -410,7 +414,7 @@
                 <DockPanel>
                   <TextBox DockPanel.Dock="Right" Width="52" Style="{StaticResource Number}"
                            Text="{Binding MinText, UpdateSourceTrigger=PropertyChanged}"/>
-                  <TextBlock Text="Minimum players to start" FontSize="12" Foreground="{DynamicResource Label}"
+                  <TextBlock Text="Minimum players to start" FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Label}"
                              VerticalAlignment="Center"/>
                 </DockPanel>
                 <Line X1="0" Y1="0" X2="1" Y2="0" Stretch="Fill" Stroke="{DynamicResource Line}"
@@ -418,7 +422,7 @@
                 <DockPanel>
                   <TextBox DockPanel.Dock="Right" Width="52" Style="{StaticResource Number}"
                            Text="{Binding DelayText, UpdateSourceTrigger=PropertyChanged}"/>
-                  <TextBlock FontSize="12" Foreground="{DynamicResource Label}" VerticalAlignment="Center">
+                  <TextBlock FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Label}" VerticalAlignment="Center">
                     <Run Text="Countdown "/><Run Text="0-120 s" Foreground="{DynamicResource Faint}"/>
                   </TextBlock>
                 </DockPanel>
@@ -429,20 +433,20 @@
           <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
             <StackPanel>
               <DockPanel Margin="20,14,20,10">
-                <TextBlock DockPanel.Dock="Right" Text="{Binding VisibilitySummary}" FontFamily="Consolas"
-                           FontSize="11" Foreground="{Binding VisibilityBrush}"/>
+                <TextBlock DockPanel.Dock="Right" Text="{Binding VisibilitySummary}" FontFamily="{DynamicResource FontMono}"
+                           FontSize="{DynamicResource SizeMono}" Foreground="{Binding VisibilityBrush}"/>
                 <TextBlock views:TextEffects.Tracked="{Binding VisibilityNumber, StringFormat={}{0} &#xB7; VISIBILITY}"
-                           FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource Dim}"/>
+                           Style="{StaticResource SectionTitle}"/>
               </DockPanel>
               <StackPanel Margin="20,0,20,16">
                 <StackPanel Orientation="Horizontal">
                   <ToggleButton Style="{StaticResource Switch}" IsChecked="{Binding Advertise, Mode=TwoWay}"
                                 VerticalAlignment="Center"/>
-                  <TextBlock Text="Advertise on the master list" FontSize="12" Foreground="{DynamicResource Label}"
+                  <TextBlock Text="Advertise on the master list" FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Label}"
                              Margin="10,0,0,0" VerticalAlignment="Center"/>
                 </StackPanel>
-                <TextBlock Text="{Binding VisibilityNote}" FontSize="11" Foreground="{DynamicResource Dim}"
-                           TextWrapping="Wrap" LineHeight="16" Margin="40,8,0,0"/>
+                <TextBlock Text="{Binding VisibilityNote}" FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Dim}"
+                           TextWrapping="Wrap" Margin="40,8,0,0"/>
               </StackPanel>
             </StackPanel>
           </Border>
@@ -452,26 +456,25 @@
               <DockPanel Margin="20,14,20,10">
                 <TextBlock DockPanel.Dock="Right" Text="{Binding AdvancedSummary}" Style="{StaticResource Mono}"/>
                 <TextBlock views:TextEffects.Tracked="{Binding AdvancedNumber, StringFormat={}{0} &#xB7; ADVANCED}"
-                           FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource Dim}"/>
+                           Style="{StaticResource SectionTitle}"/>
               </DockPanel>
               <TextBlock Text="Not available for profile servers: the profile writes its own cfg."
-                         Visibility="{Binding AdvancedNoteVisibility}" FontSize="11" Foreground="{DynamicResource Dim}"
+                         Visibility="{Binding AdvancedNoteVisibility}" FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Dim}"
                          TextWrapping="Wrap" Margin="20,0,20,8"/>
               <StackPanel Margin="20,0,20,16" Style="{StaticResource Greyed}" IsEnabled="{Binding AdvancedEnabled}">
                 <Grid>
                   <TextBox Style="{StaticResource Entry}" Height="80" AcceptsReturn="True"
-                           Background="{DynamicResource Bar}" FontFamily="Consolas" FontSize="12"
+                           Background="{DynamicResource Bar}" FontFamily="{DynamicResource FontMono}" FontSize="{DynamicResource SizeMonoL}"
                            VerticalScrollBarVisibility="Auto" SpellCheck.IsEnabled="False"
                            Text="{Binding ExtraText, UpdateSourceTrigger=PropertyChanged}"/>
                   <TextBlock Text="one dvar per line, e.g.  set g_speed 190" IsHitTestVisible="False"
-                             Visibility="{Binding ExtraPlaceholderVisibility}" FontFamily="Consolas" FontSize="12"
-                             Foreground="{DynamicResource Faint}" Margin="10,9,0,0"
-                             HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                             Visibility="{Binding ExtraPlaceholderVisibility}" Style="{StaticResource Mono}" FontSize="{DynamicResource SizeMonoL}"
+                             Margin="10,9,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"/>
                 </Grid>
                 <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                  <TextBlock Text="!" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource Danger}"
+                  <TextBlock Text="!" FontWeight="Bold" FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Danger}"
                              Margin="0,0,6,0"/>
-                  <TextBlock Text="Passed through as written. Nothing here is checked." FontSize="11"
+                  <TextBlock Text="Passed through as written. Nothing here is checked." FontSize="{DynamicResource SizeBodyXS}"
                              Foreground="{DynamicResource Danger}"/>
                 </StackPanel>
               </StackPanel>
@@ -479,8 +482,7 @@
           </Border>
 
           <StackPanel Margin="20,16,20,16">
-            <TextBlock views:TextEffects.Tracked="WRITES TO" FontSize="10" FontWeight="SemiBold"
-                       Foreground="{DynamicResource Dim}" Margin="0,0,0,5"/>
+            <TextBlock views:TextEffects.Tracked="WRITES TO" Style="{StaticResource SectionTitle}" Margin="0,0,0,5"/>
             <TextBlock Text="{Binding WritesTo}" Style="{StaticResource Mono}" TextWrapping="Wrap"/>
           </StackPanel>
         </StackPanel>
@@ -497,44 +499,48 @@
     <Border Grid.Row="2" Background="{DynamicResource Bar}" BorderBrush="{DynamicResource Line}"
             BorderThickness="0,1,0,0">
       <DockPanel Margin="20,0" LastChildFill="False">
-        <Rectangle DockPanel.Dock="Left" Width="8" Height="8" Fill="{Binding DotBrush}"
-                   VerticalAlignment="Center"/>
-        <StackPanel DockPanel.Dock="Left" Margin="14,0,0,0" VerticalAlignment="Center">
-          <TextBlock views:TextEffects.Tracked="{Binding StateCaps}" FontSize="10.5" FontWeight="Bold"
-                     Foreground="{Binding StateBrush}"/>
-          <TextBlock Text="{Binding StatusSub}" Style="{StaticResource Mono}" Margin="0,3,0,0"/>
+        <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center">
+          <views:StatusBadge Foreground="{Binding StateBrush}" Background="{Binding StateTint}" Pulse="{Binding IsRunning}">
+            <TextBlock views:TextEffects.Tracked="{Binding StateCaps}"/>
+          </views:StatusBadge>
+          <TextBlock Text="{Binding StatusSub}" Style="{StaticResource Mono}" Margin="0,5,0,0"/>
         </StackPanel>
         <Border DockPanel.Dock="Left" Visibility="{Binding DirtyVisibility}" Margin="14,0,0,0"
-                Background="{DynamicResource TagBg}" BorderBrush="{DynamicResource TagEdge}" BorderThickness="1"
+                Style="{StaticResource Tag}" Background="{DynamicResource TagBg}" BorderBrush="{DynamicResource TagEdge}"
                 Padding="8,3" VerticalAlignment="Center">
-          <TextBlock Text="&#x25CF; UNSAVED" FontSize="11" Foreground="{DynamicResource Accent}"/>
+          <TextBlock Text="&#x25CF; UNSAVED" Style="{StaticResource TagText}" FontSize="{DynamicResource SizeLabelL}"/>
         </Border>
         <!-- Somebody else wrote this preset while it was open here. -->
         <Border DockPanel.Dock="Left" Visibility="{Binding FileChangedVisibility}" Margin="8,0,0,0"
-                Background="{DynamicResource DangerBg}" BorderBrush="{DynamicResource DangerEdge}" BorderThickness="1"
+                Style="{StaticResource Tag}" Background="{DynamicResource DangerBg}" BorderBrush="{DynamicResource DangerEdge}"
                 Padding="8,3" VerticalAlignment="Center">
-          <TextBlock Text="FILE CHANGED ON DISK" FontSize="11" Foreground="{DynamicResource Danger}"/>
+          <TextBlock Text="FILE CHANGED ON DISK" Style="{StaticResource TagText}" FontSize="{DynamicResource SizeLabelL}"
+                     Foreground="{DynamicResource Danger}"/>
         </Border>
 
+        <!-- 44 px buttons centred in the bar, as the pack draws its buttons: the fill's glow
+             then has room round it instead of running into the window's edge. -->
         <Button DockPanel.Dock="Right" Style="{StaticResource Primary}" Content="&#x25B6; LAUNCH SERVER"
-                Padding="24,12" Visibility="{Binding LaunchVisibility}" Command="{Binding LaunchCommand}"/>
+                Height="44" VerticalAlignment="Center" Padding="24,0"
+                Visibility="{Binding LaunchVisibility}" Command="{Binding LaunchCommand}"/>
         <Button DockPanel.Dock="Right" Style="{StaticResource Primary}" Content="&#x21BB; RESTART"
-                Padding="24,12" Visibility="{Binding RunningVisibility}" Command="{Binding RestartCommand}"/>
+                Height="44" VerticalAlignment="Center" Padding="24,0"
+                Visibility="{Binding RunningVisibility}" Command="{Binding RestartCommand}"/>
         <Button DockPanel.Dock="Right" Style="{StaticResource DangerGhost}" Content="&#x25A0; STOP"
-                Padding="18,11" Margin="0,0,8,0" Visibility="{Binding RunningVisibility}"
-                Command="{Binding StopCommand}"/>
+                Height="44" VerticalAlignment="Center" Padding="18,0" Margin="0,0,8,0"
+                Visibility="{Binding RunningVisibility}" Command="{Binding StopCommand}"/>
         <Button DockPanel.Dock="Right" Style="{StaticResource Outline}" Content="SAVE AS&#x2026;"
-                FontSize="11" FontWeight="SemiBold" Padding="14,9" Margin="0,0,14,0"
+                Height="44" VerticalAlignment="Center" Padding="14,0" Margin="0,0,14,0"
                 Command="{Binding SaveAsCommand}"/>
         <Button DockPanel.Dock="Right" Style="{StaticResource Outline}" Content="SAVE PRESET"
-                FontSize="11" FontWeight="SemiBold" Padding="14,9" Margin="0,0,8,0"
+                Height="44" VerticalAlignment="Center" Padding="14,0" Margin="0,0,8,0"
                 ToolTip="Ctrl+S" Command="{Binding SaveCommand}"/>
         <Button DockPanel.Dock="Right" Style="{StaticResource Outline}" Content="CONSOLE"
-                FontSize="11" FontWeight="SemiBold" Padding="14,9" Margin="0,0,14,0"
+                Height="44" VerticalAlignment="Center" Padding="14,0" Margin="0,0,14,0"
                 ToolTip="This server's log, as it is written" Command="{Binding ConsoleCommand}"/>
         <!-- Only with nothing running on the port: the preset file is what the server is. -->
         <Button DockPanel.Dock="Right" Style="{StaticResource DangerGhost}" Content="DELETE PRESET"
-                FontSize="11" FontWeight="SemiBold" Padding="14,9" Margin="0,0,14,0"
+                Height="44" VerticalAlignment="Center" Padding="14,0" Margin="0,0,14,0"
                 Visibility="{Binding DeleteVisibility}" Command="{Binding DeleteCommand}"
                 ToolTip="Delete this preset file, and the port's cfg and pid if nothing else claims it"/>
       </DockPanel>
@@ -542,11 +548,11 @@
 
     <!-- the fleet's toast, over the editor too -->
     <Border Grid.RowSpan="3" Visibility="{Binding Fleet.ToastVisibility}" Background="{DynamicResource Field}"
-            BorderBrush="{DynamicResource EdgeHot}" BorderThickness="1" Padding="14,8"
+            BorderBrush="{DynamicResource EdgeHot}" BorderThickness="1" Padding="14,8" CornerRadius="{DynamicResource Radius}"
             HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,90">
       <StackPanel Orientation="Horizontal">
         <TextBlock Text="&#x2713;" Foreground="{DynamicResource Ok}" Margin="0,0,10,0"/>
-        <TextBlock Text="{Binding Fleet.ToastText}" FontSize="12"/>
+        <TextBlock Text="{Binding Fleet.ToastText}" FontSize="{DynamicResource SizeBodyS}"/>
       </StackPanel>
     </Border>
   </Grid>
