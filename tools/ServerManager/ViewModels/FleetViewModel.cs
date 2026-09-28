@@ -30,6 +30,8 @@ namespace S2x.ServerManager.ViewModels
 
         private readonly ServerController _controller;
         private readonly PresetStore _store;
+        private readonly CardOrderStore _cardOrderStore;
+        private List<string> _cardOrder = new List<string>();
         private readonly Dictionary<int, ServerState> _states = new Dictionary<int, ServerState>();
         private readonly DispatcherTimer _timer;
         private readonly bool _demo;
@@ -53,6 +55,8 @@ namespace S2x.ServerManager.ViewModels
             GameDir = gameDir;
             _controller = new ServerController(gameDir);
             _store = new PresetStore(gameDir, presetDir);
+            _cardOrderStore = new CardOrderStore(gameDir, _store.Directory);
+            _cardOrder = _cardOrderStore.Load();
             Servers = new ObservableCollection<ServerCardViewModel>();
             Shown = new ObservableCollection<ServerCardViewModel>();
             Console = new ConsoleViewModel(this);
@@ -510,6 +514,7 @@ namespace S2x.ServerManager.ViewModels
                     Servers.Add(new ServerCardViewModel(this, candidate, state));
                     Raise("EmptyVisibility"); Raise("CardsVisibility"); Raise("RosterVisibility");
                 }
+                RememberCardSet();
                 foreach (var each in Servers) each.Refresh();
                 Recount();
                 return true;
@@ -586,6 +591,7 @@ namespace S2x.ServerManager.ViewModels
             {
                 if (Console.Card == card) Console.Close();
                 Servers.Remove(card);
+                RememberCardSet();
             }
             Forget(editor);
             Screen = "fleet";
@@ -851,7 +857,8 @@ namespace S2x.ServerManager.ViewModels
             }
 
             Servers.Clear();
-            foreach (var card in wanted) Servers.Add(card);
+            foreach (var card in OrderCards(wanted)) Servers.Add(card);
+            RememberCardSet();
             RebuildShown();
             LoadStarters();
             Raise("EmptyVisibility"); Raise("CardsVisibility"); Raise("RosterVisibility"); Raise("RosterEditor");
@@ -937,6 +944,53 @@ namespace S2x.ServerManager.ViewModels
         }
 
         // ── totals ────────────────────────────────────────────────────────────────
+        /// <summary>Move one visible card before/after another; hidden presets retain their relative order.</summary>
+        public bool MoveCard(ServerCardViewModel card, ServerCardViewModel target, bool after)
+        {
+            if (card == null || target == null || card == target || !Shown.Contains(card) || !Shown.Contains(target)) return false;
+            var wanted = Servers.ToList();
+            wanted.Remove(card);
+            wanted.Insert(wanted.IndexOf(target) + (after ? 1 : 0), card);
+            if (Servers.SequenceEqual(wanted)) return false;
+            var keys = wanted.Select(c => PresetStore.Key(c.Preset.FilePath)).ToList();
+            try { if (!_demo) _cardOrderStore.Save(keys); }
+            catch (Exception ex) { Toast("Could not save card order: " + ex.Message); return false; }
+            _cardOrder = keys;
+            Servers.Move(Servers.IndexOf(card), wanted.IndexOf(card));
+            RebuildShown();
+            return true;
+        }
+
+        /// <summary>Keyboard alternative, in the visible card order: Alt+Left/Right.</summary>
+        public bool MoveCardBy(ServerCardViewModel card, int direction)
+        {
+            var index = Shown.IndexOf(card);
+            var next = index + Math.Sign(direction);
+            if (index < 0 || direction == 0 || next < 0 || next >= Shown.Count) return false;
+            return MoveCard(card, Shown[next], direction > 0);
+        }
+
+        private void RememberCardSet()
+        {
+            // Once customized, newly created files append and deleted identities are retired.
+            // Preset changes have already succeeded; preference failure must not undo them.
+            if (_cardOrderStore == null || _cardOrder.Count == 0) return;
+            var keys = Servers.Select(c => PresetStore.Key(c.Preset.FilePath)).ToList();
+            if (_cardOrder.SequenceEqual(keys, StringComparer.OrdinalIgnoreCase)) return;
+            _cardOrder = keys;
+            try { _cardOrderStore.Save(keys); }
+            catch (Exception ex) { Toast("Could not save card order: " + ex.Message); }
+        }
+
+        private IEnumerable<ServerCardViewModel> OrderCards(IEnumerable<ServerCardViewModel> cards)
+        {
+            // Unseen files append in PresetStore's deterministic order. A renamed display title
+            // or port is still the same path; Save As/external file renames are new identities.
+            var rank = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            for (var i = 0; i < _cardOrder.Count; i++) rank[_cardOrder[i]] = i;
+            return cards.OrderBy(c => { int value; return rank.TryGetValue(PresetStore.Key(c.Preset.FilePath), out value) ? value : int.MaxValue; });
+        }
+
         private void Recount()
         {
             // A port belongs to one server. Say on the card when two presets claim the same one,

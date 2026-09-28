@@ -5,20 +5,20 @@
         Title="S2x Server Manager" Width="420" SizeToContent="Height"
         WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource Panel}" Foreground="{StaticResource Ink}"
-        BorderBrush="{StaticResource WindowEdge}" BorderThickness="1"
+        Background="{DynamicResource Panel}" Foreground="{DynamicResource Ink}"
+        BorderBrush="{DynamicResource WindowEdge}" BorderThickness="1"
         FontFamily="Segoe UI" FontSize="13"
         UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
   <StackPanel>
-    <Border x:Name="barTitle" Background="{StaticResource Bar}" BorderBrush="{StaticResource Line}"
+    <Border x:Name="barTitle" Background="{DynamicResource Bar}" BorderBrush="{DynamicResource Line}"
             BorderThickness="0,0,0,1" Padding="16,0" Height="36">
       <TextBlock x:Name="lblTitle" views:TextEffects.Tracked="DELETE PRESET" FontSize="10.5" FontWeight="Bold"
-                 Foreground="{StaticResource Danger}" VerticalAlignment="Center"/>
+                 Foreground="{DynamicResource Danger}" VerticalAlignment="Center"/>
     </Border>
     <StackPanel Margin="20,18,20,18">
       <TextBlock x:Name="lblQuestion" Text="Delete this preset?" FontSize="14" FontWeight="SemiBold"
                  TextWrapping="Wrap"/>
-      <TextBlock x:Name="lblDetail" FontSize="11.5" Foreground="{StaticResource Muted}"
+      <TextBlock x:Name="lblDetail" FontSize="11.5" Foreground="{DynamicResource Muted}"
                  TextWrapping="Wrap" LineHeight="18" Margin="0,8,0,0"/>
       <DockPanel Margin="0,18,0,0" LastChildFill="False">
         <Button DockPanel.Dock="Right" x:Name="btnOk" Style="{StaticResource DangerGhost}" Content="DELETE"

@@ -5,8 +5,8 @@
         Title="S2x Server Manager" Width="520" SizeToContent="Height"
         WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource Panel}" Foreground="{StaticResource Ink}"
-        BorderBrush="{StaticResource WindowEdge}" BorderThickness="1"
+        Background="{DynamicResource Panel}" Foreground="{DynamicResource Ink}"
+        BorderBrush="{DynamicResource WindowEdge}" BorderThickness="1"
         FontFamily="Segoe UI" FontSize="13"
         UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
   <Window.Resources>
@@ -18,7 +18,7 @@
                      VerticalAlignment="Center" Margin="12,0,0,0"/>
           <StackPanel>
             <TextBlock Text="{Binding Title}" FontSize="13.5" FontWeight="SemiBold"/>
-            <TextBlock Text="{Binding Summary}" FontSize="11.5" Foreground="{StaticResource Muted}"
+            <TextBlock Text="{Binding Summary}" FontSize="11.5" Foreground="{DynamicResource Muted}"
                        Margin="0,4,0,0" TextWrapping="Wrap" LineHeight="16"/>
           </StackPanel>
         </DockPanel>
@@ -27,18 +27,18 @@
   </Window.Resources>
 
   <StackPanel>
-    <Border x:Name="barTitle" Background="{StaticResource Bar}" BorderBrush="{StaticResource Line}"
+    <Border x:Name="barTitle" Background="{DynamicResource Bar}" BorderBrush="{DynamicResource Line}"
             BorderThickness="0,0,0,1" Padding="16,0" Height="36">
       <TextBlock views:TextEffects.Tracked="NEW SERVER" FontSize="10.5" FontWeight="Bold"
-                 Foreground="{StaticResource Accent}" VerticalAlignment="Center"/>
+                 Foreground="{DynamicResource Accent}" VerticalAlignment="Center"/>
     </Border>
     <StackPanel Margin="20,16,20,18">
       <TextBlock Text="Start from one of the bundled rotations, or from nothing."
-                 FontSize="12.5" Foreground="{StaticResource Label}" Margin="0,0,0,12"/>
+                 FontSize="12.5" Foreground="{DynamicResource Label}" Margin="0,0,0,12"/>
       <ItemsControl x:Name="lstChoices" ItemTemplate="{StaticResource ChoiceTemplate}"/>
       <DockPanel Margin="0,8,0,0" LastChildFill="False">
         <TextBlock Text="It opens in the editor on the next free port. Nothing is written until you save."
-                   FontSize="11" Foreground="{StaticResource Dim}" VerticalAlignment="Center"/>
+                   FontSize="11" Foreground="{DynamicResource Dim}" VerticalAlignment="Center"/>
         <Button DockPanel.Dock="Right" x:Name="btnCancel" Style="{StaticResource Outline}" Content="Cancel"
                 IsCancel="True"/>
       </DockPanel>

@@ -4,7 +4,28 @@ A Windows desktop app for hosting several S2x dedicated servers out of one Call 
 folder. It shows one card per server, tells you what each one is doing, starts and stops them,
 and edits what each one runs. C# on WPF, .NET Framework 4.8, one exe with nothing beside it.
 
-Three slices are in: the fleet home, the editor and the console. Packaging comes last.
+Version 1.1.0 adds saved appearance themes, persistent card ordering, and a read-only master-server browser.
+The Bodega Cervantes and U.S.S. Mount Olympus survival maps are included in the map picker,
+so their registered two/three-bot launch profiles appear. The bot mods remain separate packages.
+
+## New in 1.1.0
+
+- Settings in the title bar offers Classic (dark amber), Light, and High contrast (dark).
+  The choice applies immediately and is saved per Windows user at
+  %LOCALAPPDATA%/S2x/ServerManager/settings.json.
+- Card order: drag a card by its header or blank area; drop on the left or right half
+  of another card to place it before or after. Buttons and text inputs do not start drags.
+  Keyboard: focus a card and use Alt+Left/Right. The order is saved for the current preset
+  directory, including hidden cards. Display-name/port changes retain position; new, Save As,
+  or externally renamed preset files append. Ordering never rewrites the server presets.
+- Master list queries the public S2x master and each advertised server for its current map,
+  mode, humans, bots, capacity and ping. Search/filter the results and copy a connect command
+  for the in-game console. Refresh is manual; close or Cancel ends an active query.
+  No reply means unknown availability, not confirmed offline. Failed refreshes retain the
+  previous results and their timestamp. This view does not start, stop or advertise servers.
+
+Card order is stored under <game>/s2x/server-manager/card-order-<preset-folder-hash>.json.
+See tests/server-manager for isolated regression tests. No live presets are used by those tests.
 
 ## Build
 
@@ -30,6 +51,8 @@ to ship with it: no NuGet packages, no DLLs, only framework assemblies.
     S2xServerManager.exe --demo-editor mp out.png
     S2xServerManager.exe --screenshot-console out.png
     S2xServerManager.exe --demo-roster out.png
+    S2xServerManager.exe --demo-master out.png --theme Light
+    S2xServerManager.exe --demo empty --screenshot out.png --theme HighContrast
 
 `--demo` takes `empty`, `one`, `three-notanswering` or `three-crashed`. `--demo-editor` takes
 `mp`, `zombies` or `empty` and renders the editor on a made-up server, no game folder read.
@@ -53,6 +76,10 @@ The game folder is found the way the PowerShell launcher finds it: the Steam reg
 app 476600, this exe's own folder walking up, the folder a launcher remembered in
 `%LOCALAPPDATA%\s2x\launcher-gamedir.txt`, then a folder picker. A folder counts when it holds
 `s2x.exe`.
+
+Rendering may override the theme with --theme Classic|Light|HighContrast without saving it.
+--settings-path <file> selects a separate preference file for isolated tests. The master preview
+uses clearly labeled synthetic rows and sends no network requests.
 
 ## The editor
 

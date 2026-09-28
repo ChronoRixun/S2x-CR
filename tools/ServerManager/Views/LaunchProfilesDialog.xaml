@@ -5,14 +5,14 @@
         Title="S2x Server Manager" Width="560" SizeToContent="Height"
         WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource Panel}" Foreground="{StaticResource Ink}"
-        BorderBrush="{StaticResource WindowEdge}" BorderThickness="1"
+        Background="{DynamicResource Panel}" Foreground="{DynamicResource Ink}"
+        BorderBrush="{DynamicResource WindowEdge}" BorderThickness="1"
         FontFamily="Segoe UI" FontSize="13"
         UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
   <Window.Resources>
     <!-- one registered folder: what it offers, where it is, and what is wrong with it -->
     <DataTemplate x:Key="ProfileTemplate">
-      <Border Background="{StaticResource Bar}" BorderBrush="{StaticResource Line}" BorderThickness="1"
+      <Border Background="{DynamicResource Bar}" BorderBrush="{DynamicResource Line}" BorderThickness="1"
               Padding="14,10" Margin="0,0,0,8">
         <DockPanel>
           <Button DockPanel.Dock="Right" Style="{StaticResource Link}" Content="Remove" Click="RemovePicked"
@@ -22,7 +22,7 @@
             <TextBlock Text="{Binding Folder}" Style="{StaticResource Mono}" Margin="0,4,0,0"
                        TextTrimming="CharacterEllipsis" ToolTip="{Binding Folder}"/>
             <TextBlock Text="{Binding Problem}" Visibility="{Binding ProblemVisibility}" FontSize="11"
-                       Foreground="{StaticResource Accent}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                       Foreground="{DynamicResource Accent}" TextWrapping="Wrap" Margin="0,4,0,0"/>
           </StackPanel>
         </DockPanel>
       </Border>
@@ -30,19 +30,19 @@
   </Window.Resources>
 
   <StackPanel>
-    <Border x:Name="barTitle" Background="{StaticResource Bar}" BorderBrush="{StaticResource Line}"
+    <Border x:Name="barTitle" Background="{DynamicResource Bar}" BorderBrush="{DynamicResource Line}"
             BorderThickness="0,0,0,1" Padding="16,0" Height="36">
       <TextBlock views:TextEffects.Tracked="LAUNCH PROFILES" FontSize="10.5" FontWeight="Bold"
-                 Foreground="{StaticResource Accent}" VerticalAlignment="Center"/>
+                 Foreground="{DynamicResource Accent}" VerticalAlignment="Center"/>
     </Border>
     <StackPanel Margin="20,16,20,18">
-      <TextBlock FontSize="12.5" Foreground="{StaticResource Label}" TextWrapping="Wrap" LineHeight="18"
+      <TextBlock FontSize="12.5" Foreground="{DynamicResource Label}" TextWrapping="Wrap" LineHeight="18"
                  Margin="0,0,0,12"
                  Text="A launch profile is a separately installed server package that starts its own servers. Register its folder here and its modes show in the editor's mode list."/>
       <ItemsControl x:Name="lstProfiles" ItemTemplate="{StaticResource ProfileTemplate}"/>
-      <TextBlock x:Name="lblEmpty" Text="No launch profiles registered." FontSize="12" Foreground="{StaticResource Dim}"
+      <TextBlock x:Name="lblEmpty" Text="No launch profiles registered." FontSize="12" Foreground="{DynamicResource Dim}"
                  Margin="0,0,0,8"/>
-      <TextBlock x:Name="lblMessage" FontSize="11.5" Foreground="{StaticResource Accent}" TextWrapping="Wrap"
+      <TextBlock x:Name="lblMessage" FontSize="11.5" Foreground="{DynamicResource Accent}" TextWrapping="Wrap"
                  Visibility="Collapsed" Margin="0,0,0,8"/>
       <DockPanel Margin="0,8,0,0">
         <Button DockPanel.Dock="Right" x:Name="btnClose" Style="{StaticResource Primary}" Content="CLOSE"

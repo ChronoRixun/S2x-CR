@@ -20,6 +20,30 @@ namespace S2x.ServerManager
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+            var settingsPath = Argument(e.Args, "--settings-path");
+            if (settingsPath != null && (string.IsNullOrWhiteSpace(settingsPath) || settingsPath.StartsWith("--", StringComparison.Ordinal)))
+            { Stop("--settings-path needs a file path.", 2); return; }
+            ThemeManager.Initialize(settingsPath);
+            var theme = Argument(e.Args, "--theme");
+            if (theme != null)
+            {
+                ThemeMode parsed;
+                if (!Enum.TryParse(theme, true, out parsed) || !Enum.IsDefined(typeof(ThemeMode), parsed))
+                { Stop("--theme takes Classic, Light or HighContrast.", 2); return; }
+                ThemeManager.Apply(parsed, false);
+            }
+
+            var masterPreview = Argument(e.Args, "--demo-master");
+            if (masterPreview != null)
+            {
+                if (string.IsNullOrWhiteSpace(masterPreview) || masterPreview.StartsWith("--", StringComparison.Ordinal)) { Stop("--demo-master <png> needs a path.", 2); return; }
+                var model = MasterBrowserViewModel.Demo();
+                var preview = new Views.MasterBrowserWindow(model, false);
+                MainWindow = preview;
+                CaptureStandalone(preview, masterPreview);
+                return;
+            }
+
 
             var demo = Argument(e.Args, "--demo");
             var demoEditor = Argument(e.Args, "--demo-editor");
@@ -209,9 +233,31 @@ namespace S2x.ServerManager
             }, DispatcherPriority.Loaded);
         }
 
+        private void CaptureStandalone(Window window, string path)
+        {
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            window.WindowStartupLocation = WindowStartupLocation.Manual;
+            window.Left = -20000; window.Top = -20000;
+            window.ShowInTaskbar = false; window.ShowActivated = false;
+            window.Show();
+            Dispatcher.InvokeAsync(async () =>
+            {
+                var code = 0;
+                try
+                {
+                    window.UpdateLayout();
+                    await Dispatcher.Yield(DispatcherPriority.ContextIdle);
+                    window.UpdateLayout();
+                    Save(window, path);
+                }
+                catch (Exception ex) { Console.Error.WriteLine(ex); code = 2; }
+                window.Close(); Shutdown(code);
+            }, DispatcherPriority.Loaded);
+        }
+
         private static void Save(Window window, string path)
         {
-            var bitmap = new RenderTargetBitmap(ShotWidth, ShotHeight, 96, 96, PixelFormats.Pbgra32);
+            var bitmap = new RenderTargetBitmap((int)window.ActualWidth, (int)window.ActualHeight, 96, 96, PixelFormats.Pbgra32);
             bitmap.Render(window);
             var png = new PngBitmapEncoder();
             png.Frames.Add(BitmapFrame.Create(bitmap));

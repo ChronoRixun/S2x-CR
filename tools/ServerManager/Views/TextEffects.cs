@@ -56,7 +56,7 @@ namespace S2x.ServerManager.Views
         private static void Flush(TextBlock block, StringBuilder run, string color)
         {
             if (run.Length == 0) return;
-            block.Inlines.Add(new Run(run.ToString()) { Foreground = Palette.Frozen(color) });
+            block.Inlines.Add(new Run(run.ToString()) { Foreground = Palette.GameText(color) });
             run.Clear();
         }
 
