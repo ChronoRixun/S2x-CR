@@ -31,4 +31,14 @@
     <Reference Include="System.Web" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Theme pack fonts, built into the exe as WPF Resources (still one file). Drop the .ttf/.otf
+         files listed in Assets/Fonts/README.md into that folder; the wildcards pick them up and
+         Services/ThemeFonts.cs uses any family it finds there instead of its Windows fallback.
+         Their licence texts go in Assets/Fonts/licenses and ship inside the exe the same way. -->
+    <Resource Include="Assets\Fonts\*.ttf" />
+    <Resource Include="Assets\Fonts\*.otf" />
+    <Resource Include="Assets\Fonts\licenses\*.txt" />
+  </ItemGroup>
+
 </Project>

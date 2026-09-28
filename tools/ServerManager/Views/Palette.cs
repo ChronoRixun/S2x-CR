@@ -3,41 +3,65 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Windows.Data;
 using System.Windows.Media;
+using S2x.ServerManager.Services;
 
 namespace S2x.ServerManager.Views
 {
     /// <summary>
-    /// Live colour tokens for the parts a card decides in code. Theme.xaml carries
-    /// the Classic defaults; ThemeManager shares these brushes with XAML resources.
+    /// Live colour tokens for the parts a card decides in code. ThemeManager puts the same
+    /// brushes in the application resources under the same keys, and a theme change sets their
+    /// colours in place: a brush a view model handed out keeps being the right colour.
     /// </summary>
     internal static class Palette
     {
         private static readonly Dictionary<SolidColorBrush, ColorSignal> Signals = new Dictionary<SolidColorBrush, ColorSignal>();
-        public static readonly Brush Accent = Mutable("#FFE8A33D");
-        public static readonly Brush AccentHot = Mutable("#FFF4BB66");
-        public static readonly Brush Ok = Mutable("#FF5FBF7A");
-        public static readonly Brush Danger = Mutable("#FFC7524A");
-        public static readonly Brush Ink = Mutable("#FFE6E8EA");
-        public static readonly Brush Label = Mutable("#FFA8B0B6");
-        public static readonly Brush Muted = Mutable("#FF8A9299");
-        public static readonly Brush Dim = Mutable("#FF6F777D");
-        public static readonly Brush Faint = Mutable("#FF5C646B");
-        public static readonly Brush Off = Mutable("#FF4A5157");
-        public static readonly Brush Line = Mutable("#FF1C2024");
-        public static readonly Brush Edge = Mutable("#FF262B30");
-        public static readonly Brush EdgeHot = Mutable("#FF3A4147");
-        public static readonly Brush Bar = Mutable("#FF0A0B0D");
-        public static readonly Brush Field = Mutable("#FF16191C");
-        public static readonly Brush Row = Mutable("#FF121417");
-        public static readonly Brush Panel = Mutable("#FF0E1012");
-        public static readonly Brush TagBg = Mutable("#FF1A1710");
-        public static readonly Brush TagEdge = Mutable("#FF3A2F1C");
-        public static readonly Brush DangerBg = Mutable("#FF1C1211");
-        public static readonly Brush DangerEdge = Mutable("#FF4A2A28");
+
+        /// <summary>Every solid token, by resource key.</summary>
+        internal static readonly Dictionary<string, SolidColorBrush> Tokens = new Dictionary<string, SolidColorBrush>();
+
+        public static readonly Brush Accent = Token("Accent");
+        public static readonly Brush AccentHot = Token("AccentHot");
+        public static readonly Brush Ok = Token("Ok");
+        public static readonly Brush Danger = Token("Danger");
+        public static readonly Brush Ink = Token("Ink");
+        public static readonly Brush Label = Token("Label");
+        public static readonly Brush Muted = Token("Muted");
+        public static readonly Brush Dim = Token("Dim");
+        public static readonly Brush Faint = Token("Faint");
+        public static readonly Brush Off = Token("StatusOff");
+        public static readonly Brush Line = Token("Line");
+        public static readonly Brush Edge = Token("Edge");
+        public static readonly Brush EdgeHot = Token("EdgeHot");
+        public static readonly Brush Bar = Token("Bar");
+        public static readonly Brush Field = Token("Field");
+        public static readonly Brush Row = Token("Row");
+        public static readonly Brush Panel = Token("Panel");
+        public static readonly Brush Surface = Token("Surface");
+        public static readonly Brush FillInk = Token("FillInk");
+        public static readonly Brush TagBg = Token("TagBg");
+        public static readonly Brush TagEdge = Token("TagEdge");
+        public static readonly Brush DangerBg = Token("DangerBg");
+        public static readonly Brush DangerEdge = Token("DangerEdge");
+        /// <summary>The status colours at the theme's badge tint (transparent where the badge has none).</summary>
+        public static readonly Brush OkTint = Token("OkTint");
+        public static readonly Brush AccentTint = Token("AccentTint");
+        public static readonly Brush DangerTint = Token("DangerTint");
+        public static readonly Brush MutedTint = Token("MutedTint");
         public static readonly Brush Transparent = Brushes.Transparent;
 
+        static Palette()
+        {
+            // The rest of the keys have no field; they still get a live brush for the resources.
+            // Every token starts as the default theme, so anything drawn before ThemeManager
+            // starts (a test, a designer) still has its colours.
+            var colors = ThemeResources.DeriveColors(ThemeCatalog.Get(ThemeCatalog.Default));
+            foreach (var key in ThemeResources.ColorKeys) SetColor(Token(key), colors[key]);
+        }
+
         internal static readonly Dictionary<string, SolidColorBrush> GameTextBrushes = new Dictionary<string, SolidColorBrush>();
+        /// <summary>True when the window is light, so bright name colours are darkened instead.</summary>
         internal static bool LightTheme;
+
         public static Brush GameText(string hex)
         {
             SolidColorBrush brush;
@@ -48,6 +72,7 @@ namespace S2x.ServerManager.Views
             }
             return brush;
         }
+
         internal static Color TextColor(string hex)
         {
             var color = (Color)ColorConverter.ConvertFromString(hex);
@@ -62,12 +87,21 @@ namespace S2x.ServerManager.Views
                 return Color.FromRgb((byte)Math.Max((int)color.R, 155), (byte)Math.Max((int)color.G, 155), (byte)Math.Max((int)color.B, 155));
             return color;
         }
+
         private sealed class ColorSignal : INotifyPropertyChanged
         {
             private Color _value;
             public Color Value { get { return _value; } set { _value = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Value))); } }
             public event PropertyChangedEventHandler PropertyChanged;
         }
+
+        private static SolidColorBrush Token(string key)
+        {
+            SolidColorBrush brush;
+            if (!Tokens.TryGetValue(key, out brush)) Tokens[key] = brush = Mutable(Colors.Transparent);
+            return brush;
+        }
+
         internal static SolidColorBrush Mutable(Color color)
         {
             var signal = new ColorSignal { Value = color };
@@ -77,8 +111,9 @@ namespace S2x.ServerManager.Views
             Signals.Add(brush, signal);
             return brush;
         }
+
         internal static void SetColor(SolidColorBrush brush, Color color) { Signals[brush].Value = color; }
-        private static Brush Mutable(string hex) { return Mutable((Color)ColorConverter.ConvertFromString(hex)); }
+
         public static Brush Frozen(string hex)
         {
             var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));

@@ -68,18 +68,22 @@ namespace S2x.ServerManager.Views
         public static void SetTracked(DependencyObject target, string value) { target.SetValue(TrackedProperty, value); }
         public static string GetTracked(DependencyObject target) { return (string)target.GetValue(TrackedProperty); }
 
+        // The gap between letters is a thin space in a proportional font of its own. The letters
+        // keep the theme's label font; a monospace one (Consolas, Lucida Console) draws every
+        // space character, thin or not, a full cell wide, which doubled the labels' width.
+        private static readonly FontFamily SpacerFont = new FontFamily("Segoe UI");
+
         private static void OnTrackedChanged(DependencyObject target, DependencyPropertyChangedEventArgs e)
         {
             var block = target as TextBlock;
             if (block == null) return;
             var text = e.NewValue as string ?? "";
-            var spaced = new StringBuilder(text.Length * 2);
+            block.Inlines.Clear();
             for (int i = 0; i < text.Length; i++)
             {
-                spaced.Append(text[i]);
-                if (i + 1 < text.Length) spaced.Append(' ');   // thin space
+                block.Inlines.Add(new Run(text[i].ToString()));
+                if (i + 1 < text.Length) block.Inlines.Add(new Run("\u2009") { FontFamily = SpacerFont });
             }
-            block.Text = spaced.ToString();
         }
     }
 

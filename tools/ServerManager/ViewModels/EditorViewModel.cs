@@ -23,8 +23,8 @@ namespace S2x.ServerManager.ViewModels
     internal sealed class SegmentOption
     {
         public string Label { get; set; }
-        public Brush Background { get; set; }
-        public Brush Foreground { get; set; }
+        /// <summary>The chosen one: the Segment style lights it.</summary>
+        public bool IsOn { get; set; }
         public RelayCommand PickCommand { get; set; }
     }
 
@@ -231,10 +231,6 @@ namespace S2x.ServerManager.ViewModels
         public bool IsZombies { get { return _isZombies; } }
         public bool IsMultiplayer { get { return !_isZombies; } }
         public Visibility MultiplayerVisibility { get { return _isZombies ? Visibility.Collapsed : Visibility.Visible; } }
-        public Brush MpBackground { get { return _isZombies ? Palette.Transparent : Palette.Accent; } }
-        public Brush MpForeground { get { return _isZombies ? Palette.Muted : Palette.Bar; } }
-        public Brush ZmBackground { get { return _isZombies ? Palette.Accent : Palette.Transparent; } }
-        public Brush ZmForeground { get { return _isZombies ? Palette.Bar : Palette.Muted; } }
 
         /// <summary>
         /// The port the running process is on: the one the preset was saved with. The box above
@@ -662,6 +658,23 @@ namespace S2x.ServerManager.ViewModels
 
         public Brush DotBrush { get { return _state.Status == ServerStatus.Stopped ? Palette.Off : StateBrush; } }
 
+        public Brush StateTint
+        {
+            get
+            {
+                switch (_state.Status)
+                {
+                    case ServerStatus.Running: return Palette.OkTint;
+                    case ServerStatus.Starting:
+                    case ServerStatus.NotAnswering: return Palette.AccentTint;
+                    case ServerStatus.Crashed: return Palette.DangerTint;
+                    default: return Palette.MutedTint;
+                }
+            }
+        }
+
+        public bool IsRunning { get { return _state.Status == ServerStatus.Running; } }
+
         public string StatusSub
         {
             get
@@ -727,7 +740,7 @@ namespace S2x.ServerManager.ViewModels
             // the port being typed would borrow another server's players and map.
             _state = _fleet.StateFor(OwnedPort);
             if (IsStopped && _portLocked) { _portLocked = false; Raise("PortWarning"); Raise("PortWarningVisibility"); }
-            Raise("StateCaps"); Raise("StateBrush"); Raise("DotBrush"); Raise("StatusSub");
+            Raise("StateCaps"); Raise("StateBrush"); Raise("DotBrush"); Raise("StateTint"); Raise("IsRunning"); Raise("StatusSub");
             Raise("LaunchVisibility"); Raise("RunningVisibility"); Raise("DeleteVisibility");
             foreach (var row in Rotation) row.Refresh();
         }
@@ -1008,8 +1021,7 @@ namespace S2x.ServerManager.ViewModels
             return new SegmentOption
             {
                 Label = label,
-                Background = on ? Palette.Accent : Palette.Transparent,
-                Foreground = on ? Palette.Bar : Palette.Muted,
+                IsOn = on,
                 PickCommand = new RelayCommand(pick),
             };
         }

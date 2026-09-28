@@ -2,7 +2,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:views="clr-namespace:S2x.ServerManager.Views"
-             FontFamily="Segoe UI" FontSize="13" Foreground="{DynamicResource Ink}">
+             Foreground="{DynamicResource Ink}">
 
   <UserControl.Resources>
     <!-- The grip along the top edge: drag the drawer taller or shorter. -->
@@ -24,13 +24,20 @@
     <Style x:Key="DrawerButton" TargetType="Button" BasedOn="{StaticResource Flat}">
       <Setter Property="Height" Value="26"/>
       <Setter Property="Padding" Value="10,0"/>
-      <Setter Property="FontSize" Value="10.5"/>
-      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="FontSize" Value="{DynamicResource SizeLabelL}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BtnEdge}"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="Margin" Value="6,0,0,0"/>
       <Setter Property="Tag" Value="Transparent"/>
+      <Setter Property="views:ThemeAssist.CornerRadius" Value="{DynamicResource Radius}"/>
       <Style.Triggers>
+        <!-- FOLLOW and PAUSE are toggles: lit like a chosen segment. -->
+        <Trigger Property="views:ThemeAssist.Active" Value="True">
+          <Setter Property="Background" Value="{DynamicResource Surface}"/>
+          <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
+          <Setter Property="BorderBrush" Value="{DynamicResource TagEdge}"/>
+          <Setter Property="Tag" Value="{DynamicResource Surface}"/>
+        </Trigger>
         <Trigger Property="IsMouseOver" Value="True">
           <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
           <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
@@ -39,8 +46,8 @@
     </Style>
 
     <DataTemplate x:Key="LogLineTemplate">
-      <TextBlock Text="{Binding Text}" Foreground="{Binding Fill}" FontFamily="Consolas"
-                 FontSize="11.5" LineHeight="19" TextWrapping="NoWrap"/>
+      <TextBlock Text="{Binding Text}" Foreground="{Binding Fill}" FontFamily="{DynamicResource FontMono}"
+                 FontSize="{DynamicResource SizeMono}" LineHeight="19" TextWrapping="NoWrap"/>
     </DataTemplate>
   </UserControl.Resources>
 
@@ -57,39 +64,39 @@
       <!-- header: which server, which file, and what the drawer is doing -->
       <Border Grid.Row="1" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
         <DockPanel Margin="20,0,12,0" LastChildFill="False">
-          <TextBlock DockPanel.Dock="Left" views:TextEffects.Tracked="CONSOLE" FontSize="10.5"
-                     FontWeight="Bold" Foreground="{DynamicResource Accent}" VerticalAlignment="Center"/>
+          <TextBlock DockPanel.Dock="Left" views:TextEffects.Tracked="CONSOLE" Style="{StaticResource CapsL}"
+                     Foreground="{DynamicResource Accent}" Effect="{DynamicResource TextGlow}" VerticalAlignment="Center"/>
           <Rectangle DockPanel.Dock="Left" Width="7" Height="7" Fill="{Binding DotBrush}"
                      VerticalAlignment="Center" Margin="10,0,0,0"/>
           <TextBlock DockPanel.Dock="Left" views:TextEffects.ColorName="{Binding ServerName}"
-                     FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" Margin="8,0,0,0"
+                     FontSize="{DynamicResource SizeBodyS}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="8,0,0,0"
                      MaxWidth="240" TextTrimming="CharacterEllipsis"/>
 
           <Button DockPanel.Dock="Right" Style="{StaticResource DrawerButton}" Width="26" Padding="0"
-                  Content="&#x2715;" FontWeight="Normal" Foreground="{DynamicResource Dim}"
+                  Content="&#x2715;" FontFamily="Segoe UI Symbol" FontWeight="Normal" Foreground="{DynamicResource Dim}"
                   Command="{Binding CloseCommand}" ToolTip="Close the console (Esc)"/>
           <Button DockPanel.Dock="Right" Style="{StaticResource DrawerButton}" Content="ADMIN" Click="OpenAdmin" ToolTip="Player administration for Manager-started local servers"/>
           <Button DockPanel.Dock="Right" Style="{StaticResource DrawerButton}" Content="COPY"
                   Command="{Binding CopyCommand}" ToolTip="Copy the lines on screen"/>
           <Button DockPanel.Dock="Right" Style="{StaticResource DrawerButton}" Content="FOLLOW"
-                  Command="{Binding FollowCommand}" Background="{Binding FollowBackground}"
-                  Foreground="{Binding FollowForeground}" ToolTip="Scroll to the newest line"/>
+                  Command="{Binding FollowCommand}" views:ThemeAssist.Active="{Binding FollowOn}"
+                  ToolTip="Scroll to the newest line"/>
           <Button DockPanel.Dock="Right" Style="{StaticResource DrawerButton}" Content="{Binding PauseLabel}"
-                  Command="{Binding PauseCommand}" Background="{Binding PauseBackground}"
-                  Foreground="{Binding PauseForeground}" ToolTip="Hold the lines where they are"/>
+                  Command="{Binding PauseCommand}" views:ThemeAssist.Active="{Binding IsPaused}"
+                  ToolTip="Hold the lines where they are"/>
           <Grid DockPanel.Dock="Right" Width="190" Height="26" Margin="6,0,0,0" VerticalAlignment="Center">
-            <TextBox x:Name="txtFilter" Style="{StaticResource Entry}" FontSize="12" Padding="8,3"
+            <TextBox x:Name="txtFilter" Style="{StaticResource Entry}" FontSize="{DynamicResource SizeBodyS}" Padding="8,3"
                      Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"/>
-            <TextBlock Text="filter" IsHitTestVisible="False" FontSize="12" Foreground="{DynamicResource Faint}"
+            <TextBlock Text="filter" IsHitTestVisible="False" FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Faint}"
                        Margin="10,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left"
                        Visibility="{Binding FilterPlaceholderVisibility}"/>
           </Grid>
 
           <!-- whether this is the server's own log, and the file being read -->
           <Border DockPanel.Dock="Left" Visibility="{Binding SharedVisibility}" Margin="14,0,0,0"
-                  Background="{DynamicResource TagBg}" BorderBrush="{DynamicResource TagEdge}"
-                  BorderThickness="1" Padding="7,2" VerticalAlignment="Center">
-            <TextBlock Text="{Binding SharedNote}" FontSize="11" Foreground="{DynamicResource Accent}"/>
+                  Style="{StaticResource Tag}" Background="{DynamicResource TagBg}" BorderBrush="{DynamicResource TagEdge}"
+                  Padding="7,2" VerticalAlignment="Center">
+            <TextBlock Text="{Binding SharedNote}" FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Accent}"/>
           </Border>
           <TextBlock DockPanel.Dock="Left" Text="{Binding LogFile}" Style="{StaticResource Mono}"
                      VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis"/>
@@ -101,7 +108,7 @@
         <StackPanel>
           <ItemsControl ItemsSource="{Binding Lines}" ItemTemplate="{StaticResource LogLineTemplate}"/>
           <TextBlock Text="{Binding HeldNote}" Visibility="{Binding HeldVisibility}"
-                     Foreground="{DynamicResource Accent}" FontFamily="Consolas" FontSize="11.5"
+                     Foreground="{DynamicResource Accent}" FontFamily="{DynamicResource FontMono}" FontSize="{DynamicResource SizeMono}"
                      Margin="0,6,0,0"/>
         </StackPanel>
       </ScrollViewer>

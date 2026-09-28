@@ -24,13 +24,33 @@ namespace S2x.ServerManager
             if (settingsPath != null && (string.IsNullOrWhiteSpace(settingsPath) || settingsPath.StartsWith("--", StringComparison.Ordinal)))
             { Stop("--settings-path needs a file path.", 2); return; }
             ThemeManager.Initialize(settingsPath);
+            // --theme and --effects change what this run shows without saving it.
             var theme = Argument(e.Args, "--theme");
-            if (theme != null)
+            var effects = Argument(e.Args, "--effects");
+            if (theme != null || effects != null)
             {
-                ThemeMode parsed;
-                if (!Enum.TryParse(theme, true, out parsed) || !Enum.IsDefined(typeof(ThemeMode), parsed))
-                { Stop("--theme takes Classic, Light or HighContrast.", 2); return; }
-                ThemeManager.Apply(parsed, false);
+                var mode = ThemeManager.Current;
+                bool migrated;
+                if (theme != null && !ThemeCatalog.TryParse(theme, out mode, out migrated))
+                { Stop("--theme takes " + ThemeCatalog.Names + ".", 2); return; }
+                var on = ThemeManager.EffectsEnabled;
+                if (effects != null)
+                {
+                    if (string.Equals(effects, "on", StringComparison.OrdinalIgnoreCase)) on = true;
+                    else if (string.Equals(effects, "off", StringComparison.OrdinalIgnoreCase)) on = false;
+                    else { Stop("--effects takes on or off.", 2); return; }
+                }
+                ThemeManager.Apply(mode, on, false);
+            }
+
+            var settingsPreview = Argument(e.Args, "--screenshot-settings");
+            if (settingsPreview != null)
+            {
+                if (string.IsNullOrWhiteSpace(settingsPreview) || settingsPreview.StartsWith("--", StringComparison.Ordinal)) { Stop("--screenshot-settings <png> needs a path.", 2); return; }
+                var dialog = new Views.SettingsDialog();
+                MainWindow = dialog;
+                CaptureStandalone(dialog, settingsPreview);
+                return;
             }
 
             var masterPreview = Argument(e.Args, "--demo-master");
@@ -257,7 +277,12 @@ namespace S2x.ServerManager
 
         private static void Save(Window window, string path)
         {
-            var bitmap = new RenderTargetBitmap((int)window.ActualWidth, (int)window.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+            // A window with the system frame is wider and taller than what it draws; the frame is
+            // not rendered, so size the image to the client area the template fills.
+            var client = VisualTreeHelper.GetChildrenCount(window) > 0 ? VisualTreeHelper.GetChild(window, 0) as FrameworkElement : null;
+            var width = client != null && client.ActualWidth > 0 ? client.ActualWidth : window.ActualWidth;
+            var height = client != null && client.ActualHeight > 0 ? client.ActualHeight : window.ActualHeight;
+            var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width), (int)Math.Ceiling(height), 96, 96, PixelFormats.Pbgra32);
             bitmap.Render(window);
             var png = new PngBitmapEncoder();
             png.Frames.Add(BitmapFrame.Create(bitmap));
