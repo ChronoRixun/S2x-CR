@@ -85,6 +85,35 @@ namespace S2x.ServerManager.Views
                 if (i + 1 < text.Length) block.Inlines.Add(new Run("\u2009") { FontFamily = SpacerFont });
             }
         }
+
+        // ── the rotation preview ──────────────────────────────────────────────────
+        /// <summary>
+        /// A card's NEXT line as runs in one TextBlock: an accent arrow before each entry, and an
+        /// ellipsis where the card runs out of width. It was a row of separate blocks, which the
+        /// card cut off mid-word instead.
+        /// </summary>
+        public static readonly DependencyProperty NextItemsProperty =
+            DependencyProperty.RegisterAttached("NextItems", typeof(System.Collections.IEnumerable), typeof(TextEffects),
+                new PropertyMetadata(null, OnNextItemsChanged));
+
+        public static void SetNextItems(DependencyObject target, System.Collections.IEnumerable value) { target.SetValue(NextItemsProperty, value); }
+        public static System.Collections.IEnumerable GetNextItems(DependencyObject target) { return (System.Collections.IEnumerable)target.GetValue(NextItemsProperty); }
+
+        private static readonly FontFamily ArrowFont = new FontFamily("Segoe UI Symbol");
+
+        private static void OnNextItemsChanged(DependencyObject target, DependencyPropertyChangedEventArgs e)
+        {
+            var block = target as TextBlock;
+            if (block == null) return;
+            block.Inlines.Clear();
+            var items = e.NewValue as System.Collections.IEnumerable;
+            if (items == null) return;
+            foreach (var item in items)
+            {
+                block.Inlines.Add(new Run(block.Inlines.Count == 0 ? "\u25b8\u2002" : "\u2003\u25b8\u2002") { Foreground = Palette.Accent, FontFamily = ArrowFont });
+                block.Inlines.Add(new Run(Convert.ToString(item)) { Foreground = Palette.Label });
+            }
+        }
     }
 
     /// <summary>
@@ -103,10 +132,33 @@ namespace S2x.ServerManager.Views
             set { SetValue(ColumnsProperty, value); }
         }
 
-        protected override Size MeasureOverride(Size available)
+        /// <summary>
+        /// The narrowest a column may get, card margin included: the design's grid is
+        /// repeat(auto-fill, minmax(310px, 1fr)), so a window too narrow for three such columns
+        /// shows two (and one below that) instead of squeezing the cards. 0 keeps Columns fixed.
+        /// </summary>
+        public static readonly DependencyProperty MinColumnWidthProperty =
+            DependencyProperty.Register("MinColumnWidth", typeof(double), typeof(CardsPanel),
+                new FrameworkPropertyMetadata(0.0, FrameworkPropertyMetadataOptions.AffectsMeasure));
+
+        public double MinColumnWidth
+        {
+            get { return (double)GetValue(MinColumnWidthProperty); }
+            set { SetValue(MinColumnWidthProperty, value); }
+        }
+
+        private int ColumnsFor(double width)
         {
             var columns = Math.Max(1, Columns);
+            if (MinColumnWidth > 0 && !double.IsInfinity(width))
+                columns = Math.Max(1, Math.Min(columns, (int)Math.Floor(width / MinColumnWidth)));
+            return columns;
+        }
+
+        protected override Size MeasureOverride(Size available)
+        {
             var width = double.IsInfinity(available.Width) ? 1116 : available.Width;
+            var columns = ColumnsFor(width);
             var cell = width / columns;
 
             double total = 0, row = 0;
@@ -122,7 +174,7 @@ namespace S2x.ServerManager.Views
 
         protected override Size ArrangeOverride(Size final)
         {
-            var columns = Math.Max(1, Columns);
+            var columns = ColumnsFor(final.Width);
             var cell = final.Width / columns;
 
             double y = 0, row = 0;

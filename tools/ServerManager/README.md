@@ -169,10 +169,21 @@ them, Services/ThemeResources.cs converts them):
   the Manager's thin-space tracking, whose spaces are set in a proportional font so monospace
   themes do not double their width.
 
-Fonts: the exe stays one file. Font files dropped into Assets/Fonts are built in as WPF
-Resources and used automatically; until then each role uses the installed Windows fallback in
-the table, scaled to match. Assets/Fonts/README.md lists the 23 files, where they come from and
-where their licence texts go.
+Fonts: the exe stays one file. The 23 font files in Assets/Fonts are built in as WPF Resources
+and used automatically, at the design's scales; a family whose file is missing falls back to the
+installed Windows font in the table, scaled to match. Assets/Fonts/README.md lists the files,
+where they come from and where their licence texts are.
+
+Layout follows the fonts, whose widths differ a lot (Press Start 2P, Orbitron and Black Ops One
+are wide, VT323 is drawn at 1.4x). Nothing is cut without an ellipsis in any theme, at the
+default 1160 x 740 or the 1000 x 620 minimum (`tests/server-manager/layout-fit.ps1` checks):
+a card's button row gives every button its label's width and shares the rest by the design's
+proportions, only the copy address trimming; the card grid keeps the design's 310 px minimum
+card width, so a narrow window shows two columns; the stat strip, like the design's, wraps its
+buttons under the stats when both do not fit; and the editor puts a label's buttons (Name
+pool, Difficulty), mode and port, or the rotation's controls under their label when a wide font
+leaves too little room beside it. Long names, summaries and score labels trim, with the whole
+text in a tooltip.
 
 ## The editor
 

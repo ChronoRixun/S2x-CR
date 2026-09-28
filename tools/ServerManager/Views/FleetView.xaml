@@ -10,24 +10,14 @@
       <Rectangle Width="3" Height="{Binding Height}" Fill="{Binding Fill}" VerticalAlignment="Bottom" Margin="0,0,2,0"/>
     </DataTemplate>
 
-    <DataTemplate x:Key="NextTemplate">
-      <StackPanel Orientation="Horizontal">
-        <TextBlock Text="&#x25B8;" Foreground="{DynamicResource Accent}" Margin="6,0" FontFamily="Segoe UI Symbol"/>
-        <TextBlock Text="{Binding}" Foreground="{DynamicResource Label}" FontSize="{DynamicResource SizeBodyXS}"
-                   TextTrimming="CharacterEllipsis"/>
-      </StackPanel>
-    </DataTemplate>
-
-    <!-- the rotation preview, shared by the running and the stopped card -->
+    <!-- the rotation preview, shared by the running and the stopped card: one line of runs,
+         so a long rotation ends in an ellipsis instead of being cut mid-word -->
     <DataTemplate x:Key="NextRowTemplate">
-      <DockPanel Margin="0,12,0,0" Visibility="{Binding NextRow}" ClipToBounds="True">
+      <DockPanel Margin="0,12,0,0" Visibility="{Binding NextRow}">
         <TextBlock views:TextEffects.Tracked="{Binding NextLabel}" Style="{StaticResource Caps}"
-                   Foreground="{DynamicResource Muted}" Margin="0,0,4,0" VerticalAlignment="Center"/>
-        <ItemsControl ItemsSource="{Binding NextThree}" ItemTemplate="{StaticResource NextTemplate}" VerticalAlignment="Center">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-        </ItemsControl>
+                   Foreground="{DynamicResource Muted}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+        <TextBlock views:TextEffects.NextItems="{Binding NextThree}" FontSize="{DynamicResource SizeBodyXS}"
+                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
       </DockPanel>
     </DataTemplate>
 
@@ -161,7 +151,7 @@
                       Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
                 <StackPanel>
                   <TextBlock views:TextEffects.Tracked="{Binding HealthCaps}" Style="{StaticResource CapsL}"
-                             Foreground="{Binding StateBrush}" Effect="{DynamicResource TextGlow}"/>
+                             Foreground="{Binding StateBrush}" Effect="{DynamicResource TextGlow}" TextWrapping="Wrap"/>
                   <TextBlock Text="{Binding HealthLine}" FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Ink}"
                              TextWrapping="Wrap" Margin="0,8,0,0"/>
                   <TextBlock Text="{Binding HealthMono}" Style="{StaticResource Mono}" Foreground="{DynamicResource Muted}"
@@ -174,44 +164,37 @@
 
             <!-- actions -->
             <Border Grid.Row="2" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
-              <Grid>
-                <!-- EDIT, CONSOLE, RESTART and HIDE take what their label needs in the theme's
-                     label font; START/STOP and the copy button share the rest. -->
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="1.2*" MinWidth="64"/>
-                  <ColumnDefinition Width="Auto"/>
-                  <ColumnDefinition Width="Auto"/>
-                  <ColumnDefinition Width="Auto"/>
-                  <ColumnDefinition Width="Auto"/>
-                  <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <Button Grid.Column="0" Style="{StaticResource CardStart}" Content="&#x25B6; START"
+              <!-- The design's 1.2fr 0.9fr 1.1fr 0.8fr 1fr row: every button at least as wide as
+                   its label in the theme's label font, the rest shared by weight. Only the copy
+                   button gives way (it trims) when a card is short of room. -->
+              <views:FitRow>
+                <Button views:FitRow.Weight="1.2" Style="{StaticResource CardStart}" Content="&#x25B6; START" Padding="10,0"
                         Visibility="{Binding StartButton}" Command="{Binding StartCommand}"/>
-                <Button Grid.Column="0" Style="{StaticResource CardStop}" Content="&#x25A0; STOP"
+                <Button views:FitRow.Weight="1.2" Style="{StaticResource CardStop}" Content="&#x25A0; STOP" Padding="10,0"
                         Visibility="{Binding StopButton}" Command="{Binding StopCommand}"/>
-                <Button Grid.Column="1" Style="{StaticResource CardRestart}" Content="&#x21BB; RESTART" Padding="10,0"
+                <Button Style="{StaticResource CardRestart}" Content="&#x21BB; RESTART" Padding="10,0"
                         Visibility="{Binding RestartButton}" Command="{Binding RestartCommand}"
                         BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0"/>
-                <Button Grid.Column="2" Style="{StaticResource CardAction}" Content="EDIT" Padding="14,0"
+                <Button views:FitRow.Weight="0.9" Style="{StaticResource CardAction}" Content="EDIT" Padding="10,0"
                         Command="{Binding EditCommand}" ToolTip="Name, rotation, rules, bots"
                         BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0"/>
-                <Button Grid.Column="3" Style="{StaticResource CardAction}" Content="CONSOLE" Padding="12,0"
+                <Button views:FitRow.Weight="1.1" Style="{StaticResource CardAction}" Content="CONSOLE" Padding="10,0"
                         Command="{Binding ConsoleCommand}" ToolTip="This server's log, as it is written"
                         BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0"/>
                 <!-- Off the fleet until it is asked for. Only with no process behind the card:
                      hiding a server is not stopping it. -->
-                <Button Grid.Column="4" Style="{StaticResource CardAction}" Content="HIDE" Padding="10,0"
+                <Button views:FitRow.Weight="0.8" Style="{StaticResource CardAction}" Content="HIDE" Padding="10,0"
                         Visibility="{Binding HideButton}" Command="{Binding HideCommand}"
                         ToolTip="Off the fleet, out of Start All. The preset and its files stay."
                         BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0"/>
-                <Button Grid.Column="4" Style="{StaticResource CardAction}" Content="UNHIDE" Padding="10,0"
+                <Button views:FitRow.Weight="0.8" Style="{StaticResource CardAction}" Content="UNHIDE" Padding="10,0"
                         Visibility="{Binding UnhideButton}" Command="{Binding UnhideCommand}"
                         Foreground="{DynamicResource Accent}" ToolTip="Put this server back on the fleet"
                         BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0"/>
                 <!-- The line a player on this box pastes. The one for everybody else is on the
                      right-click menu, because nothing here knows the public address. -->
-                <Button Grid.Column="5" Style="{StaticResource CardCopy}" Command="{Binding CopyCommand}"
-                        BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0"
+                <Button views:FitRow.Weight="1" views:FitRow.Shrink="True" MinWidth="34" Style="{StaticResource CardCopy}"
+                        Command="{Binding CopyCommand}" BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0"
                         ToolTip="Copy the connect line. Right-click for the address off this machine.">
                   <Button.ContextMenu>
                     <ContextMenu>
@@ -221,7 +204,7 @@
                   </Button.ContextMenu>
                   <TextBlock Text="{Binding PortText, StringFormat=&#x29C9; :{0}}" TextTrimming="CharacterEllipsis"/>
                 </Button>
-              </Grid>
+              </views:FitRow>
             </Border>
           </Grid>
         </Border>
@@ -283,7 +266,7 @@
                      Foreground="{DynamicResource Ink}" Margin="0,8,0,0" TextWrapping="Wrap"/>
           <TextBlock Grid.Row="2" Text="{Binding Description}" FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Muted}"
                      Margin="0,8,0,8" TextWrapping="Wrap"/>
-          <TextBlock Grid.Row="3" Text="{Binding Meta}" Style="{StaticResource Mono}"/>
+          <TextBlock Grid.Row="3" Text="{Binding Meta}" Style="{StaticResource Mono}" TextWrapping="Wrap"/>
         </Grid>
       </Button>
     </DataTemplate>
@@ -292,43 +275,18 @@
 
   <Grid>
     <Grid.RowDefinitions>
-      <RowDefinition Height="76"/>
+      <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
     </Grid.RowDefinitions>
 
     <!-- ── fleet strip ───────────────────────────────────────────────────── -->
-    <!-- The buttons are docked first so they always get their width; in a wide label font at
-         the minimum window width it is the stats that give way (clipped at their right). -->
-    <Border Background="{DynamicResource Bar}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
-      <DockPanel>
-        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,18,0">
-          <Button Style="{StaticResource Primary}" Content="&#x25B6; START ALL" Command="{Binding StartAllCommand}"
-                  Height="40" Padding="16,0"/>
-          <Button Style="{StaticResource DangerGhost}" Content="&#x25A0; STOP ALL" Command="{Binding StopAllCommand}"
-                  Height="40" Padding="12,0" Margin="6,0,0,0"/>
-          <Button Style="{StaticResource Outline}" Content="+ NEW SERVER" Command="{Binding NewServerCommand}"
-                  Height="40" Padding="12,0" Margin="6,0,0,0"
-                  ToolTip="A bundled rotation or a blank one, on the next free port"/>
-          <Border Style="{StaticResource SegmentGroup}" Height="40" Margin="6,0,0,0">
-            <StackPanel Orientation="Horizontal">
-              <Button Style="{StaticResource Segment}" Content="&#x25A6; CARDS" Command="{Binding ShowCardsCommand}"
-                      Padding="12,0" views:ThemeAssist.Active="{Binding IsCardsView}"/>
-              <Button Style="{StaticResource Segment}" Content="&#x2630; ROSTER" Command="{Binding ShowRosterCommand}"
-                      Padding="12,0" views:ThemeAssist.Active="{Binding IsRosterView}"
-                      BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0"/>
-            </StackPanel>
-          </Border>
-          <!-- Only when something is hidden: a toggle for a fleet with nothing behind it says
-               nothing. -->
-          <Border Style="{StaticResource SegmentGroup}" Height="40" Margin="6,0,0,0"
-                  Visibility="{Binding ShowHiddenVisibility}">
-            <Button Style="{StaticResource Segment}" Content="{Binding ShowHiddenLabel}" Padding="12,0"
-                    Command="{Binding ToggleHiddenCommand}" views:ThemeAssist.Active="{Binding ShowHidden}"
-                    ToolTip="Show the servers that are off the fleet"/>
-          </Border>
-        </StackPanel>
-
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,0" ClipToBounds="True">
+    <!-- Stats on the left, buttons on the right; like the design's strip it wraps, so when a
+         narrow window and a wide theme font leave the stats less than their minimum, the
+         buttons go on a line of their own under them instead of the stats being cut. -->
+    <Border Background="{DynamicResource Bar}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" MinHeight="76">
+      <views:SplitRow Gap="16" Margin="20,10,18,10" VerticalAlignment="Center">
+        <!-- ATTENTION's note is the one part that gives way: it wraps to two lines, then trims. -->
+        <views:FitRow VerticalAlignment="Center">
           <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0" Padding="0,0,18,0">
             <StackPanel>
               <TextBlock views:TextEffects.Tracked="FLEET" Style="{StaticResource Caps}" Foreground="{DynamicResource Muted}"/>
@@ -355,19 +313,46 @@
               <TextBlock Text="{Binding FleetBots}" Style="{StaticResource Stat}" Margin="0,3,0,0"/>
             </StackPanel>
           </Border>
-          <Border Padding="18,0,0,0">
-            <StackPanel>
-              <TextBlock views:TextEffects.Tracked="ATTENTION" Style="{StaticResource Caps}" Foreground="{DynamicResource Muted}"/>
-              <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                <TextBlock Text="{Binding FleetAttention}" Style="{StaticResource Stat}"
-                           Foreground="{Binding FleetAttentionBrush}"/>
-                <TextBlock Text="{Binding FleetAttentionNote}" Style="{StaticResource Mono}" Foreground="{DynamicResource Muted}"
-                           MaxWidth="160" TextWrapping="Wrap" VerticalAlignment="Bottom" Margin="8,0,0,3"/>
-              </StackPanel>
+          <!-- At least the label and a short note; below that the strip wraps instead. -->
+          <StackPanel views:FitRow.Shrink="True" MinWidth="120" Margin="18,0,0,0">
+            <TextBlock views:TextEffects.Tracked="ATTENTION" Style="{StaticResource Caps}" Foreground="{DynamicResource Muted}"/>
+            <DockPanel Margin="0,3,0,0">
+              <TextBlock DockPanel.Dock="Left" Text="{Binding FleetAttention}" Style="{StaticResource Stat}"
+                         Foreground="{Binding FleetAttentionBrush}"/>
+              <TextBlock Text="{Binding FleetAttentionNote}" Style="{StaticResource Mono}" Foreground="{DynamicResource Muted}"
+                         MaxWidth="200" MaxHeight="40" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8,0,0,3"
+                         TextWrapping="Wrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding FleetAttentionNote}"/>
+            </DockPanel>
+          </StackPanel>
+        </views:FitRow>
+
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <Button Style="{StaticResource Primary}" Content="&#x25B6; START ALL" Command="{Binding StartAllCommand}"
+                  Height="40" Padding="16,0"/>
+          <Button Style="{StaticResource DangerGhost}" Content="&#x25A0; STOP ALL" Command="{Binding StopAllCommand}"
+                  Height="40" Padding="12,0" Margin="6,0,0,0"/>
+          <Button Style="{StaticResource Outline}" Content="+ NEW SERVER" Command="{Binding NewServerCommand}"
+                  Height="40" Padding="12,0" Margin="6,0,0,0"
+                  ToolTip="A bundled rotation or a blank one, on the next free port"/>
+          <Border Style="{StaticResource SegmentGroup}" Height="40" Margin="6,0,0,0">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Segment}" Content="&#x25A6; CARDS" Command="{Binding ShowCardsCommand}"
+                      Padding="12,0" views:ThemeAssist.Active="{Binding IsCardsView}"/>
+              <Button Style="{StaticResource Segment}" Content="&#x2630; ROSTER" Command="{Binding ShowRosterCommand}"
+                      Padding="12,0" views:ThemeAssist.Active="{Binding IsRosterView}"
+                      BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0"/>
             </StackPanel>
           </Border>
+          <!-- Only when something is hidden: a toggle for a fleet with nothing behind it says
+               nothing. -->
+          <Border Style="{StaticResource SegmentGroup}" Height="40" Margin="6,0,0,0"
+                  Visibility="{Binding ShowHiddenVisibility}">
+            <Button Style="{StaticResource Segment}" Content="{Binding ShowHiddenLabel}" Padding="12,0"
+                    Command="{Binding ToggleHiddenCommand}" views:ThemeAssist.Active="{Binding ShowHidden}"
+                    ToolTip="Show the servers that are off the fleet"/>
+          </Border>
         </StackPanel>
-      </DockPanel>
+      </views:SplitRow>
     </Border>
 
     <Grid Grid.Row="1">
@@ -402,7 +387,8 @@
           <ItemsControl ItemsSource="{Binding Shown}" ItemTemplate="{StaticResource CardTemplate}"
                         VerticalAlignment="Top">
             <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate><views:CardsPanel Columns="3"/></ItemsPanelTemplate>
+              <!-- 326 = the design's 310 px card minimum and the card's 16 px margin. -->
+              <ItemsPanelTemplate><views:CardsPanel Columns="3" MinColumnWidth="326"/></ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
           </ItemsControl>
         </ScrollViewer>

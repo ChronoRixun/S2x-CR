@@ -27,6 +27,11 @@ the `autoBalance` preset key, its cfg lines, the embedded script installer (fres
 current, upgrade, custom copy refused, held-open and unwritable targets, several
 targets) and the editor switch's gating. Theme/card/auto-balance tests use temporary
 directories; the installer never sees a real game folder or the real
-installed-scripts.json. Add -LiveMaster for one bounded read-only live query.
+installed-scripts.json. layout-fit.ps1 lays out the fleet (running, crashed and empty),
+the roster, the editor (multiplayer and Zombies) and Settings off-screen in all nine themes,
+at 1160 x 740 and at the 1000 x 620 minimum, with the embedded fonts, and fails on any text
+a clip cuts without an ellipsis. It hosts a plain WPF Application with Theme.xaml rather than
+the Manager's App, whose startup would otherwise run on the real game folder and settings.
+Add -LiveMaster for one bounded read-only live query.
 No test launches or controls game servers. Native-pointer drag gestures are not
 automated; the actual WPF drop handlers and visual-tree exclusions are exercised.

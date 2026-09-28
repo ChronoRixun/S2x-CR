@@ -35,11 +35,13 @@
       <TextBlock Text="Start from one of the bundled rotations, or from nothing."
                  FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Label}" Margin="0,0,0,12"/>
       <ItemsControl x:Name="lstChoices" ItemTemplate="{StaticResource ChoiceTemplate}"/>
-      <DockPanel Margin="0,8,0,0" LastChildFill="False">
-        <TextBlock Text="It opens in the editor on the next free port. Nothing is written until you save."
-                   FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Dim}" VerticalAlignment="Center"/>
+      <!-- CANCEL first, so it keeps its width; the note wraps into what is left. -->
+      <DockPanel Margin="0,8,0,0">
         <Button DockPanel.Dock="Right" x:Name="btnCancel" Style="{StaticResource Outline}" Content="CANCEL"
-                IsCancel="True"/>
+                IsCancel="True" VerticalAlignment="Center" Margin="12,0,0,0"/>
+        <TextBlock Text="It opens in the editor on the next free port. Nothing is written until you save."
+                   FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Dim}" VerticalAlignment="Center"
+                   TextWrapping="Wrap"/>
       </DockPanel>
     </StackPanel>
   </StackPanel>

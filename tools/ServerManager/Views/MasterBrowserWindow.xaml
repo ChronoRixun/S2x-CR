@@ -33,19 +33,22 @@
     BorderThickness="0" RowBackground="{DynamicResource Bar}"
     AlternatingRowBackground="{DynamicResource Row}" HeadersVisibility="Column">
    <DataGrid.Resources>
+    <Style x:Key="GridTrim" TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis"/></Style>
     <Style TargetType="DataGridColumnHeader"><Setter Property="Background" Value="{DynamicResource Panel}"/><Setter Property="Foreground" Value="{DynamicResource Muted}"/><Setter Property="Padding" Value="9,10"/><Setter Property="BorderBrush" Value="{DynamicResource Line}"/><Setter Property="BorderThickness" Value="0,0,0,1"/><Setter Property="FontFamily" Value="{DynamicResource FontLabel}"/><Setter Property="FontWeight" Value="{DynamicResource FontLabelWeight}"/><Setter Property="FontStretch" Value="{DynamicResource FontLabelStretch}"/><Setter Property="FontSize" Value="{DynamicResource SizeLabelL}"/></Style>
     <Style TargetType="DataGridRow"><Setter Property="MinHeight" Value="42"/><Style.Triggers><Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource TagBg}"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/></Trigger></Style.Triggers></Style>
     <Style TargetType="DataGridCell"><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridCell"><Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}"><ContentPresenter VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter><Setter Property="Padding" Value="8,9"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/><Style.Triggers><Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource Accent}"/></Trigger></Style.Triggers></Style>
    </DataGrid.Resources>
    <DataGrid.Columns>
-    <DataGridTextColumn Header="SERVER" Binding="{Binding Name}" Width="2*" MinWidth="160"/>
-    <DataGridTextColumn Header="MAP" Binding="{Binding Map}" Width="1.4*" MinWidth="145"/>
-    <DataGridTextColumn Header="MODE" Binding="{Binding Mode}" Width="90"/>
-    <DataGridTextColumn Header="HUMANS" Binding="{Binding Humans}" Width="76"/>
-    <DataGridTextColumn Header="BOTS" Binding="{Binding Bots}" Width="54"/>
-    <DataGridTextColumn Header="LIMIT" Binding="{Binding Capacity}" Width="60"/>
-    <DataGridTextColumn Header="PING" Binding="{Binding Ping}" Width="66"/>
-    <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="90"/>
+    <!-- The short columns size to their header and cells in the theme's fonts; server and map
+         share the rest and trim. Fixed widths cut "Responded" in Arcade's wider body font. -->
+    <DataGridTextColumn Header="SERVER" Binding="{Binding Name}" Width="2*" MinWidth="140" ElementStyle="{StaticResource GridTrim}"/>
+    <DataGridTextColumn Header="MAP" Binding="{Binding Map}" Width="1.4*" MinWidth="120" ElementStyle="{StaticResource GridTrim}"/>
+    <DataGridTextColumn Header="MODE" Binding="{Binding Mode}" Width="Auto" MinWidth="80"/>
+    <DataGridTextColumn Header="HUMANS" Binding="{Binding Humans}" Width="Auto" MinWidth="64"/>
+    <DataGridTextColumn Header="BOTS" Binding="{Binding Bots}" Width="Auto" MinWidth="50"/>
+    <DataGridTextColumn Header="LIMIT" Binding="{Binding Capacity}" Width="Auto" MinWidth="54"/>
+    <DataGridTextColumn Header="PING" Binding="{Binding Ping}" Width="Auto" MinWidth="60"/>
+    <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="Auto" MinWidth="84"/>
    </DataGrid.Columns>
    <DataGrid.RowStyle><Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}"><Setter Property="ToolTip" Value="{Binding Endpoint}"/></Style></DataGrid.RowStyle>
   </DataGrid>

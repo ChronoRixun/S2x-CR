@@ -668,7 +668,12 @@
             <ContentPresenter Margin="9,0,26,0" VerticalAlignment="Center" IsHitTestVisible="False"
                               Content="{TemplateBinding SelectionBoxItem}"
                               ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                              ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"/>
+                              ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}">
+              <!-- A narrow picker trims its choice instead of cutting it. -->
+              <ContentPresenter.Resources>
+                <Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis"/></Style>
+              </ContentPresenter.Resources>
+            </ContentPresenter>
             <Popup IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" Focusable="False"
                    AllowsTransparency="True" PopupAnimation="None">
               <Border Background="{DynamicResource Bar}" BorderBrush="{DynamicResource Edge}" BorderThickness="1"
