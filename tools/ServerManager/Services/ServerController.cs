@@ -19,6 +19,7 @@ namespace S2x.ServerManager.Services
     internal sealed class ServerController
     {
         private readonly string _gameDir;
+        private readonly ManagedServerOwnershipStore _adminOwnership;
 
         // Ports being started or stopped right now. Looking for a server on a port and then
         // launching one is two steps, and a double click or a Start racing Start All can slip
@@ -30,7 +31,8 @@ namespace S2x.ServerManager.Services
         private const int ProfileScriptSeconds = 90;
         private const int ProfileServerSeconds = 10;
 
-        public ServerController(string gameDir) { _gameDir = gameDir; }
+        public ServerController(string gameDir) : this(gameDir, new ManagedServerOwnershipStore()) { }
+        public ServerController(string gameDir, ManagedServerOwnershipStore ownership) { _gameDir = gameDir; _adminOwnership = ownership ?? throw new ArgumentNullException(nameof(ownership)); }
 
         public string GameDir { get { return _gameDir; } }
 
@@ -77,20 +79,25 @@ namespace S2x.ServerManager.Services
                 // runs before the dedicated party exists and is dropped. g_consoleLog gives this
                 // server a log of its own: the default is s2x\logs\console.log, which every
                 // server on the box appends to at once, so nothing in it says which one wrote it.
-                var args = string.Format(
-                    "-noupdate -dedicated{0} +set net_port {1} +set g_consoleLog {2} +exec {3} +map_rotate",
-                    snapshot.IsZombies ? " -zombies" : "", port,
-                    GameFolder.ServerLogDvar(port), Path.GetFileName(cfgPath));
+                // Supplying zombiesMode below avoids the bootstrap replacing the owned process.
+                var adminNonce = Guid.NewGuid().ToString("N");
+                var args = "-server-manager-admin " + adminNonce + " " + string.Format(
+                    "-noupdate -dedicated{0} +set net_port {1} +set sv_lanOnly {4} +set master_server_enable {5} +set g_consoleLog {2} +exec {3} +map_rotate",
+                    snapshot.IsZombies ? " -zombies +zombiesMode 1" : "", port,
+                    GameFolder.ServerLogDvar(port), Path.GetFileName(cfgPath), snapshot.Advertise ? 0 : 1, snapshot.Advertise ? 1 : 0);
 
                 var process = Process.Start(new ProcessStartInfo
                 {
                     FileName = GameFolder.ExePath(_gameDir),
                     Arguments = args,
+                    WindowStyle = ProcessWindowStyle.Hidden,
                     WorkingDirectory = _gameDir,
                     UseShellExecute = false,
                 });
                 if (process == null) return "Windows did not start s2x.exe.";
                 File.WriteAllText(GameFolder.PidPath(_gameDir, port), process.Id.ToString());
+                try { _adminOwnership.Register(process.Id, port, adminNonce); }
+                catch (Exception ex) { return "Server started, but administration ownership could not be saved: " + ex.Message; }
                 return null;
             }
             catch (Exception ex)
@@ -125,7 +132,10 @@ namespace S2x.ServerManager.Services
             }
 
             string program, arguments;
-            SplitCommand(FillCommand(entry, port, snapshot), out program, out arguments);
+            var adminNonce = string.IsNullOrWhiteSpace(entry.Admin) ? null : Guid.NewGuid().ToString("N");
+            var command = FillCommand(entry, port, snapshot);
+            if (adminNonce != null) command += " " + entry.Admin.Replace("{admin}", adminNonce);
+            SplitCommand(command, out program, out arguments);
             var output = new List<string>();
             var errors = new List<string>();
             var closed = new CountdownEvent(2);
@@ -166,15 +176,21 @@ namespace S2x.ServerManager.Services
             for (int second = 0; ; second++)
             {
                 S2xProcess server;
-                if (ProcessInspector.DedicatedServers().Servers.TryGetValue(port, out server))
+                if (ProcessInspector.DedicatedServers().Servers.TryGetValue(port, out server) &&
+                    (adminNonce == null || ManagedServerOwnershipStore.HasNonce(server.CommandLine, adminNonce)))
                 {
                     File.WriteAllText(GameFolder.PidPath(_gameDir, port), server.Pid.ToString());
+                    if (adminNonce != null)
+                    {
+                        try { _adminOwnership.Register(server.Pid, port, adminNonce); }
+                        catch (Exception ex) { return "Server started, but administration ownership could not be saved: " + ex.Message; }
+                    }
                     return null;
                 }
                 if (second == ProfileServerSeconds) break;
                 Thread.Sleep(1000);
             }
-            return "The start script finished, but no server came up on :" + port + "." + Said(output, errors);
+            return "The start script finished, but no " + (adminNonce == null ? "server" : "server matching this Manager launch") + " came up on :" + port + "." + Said(output, errors);
         }
 
         /// <summary>The entry's start command for this server, its placeholders filled.</summary>

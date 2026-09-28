@@ -24,7 +24,7 @@ try {
  & "$out/browser-ui-tests.exe"
  if($LASTEXITCODE){throw 'UI tests failed'}
  $ps=Join-Path $env:WINDIR 'System32/WindowsPowerShell/v1.0/powershell.exe'
- foreach($test in @('themes.ps1','card-order.ps1','card-drag.ps1')){
+ foreach($test in @('themes.ps1','card-order.ps1','card-drag.ps1','admin.ps1')){
   & $ps -NoProfile -STA -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot $test)
   if($LASTEXITCODE){throw "$test failed"}
  }

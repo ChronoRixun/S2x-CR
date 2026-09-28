@@ -22,6 +22,12 @@ namespace S2x.ServerManager.Views
             IsVisibleChanged += (s, e) => Appended();
         }
 
+        private void OpenAdmin(object sender, RoutedEventArgs e)
+        {
+            if (_console?.Card == null) return;
+            new AdminWindow(_console.Card.Preset.Port, _console.Card.Name) { Owner = Window.GetWindow(this) }.ShowDialog();
+        }
+
         private void Rebind(object sender, DependencyPropertyChangedEventArgs e)
         {
             var old = e.OldValue as ConsoleViewModel;

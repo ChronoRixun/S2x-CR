@@ -32,6 +32,7 @@ namespace S2x.ServerManager.Models
         public string Mode;        // the label in the editor's mode list
         public string Short;       // the rotation row's tag
         public string Start;       // the whole command line, {placeholders} included
+        public string Admin;       // optional admin launch arguments; {admin} is a fresh launch nonce
         public string Public;      // what {public} becomes when the server advertises
         public string Log;         // relative to the package folder
         public string Script;      // the start script the command runs, relative to the folder

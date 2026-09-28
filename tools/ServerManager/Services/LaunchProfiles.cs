@@ -111,12 +111,18 @@ namespace S2x.ServerManager.Services
                         Mode = Text(item, "mode"),
                         Start = Text(item, "start"),
                         Public = Text(item, "public") ?? "",
+                        Admin = Text(item, "admin") ?? "",
                         Log = Text(item, "log"),
                     };
                     if (entry.Key == null || entry.Map == null || entry.Mode == null || entry.Start == null)
                     {
                         problems.Add("an entry without key, map, mode or start was skipped");
                         continue;
+                    }
+                    if (entry.Admin.Length > 0 && !entry.Admin.Contains("{admin}"))
+                    {
+                        problems.Add("admin arguments need {admin}; administration is unavailable for " + entry.Key);
+                        entry.Admin = "";
                     }
                     entry.Short = Text(item, "short") ?? entry.Mode;
                     entry.Script = ScriptOf(entry.Start);

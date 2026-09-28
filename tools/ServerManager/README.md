@@ -286,3 +286,9 @@ tray icon is the same one, read back off the running exe rather than composed ag
 
 - The console shows the lines as the fork writes them, which carry no timestamps, so there is no
   time column. The mockup has one; the file has nothing to put in it.
+
+## Administration in 1.1.1
+Console -> ADMIN provides slot-free notices, player listing, warnings and kicks only for verified
+Manager launches with a compatible local server bridge. See ADMINISTRATION.md for installation,
+ownership, profile compatibility and validation limits. Bot-alpha upgrades and team balancing are
+separate follow-up work.

@@ -107,6 +107,7 @@ DW_PUBLISHER_VARIABLES_MM_PARTY RCDATA "resources/dw/publisher_variables/mm_part
 DW_PUBLISHER_VARIABLES_QOS      RCDATA "resources/dw/publisher_variables/qos_tu26_1_14.json"
 
 LAUNCHER_MENU         RCDATA "resources/main.html"
+SERVER_ADMIN_NOTICE_SCRIPT RCDATA "resources/server_admin_notice.gsc"
 
 #ifdef _DEBUG
 TLS_DLL               RCDATA "../../build/bin/x64/Debug/tlsdll.dll"

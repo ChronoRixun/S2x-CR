@@ -68,6 +68,7 @@
           <Button DockPanel.Dock="Right" Style="{StaticResource DrawerButton}" Width="26" Padding="0"
                   Content="&#x2715;" FontWeight="Normal" Foreground="{DynamicResource Dim}"
                   Command="{Binding CloseCommand}" ToolTip="Close the console (Esc)"/>
+          <Button DockPanel.Dock="Right" Style="{StaticResource DrawerButton}" Content="ADMIN" Click="OpenAdmin" ToolTip="Player administration for Manager-started local servers"/>
           <Button DockPanel.Dock="Right" Style="{StaticResource DrawerButton}" Content="COPY"
                   Command="{Binding CopyCommand}" ToolTip="Copy the lines on screen"/>
           <Button DockPanel.Dock="Right" Style="{StaticResource DrawerButton}" Content="FOLLOW"
