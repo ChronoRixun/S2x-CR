@@ -105,6 +105,7 @@ namespace S2x.ServerManager.ViewModels
         private string _minText;
         private string _delayText;
         private bool _advertise;
+        private bool _autoBalance;
         private string _extraText;
         private string _saved;
         private RotationRowViewModel _selectedRow;
@@ -132,6 +133,7 @@ namespace S2x.ServerManager.ViewModels
             _minText = preset.MinPlayers.ToString();
             _delayText = preset.StartDelay.ToString();
             _advertise = preset.Advertise;
+            _autoBalance = preset.AutoBalance;
             if (preset.IsProfile) { _launchId = preset.LaunchProfileId; _launchKey = preset.LaunchEntryKey; }
             _extraText = string.Join(Environment.NewLine, preset.ExtraLines);
             foreach (var pair in GameData.DefaultScoreLimits)
@@ -383,7 +385,7 @@ namespace S2x.ServerManager.ViewModels
             {
                 var wanted = Math.Max(0, Math.Min(Cap, value));
                 if (!Set(ref _botFill, wanted)) return;
-                Raise("BotPips"); Raise("BotSummary");
+                Raise("BotPips"); Raise("BotSummary"); Raise("AutoBalanceNote");
                 Touched();
             }
         }
@@ -403,7 +405,59 @@ namespace S2x.ServerManager.ViewModels
 
         public string BotSummary
         {
-            get { return _botFill + " bots " + GameData.MiddleDot + " " + _botNames + " " + GameData.MiddleDot + " " + _botDifficulty; }
+            get
+            {
+                var fill = AutoBalance ? "auto-balance " + _botFill : _botFill + " bots";
+                return fill + " " + GameData.MiddleDot + " " + _botNames + " " + GameData.MiddleDot + " " + _botDifficulty;
+            }
+        }
+
+        /// <summary>
+        /// s2x_autobalance.gsc runs the bots instead of the native fill, and bot fill becomes the
+        /// match size it keeps. Multiplayer only, and not for a profile server, whose package
+        /// writes its own cfg.
+        /// </summary>
+        public bool AutoBalanceEnabled { get { return !_isZombies && !IsProfile; } }
+
+        /// <summary>Off wherever it cannot apply, which is also what Save writes there.</summary>
+        public bool AutoBalance
+        {
+            get { return _autoBalance && AutoBalanceEnabled; }
+            set
+            {
+                if (!AutoBalanceEnabled || !Set(ref _autoBalance, value)) return;
+                AutoBalanceChanged();
+                Touched();
+            }
+        }
+
+        public Visibility AutoBalanceNoteVisibility { get { return AutoBalance ? Visibility.Visible : Visibility.Collapsed; } }
+
+        /// <summary>
+        /// What the switch does, and the one thing about this server most worth knowing with it
+        /// on. Advice only: nothing here stops a save or a launch.
+        /// </summary>
+        public string AutoBalanceNote
+        {
+            get
+            {
+                if (!AutoBalance) return "";
+                string more = null;
+                if (Cap < ServerPreset.CapCeiling(false))
+                    more = "The player cap limits how many people can join; 18 lets the match grow past the bot fill size.";
+                else if (Rotation.Any(row => GameData.IsFreeForAll(row.Entry.Gametype)))
+                    more = "On free-for-all maps it only keeps the player count at the bot fill size.";
+                else if (_botFill % 2 == 1)
+                    more = "An odd size puts one extra player on one side.";
+                var note = "Bots fill to the bot fill size and leave as people join; teams are kept even.";
+                return more == null ? note : note + Environment.NewLine + more;
+            }
+        }
+
+        private void AutoBalanceChanged()
+        {
+            Raise("AutoBalance"); Raise("AutoBalanceEnabled"); Raise("AutoBalanceNote");
+            Raise("AutoBalanceNoteVisibility"); Raise("BotSummary");
         }
 
         public List<SegmentOption> PoolOptions
@@ -451,7 +505,7 @@ namespace S2x.ServerManager.ViewModels
                 // text has to move too, or the box keeps a number the server will not use.
                 if (_botFill > Cap) { _botFill = Cap; Raise("BotFill"); }
                 ClampMinimum();
-                Raise("Cap"); Raise("BotPips"); Raise("BotSummary"); Raise("LobbySummary");
+                Raise("Cap"); Raise("BotPips"); Raise("BotSummary"); Raise("LobbySummary"); Raise("AutoBalanceNote");
                 Touched();
             }
         }
@@ -974,6 +1028,8 @@ namespace S2x.ServerManager.ViewModels
             Raise("IsProfile"); Raise("ShuffleEnabled"); Raise("LobbySummary"); Raise("LobbyText");
             Raise("LobbyFieldsVisibility"); Raise("LobbyTextVisibility");
             Raise("AdvancedEnabled"); Raise("AdvancedNoteVisibility"); Raise("WritesTo");
+            // A profile server cannot take auto-balance, and the rotation decides the note.
+            AutoBalanceChanged();
             RandomizeCommand.Refresh();
         }
 
@@ -1030,7 +1086,8 @@ namespace S2x.ServerManager.ViewModels
                 .Append(_botFill).Append('').Append(_botNames).Append('').Append(_botDifficulty).Append('')
                 .Append(Cap).Append('').Append(MinPlayers).Append('').Append(StartDelay).Append('')
                 .Append(_advertise).Append('').Append(string.Join("\n", ExtraLines)).Append('')
-                .Append(_launchId).Append('').Append(_launchKey).Append('');
+                .Append(_launchId).Append('').Append(_launchKey).Append('')
+                .Append(AutoBalance).Append('');
             foreach (var row in Rotation) text.Append(row.Entry.Gametype).Append(' ').Append(row.Entry.Map).Append(',');
             text.Append('');
             foreach (var mode in Modes()) text.Append(mode).Append('=').Append(_scores[mode]).Append(',');
@@ -1052,6 +1109,7 @@ namespace S2x.ServerManager.ViewModels
             target.MinPlayers = MinPlayers;
             target.StartDelay = StartDelay;
             target.Advertise = _advertise;
+            target.AutoBalance = AutoBalance;
             target.LaunchProfileId = _launchId;
             target.LaunchEntryKey = _launchKey;
             target.ExtraLines.Clear();

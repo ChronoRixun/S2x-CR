@@ -20,6 +20,7 @@ namespace S2x.ServerManager.Services
     {
         private readonly string _gameDir;
         private readonly ManagedServerOwnershipStore _adminOwnership;
+        private readonly ServerScriptInstaller _scripts;
 
         // Ports being started or stopped right now. Looking for a server on a port and then
         // launching one is two steps, and a double click or a Start racing Start All can slip
@@ -32,7 +33,12 @@ namespace S2x.ServerManager.Services
         private const int ProfileServerSeconds = 10;
 
         public ServerController(string gameDir) : this(gameDir, new ManagedServerOwnershipStore()) { }
-        public ServerController(string gameDir, ManagedServerOwnershipStore ownership) { _gameDir = gameDir; _adminOwnership = ownership ?? throw new ArgumentNullException(nameof(ownership)); }
+        public ServerController(string gameDir, ManagedServerOwnershipStore ownership, ServerScriptInstaller scripts = null)
+        {
+            _gameDir = gameDir;
+            _adminOwnership = ownership ?? throw new ArgumentNullException(nameof(ownership));
+            _scripts = scripts ?? new ServerScriptInstaller();
+        }
 
         public string GameDir { get { return _gameDir; } }
 
@@ -71,6 +77,9 @@ namespace S2x.ServerManager.Services
 
                 if (snapshot.IsProfile) return StartProfile(snapshot, port);
 
+                // The script goes into the game folder before the cfg that switches it on.
+                var note = PrepareAutoBalance(snapshot);
+
                 var cfgPath = GameFolder.CfgPath(_gameDir, port);
                 Directory.CreateDirectory(Path.GetDirectoryName(cfgPath));
                 File.WriteAllText(cfgPath, BuildServerCfg(snapshot), new UTF8Encoding(false));
@@ -96,8 +105,9 @@ namespace S2x.ServerManager.Services
                 if (process == null) return "Windows did not start s2x.exe.";
                 File.WriteAllText(GameFolder.PidPath(_gameDir, port), process.Id.ToString());
                 try { _adminOwnership.Register(process.Id, port, adminNonce); }
-                catch (Exception ex) { return "Server started, but administration ownership could not be saved: " + ex.Message; }
-                return null;
+                catch (Exception ex) { return "Server started, but administration ownership could not be saved: " + ex.Message + (note == null ? "" : " " + note); }
+                // It started; the note goes into the toast that says so.
+                return note == null ? null : "Starting " + snapshot.PlainName + " on :" + port + ". " + note;
             }
             catch (Exception ex)
             {
@@ -109,6 +119,35 @@ namespace S2x.ServerManager.Services
             {
                 Release(port);
             }
+        }
+
+        /// <summary>
+        /// Puts s2x_autobalance.gsc into the game folder for a launch that uses it, and returns
+        /// what the host should be told, or null. A script that could not be put in place turns
+        /// auto-balance off for this launch only: the snapshot is the launch's own copy, so the
+        /// cfg goes back to the native bot fill and the server still gets its bots.
+        /// </summary>
+        public string PrepareAutoBalance(ServerPreset snapshot)
+        {
+            if (!snapshot.UsesAutoBalance) return null;
+            string problem;
+            try
+            {
+                var result = _scripts.InstallAutoBalance(_gameDir);
+                if (!result.Failed) return result.Custom ? Capital(result.Message) + "." : null;
+                problem = result.Message;
+            }
+            catch (Exception ex)
+            {
+                problem = ex.Message.Trim().TrimEnd('.');
+            }
+            snapshot.AutoBalance = false;
+            return "Auto-balance is not active (" + problem + "); bots use the normal bot fill.";
+        }
+
+        private static string Capital(string text)
+        {
+            return string.IsNullOrEmpty(text) ? text : char.ToUpperInvariant(text[0]) + text.Substring(1);
         }
 
         /// <summary>
@@ -308,7 +347,7 @@ namespace S2x.ServerManager.Services
         /// <summary>
         /// Build-ServerCfg's lines in its order first, so a preset the PowerShell launcher wrote
         /// still comes out as the text it wrote, then the editor's own lines, then the host's
-        /// advanced block last so it wins. Bots and score limits are multiplayer only.
+        /// advanced block last so it wins. Bots, auto-balance and score limits are multiplayer only.
         /// </summary>
         public static string BuildServerCfg(ServerPreset preset)
         {
@@ -337,9 +376,11 @@ namespace S2x.ServerManager.Services
                 lines.Add("set scr_dom_roundlimit 1");
             }
 
+            // With auto-balance the script owns every bot, so the native one-shot fill adds none.
+            var autoBalance = preset.UsesAutoBalance;
             if (!zombies)
             {
-                lines.Add("set bot_fill " + preset.BotFill);
+                lines.Add("set bot_fill " + (autoBalance ? 0 : preset.BotFill));
                 lines.Add("set bot_names " + preset.BotNames);
             }
 
@@ -364,6 +405,21 @@ namespace S2x.ServerManager.Services
             lines.Add("set party_matchStartDelay " + preset.StartDelay);
             lines.Add("set master_server_enable " + (preset.Advertise ? "1" : "0"));
             lines.Add("set sv_lanOnly " + (preset.Advertise ? "0" : "1"));
+
+            // s2x_autobalance.gsc keeps the match at the bot fill size and the teams even; the
+            // game's own team balance would move players under it. Off is written too: every
+            // multiplayer server in this game folder loads the script, and this keeps it inert
+            // on the ones that do not use it.
+            if (autoBalance)
+            {
+                lines.Add("set s2x_autobalance 1");
+                lines.Add("set s2x_autobalance_target " + preset.BotFill);
+                lines.Add("set scr_teambalance 0");
+            }
+            else if (!zombies)
+            {
+                lines.Add("set s2x_autobalance 0");
+            }
 
             // Passed through as written: a blank line is dropped, anything else goes as typed.
             foreach (var line in preset.ExtraLines)

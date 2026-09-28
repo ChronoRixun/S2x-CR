@@ -31,4 +31,11 @@
     <Reference Include="System.Web" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Server scripts ride inside the exe and are written into the game folder when a server
+         needs them (Services\ServerScriptInstaller.cs), so the release is still one file. -->
+    <EmbeddedResource Include="ServerScripts\s2x_autobalance.gsc"
+                      LogicalName="S2x.ServerManager.ServerScripts.s2x_autobalance.gsc" />
+  </ItemGroup>
+
 </Project>

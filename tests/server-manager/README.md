@@ -22,7 +22,11 @@ Run the complete isolated suite from the repository root:
     powershell -NoProfile -ExecutionPolicy Bypass -File tests/server-manager/run.ps1
 
 This builds the application and runs the UDP backend, browser UI state, themes,
-card persistence, and disconnected-WPF drag/drop behavior tests. Theme/card tests
-use temporary directories. Add -LiveMaster for one bounded read-only live query.
+card persistence, and disconnected-WPF drag/drop behavior tests, and autobalance.ps1:
+the `autoBalance` preset key, its cfg lines, the embedded script installer (fresh,
+current, upgrade, custom copy refused, held-open and unwritable targets, several
+targets) and the editor switch's gating. Theme/card/auto-balance tests use temporary
+directories; the installer never sees a real game folder or the real
+installed-scripts.json. Add -LiveMaster for one bounded read-only live query.
 No test launches or controls game servers. Native-pointer drag gestures are not
 automated; the actual WPF drop handlers and visual-tree exclusions are exercised.

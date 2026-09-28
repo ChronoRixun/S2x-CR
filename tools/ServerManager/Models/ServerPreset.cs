@@ -61,6 +61,11 @@ namespace S2x.ServerManager.Models
         // its place in the presets folder, and the PowerShell launcher ignores the key.
         public bool Hidden;
 
+        // s2x_autobalance.gsc runs the bots instead of the native one-shot bot_fill: BotFill is
+        // then the match size it keeps. Multiplayer only, and never for a launch profile, whose
+        // package writes its own cfg.
+        public bool AutoBalance;
+
         // A server a launch profile starts: the profile and the entry in it. Null for a server
         // this app starts itself.
         public string LaunchProfileId;
@@ -72,6 +77,9 @@ namespace S2x.ServerManager.Models
 
         public bool IsZombies { get { return string.Equals(Mode, "zombies", StringComparison.OrdinalIgnoreCase); } }
         public bool IsProfile { get { return !string.IsNullOrEmpty(LaunchProfileId) && !string.IsNullOrEmpty(LaunchEntryKey); } }
+
+        /// <summary>Whether a launch of this preset hands its bots to the auto-balance script.</summary>
+        public bool UsesAutoBalance { get { return AutoBalance && !IsZombies && !IsProfile; } }
 
         /// <summary>The cap the game allows: a Zombies party is four, a multiplayer one eighteen.</summary>
         public static int CapCeiling(bool zombies) { return zombies ? 4 : 18; }
@@ -108,6 +116,7 @@ namespace S2x.ServerManager.Models
                 Advertise = Advertise,
                 ShuffleOnLaunch = ShuffleOnLaunch,
                 Hidden = Hidden,
+                AutoBalance = AutoBalance,
                 LaunchProfileId = LaunchProfileId,
                 LaunchEntryKey = LaunchEntryKey,
                 Raw = (Dictionary<string, object>)CopyValue(Raw) ?? new Dictionary<string, object>(StringComparer.Ordinal),

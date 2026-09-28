@@ -102,6 +102,14 @@ namespace S2x.ServerManager.Models
             "gun", "GUN",
             "ball", "GRID");
 
+        // Every player for themselves: there are no teams to keep even.
+        public static readonly string[] FreeForAllGametypes = { "dm", "gun" };
+
+        public static bool IsFreeForAll(string gametype)
+        {
+            return Array.IndexOf(FreeForAllGametypes, gametype) >= 0;
+        }
+
         public static readonly List<KeyValuePair<string, int>> DefaultScoreLimits = new List<KeyValuePair<string, int>>
         {
             new KeyValuePair<string, int>("war", 75),

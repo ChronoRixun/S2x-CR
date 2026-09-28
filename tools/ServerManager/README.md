@@ -123,6 +123,43 @@ stopped. + New server proposes the next free port.
 If another launcher writes a preset while it is open here, an editor with nothing unsaved in it
 takes the new reading and one with a draft in it keeps the draft and says FILE CHANGED ON DISK.
 
+## Auto-balance
+
+Auto-balance, the switch at the foot of the editor's BOTS section, keeps a multiplayer team match
+at the bot fill size: 12 is 6v6, 18 is 9v9. Bots fill the places people have not taken, join the
+short side and leave as people join, and people are kept evenly split, with a countdown. On
+free-for-all modes (Free-for-All, Gun Game) it only keeps the player count at the bot fill size.
+The work is done by a server script, `s2x_autobalance.gsc`, which this exe carries; s2x.exe needs
+no change for it. It is off unless switched on, and it is not offered for Zombies or for a launch
+profile's server: Save writes it off for both. The note under the switch says what it does, and
+the one thing most worth knowing about this server with it on: a player cap under 18,
+free-for-all modes in the rotation, or an odd size.
+
+With it on, the script owns every bot, so the cfg carries, in place of `set bot_fill <n>`:
+
+    set bot_fill 0
+    set s2x_autobalance 1
+    set s2x_autobalance_target <n>
+    set scr_teambalance 0
+
+`bot_fill 0` sits where `bot_fill` always goes; the other three follow the editor's lines, ahead
+of the advanced block, which still wins. With it off the cfg says `set bot_fill <n>` as before
+and adds `set s2x_autobalance 0`. A Zombies cfg gets none of these lines.
+
+Before a server with it on starts, the Manager makes sure
+`<game>\s2x\scripts\mp\s2x_autobalance.gsc` is the copy it carries. It writes the file only when
+there is none, or when the one there is a copy a Manager wrote before, known by its SHA-256 in
+%LOCALAPPDATA%\S2x\ServerManager\installed-scripts.json; that is how a newer Manager replaces an
+older one's copy. A copy changed by hand, or brought from somewhere else, is never written over:
+the server starts with it and the toast says a custom copy of s2x_autobalance.gsc is in use. If
+the file cannot be written, the server still starts, on the normal bot fill, and the toast says
+auto-balance is not active. Nothing deletes the script: other servers in the same folder may use
+it, and it does nothing unless `s2x_autobalance` is 1. Where it goes is one list,
+`AutoBalanceTargets` in Services\ServerScriptInstaller.cs.
+
+The PowerShell launcher ignores the `autoBalance` key and drops it when it saves a preset, which
+turns auto-balance off for that server.
+
 ## Hiding and deleting a server
 
 HIDE on a card takes a server off the fleet: out of the counts, out of the attention line, out of
@@ -249,6 +286,7 @@ untouched, on the preset and on each line of its rotation:
 | `extraLines` | the advanced block, one dvar per entry | empty |
 | `shuffleOnLaunch` | true, false | false |
 | `hidden` | true, false | false |
+| `autoBalance` | true, false (multiplayer, not a launch profile) | false |
 | `launch` | `profile` and `entry` of a launch profile | absent |
 
 The file is written the way `Save-Preset` writes it under Windows PowerShell: `ConvertTo-Json`
@@ -263,11 +301,12 @@ the text the launcher wrote: `sv_hostname`, `scr_<gt>_scorelimit` for each mode 
 `scr_dom_halftime 0` and `scr_dom_roundlimit 1` for single-round Domination, `bot_fill`,
 `bot_names`, `sv_maprotation`. Then the editor's: `bot_DifficultyDefault`, `party_maxplayers`,
 `party_minplayers`, `party_matchStartDelay`, and `master_server_enable 1` with `sv_lanOnly 0`
-when the server advertises, 0 and 1 when it does not. The advanced block is last, verbatim, so it
-wins. In Zombies the score limits, `bot_fill` and `bot_names` are left out: bots do not run there
-and the modes do not match. A quote or a line break in the server name is dropped before the name
-is quoted; colour codes stay. Shuffle on every launch shuffles the rotation the cfg gets, not the
-one in the preset.
+when the server advertises, 0 and 1 when it does not, then `s2x_autobalance` (with it on,
+`bot_fill` is 0 and two more lines follow; see Auto-balance). The advanced block is last,
+verbatim, so it wins. In Zombies the score limits, `bot_fill`, `bot_names` and the auto-balance
+lines are left out: bots do not run there and the modes do not match. A quote or a line break in
+the server name is dropped before the name is quoted; colour codes stay. Shuffle on every launch
+shuffles the rotation the cfg gets, not the one in the preset.
 
 States come from two places every three seconds: the process list (WMI, `s2x.exe` with
 `-dedicated` and `net_port <port>` on its command line, which is also the test before anything is
@@ -276,7 +315,8 @@ killed) and the server's own query reply on `127.0.0.1:<port>`, the same packet
 has not answered yet and is less than 90 s old. Not answering means alive but three misses in a
 row. Crashed means the pid file is there and the process is not.
 
-Start writes the cfg, then runs
+Start puts the auto-balance script in place when the server uses it (see Auto-balance), writes the
+cfg, then runs
 `s2x.exe -server-manager-admin <nonce> -noupdate -dedicated[ -zombies +zombiesMode 1]
 +set net_port <port> +set sv_lanOnly <0|1> +set master_server_enable <1|0> +set g_consoleLog
 s2x\logs\server-<port>.log +exec server-<port>.cfg +map_rotate`
@@ -289,7 +329,9 @@ Launch profiles).
 `build\diagnostics\package-release.ps1` builds this project in Release and stages
 `S2xServerManager.exe` and its `.exe.config` into the release zip's `s2x\tools`, beside
 `server-launcher.ps1`, `ServerLauncher.xaml` and `server-status.ps1`; `tools\server-launcher.cmd`
-goes into the same folder. Nothing else ships with the exe: no DLLs, no NuGet packages.
+goes into the same folder. Nothing else ships with the exe: no DLLs, no NuGet packages. The
+server scripts in `ServerScripts` are embedded in the exe as manifest resources (the csproj names
+each one's `LogicalName`) and written into the game folder only when a server needs them.
 
 `tools\server-launcher.cmd` is the double-click way into the old launcher: `@echo off` and a
 hidden, no-profile PowerShell host running `server-launcher.ps1`, so opening it never leaves a
@@ -304,5 +346,5 @@ tray icon is the same one, read back off the running exe rather than composed ag
 
 - The console shows the lines as the fork writes them, which carry no timestamps, so there is no
   time column. The mockup has one; the file has nothing to put in it.
-- Administration for the zombie-bot alpha runtimes needs their own rebuilt binaries, and team
-  balancing is separate follow-up work.
+- Administration for the zombie-bot alpha runtimes needs their own rebuilt binaries. Team
+  balancing is the Auto-balance switch, for multiplayer only; ADMIN does not move players.

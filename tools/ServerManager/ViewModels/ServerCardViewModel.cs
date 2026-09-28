@@ -321,6 +321,7 @@ namespace S2x.ServerManager.ViewModels
         {
             get
             {
+                if (Preset.UsesAutoBalance) return "auto-balance " + Preset.BotFill;
                 if (!Preset.IsProfile) return Preset.BotFill + " bots";
                 LaunchProfile profile;
                 var entry = LaunchProfiles.Find(_fleet.Profiles, Preset.LaunchProfileId, Preset.LaunchEntryKey, out profile);

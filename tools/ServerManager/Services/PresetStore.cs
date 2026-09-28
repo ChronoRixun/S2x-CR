@@ -180,6 +180,9 @@ namespace S2x.ServerManager.Services
             root["extraLines"] = preset.ExtraLines.Cast<object>().ToArray();
             root["shuffleOnLaunch"] = preset.ShuffleOnLaunch;
             root["hidden"] = preset.Hidden;
+            // The PowerShell launcher does not know this key: a save there drops it, and that
+            // server goes back to the native bot fill.
+            root["autoBalance"] = preset.AutoBalance;
             return root;
         }
 
@@ -212,6 +215,7 @@ namespace S2x.ServerManager.Services
                 preset.Advertise = Bool(root, "advertise", true);
                 preset.ShuffleOnLaunch = Bool(root, "shuffleOnLaunch", false);
                 preset.Hidden = Bool(root, "hidden", false);
+                preset.AutoBalance = Bool(root, "autoBalance", false);
 
                 var launch = Get(root, "launch") as Dictionary<string, object>;
                 if (launch != null)

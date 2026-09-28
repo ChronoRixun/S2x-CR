@@ -371,6 +371,17 @@
                     <TextBlock Text="Difficulty" FontSize="12" Foreground="{DynamicResource Label}"
                                VerticalAlignment="Center"/>
                   </DockPanel>
+                  <!-- With this on, s2x_autobalance.gsc runs the bots and bot fill is the match size. -->
+                  <StackPanel Orientation="Horizontal" Margin="0,14,0,0" Style="{StaticResource Greyed}"
+                              IsEnabled="{Binding AutoBalanceEnabled}">
+                    <ToggleButton x:Name="tglAutoBalance" Style="{StaticResource Switch}"
+                                  IsChecked="{Binding AutoBalance, Mode=TwoWay}" VerticalAlignment="Center"/>
+                    <TextBlock Text="Auto-balance" FontSize="12" Foreground="{DynamicResource Label}"
+                               Margin="10,0,0,0" VerticalAlignment="Center"/>
+                  </StackPanel>
+                  <TextBlock Text="{Binding AutoBalanceNote}" Visibility="{Binding AutoBalanceNoteVisibility}"
+                             FontSize="11" Foreground="{DynamicResource Dim}" TextWrapping="Wrap" LineHeight="16"
+                             Margin="40,8,0,0"/>
                 </StackPanel>
               </StackPanel>
             </Border>
