@@ -15,7 +15,7 @@ using S2x.ServerManager.Views;
 namespace S2x.ServerManager.ViewModels
 {
     /// <summary>One line of the log, with the colour its text earned.</summary>
-    internal sealed class LogLine
+    internal sealed class LogLine : Unchanging
     {
         public string Text { get; set; }
         public Brush Fill { get; set; }
@@ -187,10 +187,9 @@ namespace S2x.ServerManager.ViewModels
         public Visibility SharedVisibility { get { return Show(_shared); } }
 
         public string PauseLabel { get { return _paused ? "PAUSED" : "PAUSE"; } }
-        public Brush PauseBackground { get { return _paused ? Palette.TagBg : Palette.Transparent; } }
-        public Brush PauseForeground { get { return _paused ? Palette.Accent : Palette.Ink; } }
-        public Brush FollowBackground { get { return _follow ? Palette.TagBg : Palette.Transparent; } }
-        public Brush FollowForeground { get { return _follow ? Palette.Accent : Palette.Ink; } }
+        /// <summary>PAUSE and FOLLOW are toggles; these light them.</summary>
+        public bool IsPaused { get { return _paused; } }
+        public bool FollowOn { get { return _follow; } }
         public bool IsFollowing { get { return _follow && !_paused; } }
 
         public string HeldNote
@@ -388,8 +387,7 @@ namespace S2x.ServerManager.ViewModels
 
         private void RaiseChrome()
         {
-            Raise("PauseLabel"); Raise("PauseBackground"); Raise("PauseForeground");
-            Raise("FollowBackground"); Raise("FollowForeground"); Raise("IsFollowing");
+            Raise("PauseLabel"); Raise("IsPaused"); Raise("FollowOn"); Raise("IsFollowing");
             Raise("HeldNote"); Raise("HeldVisibility"); Raise("SharedVisibility"); Raise("LogFile");
         }
 

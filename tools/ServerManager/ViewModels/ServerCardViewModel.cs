@@ -8,13 +8,13 @@ using S2x.ServerManager.Views;
 
 namespace S2x.ServerManager.ViewModels
 {
-    internal sealed class SlotTick
+    internal sealed class SlotTick : Unchanging
     {
         public Brush Fill { get; set; }
         public Brush Stroke { get; set; }
     }
 
-    internal sealed class PingBar
+    internal sealed class PingBar : Unchanging
     {
         public double Height { get; set; }
         public Brush Fill { get; set; }
@@ -142,38 +142,35 @@ namespace S2x.ServerManager.ViewModels
 
         public Brush DotBrush { get { return State.Status == ServerStatus.Stopped ? Palette.Off : StateBrush; } }
         public bool IsStarting { get { return State.Status == ServerStatus.Starting; } }
+        /// <summary>The badge's breathing dot and glow are for a server that answered.</summary>
+        public bool IsRunning { get { return State.Status == ServerStatus.Running; } }
 
-        public Brush CardBackground
-        {
-            get
-            {
-                if (State.Status == ServerStatus.NotAnswering) return Palette.TagBg;
-                if (State.Status == ServerStatus.Crashed) return Palette.DangerBg;
-                return Palette.Bar;
-            }
-        }
-
-        public Brush CardEdge
-        {
-            get
-            {
-                if (State.Status == ServerStatus.NotAnswering) return Palette.TagEdge;
-                if (State.Status == ServerStatus.Crashed) return Palette.DangerEdge;
-                return Palette.Line;
-            }
-        }
-
-        public Brush CornerBrush
+        /// <summary>The status colour at the theme's badge tint, behind the badge text.</summary>
+        public Brush StateTint
         {
             get
             {
                 switch (State.Status)
                 {
-                    case ServerStatus.NotAnswering: return Palette.Accent;
-                    case ServerStatus.Crashed: return Palette.Danger;
-                    case ServerStatus.Running: return Palette.EdgeHot;
-                    default: return Palette.Edge;
+                    case ServerStatus.Running: return Palette.OkTint;
+                    case ServerStatus.Starting:
+                    case ServerStatus.NotAnswering: return Palette.AccentTint;
+                    case ServerStatus.Crashed: return Palette.DangerTint;
+                    default: return Palette.MutedTint;
                 }
+            }
+        }
+
+        public Brush CardBackground { get { return Palette.Bar; } }
+
+        /// <summary>A card that needs attention is outlined in the colour of what is wrong.</summary>
+        public Brush CardEdge
+        {
+            get
+            {
+                if (State.Status == ServerStatus.NotAnswering) return Palette.Accent;
+                if (State.Status == ServerStatus.Crashed) return Palette.Danger;
+                return Palette.Line;
             }
         }
 
@@ -214,6 +211,17 @@ namespace S2x.ServerManager.ViewModels
                 if (Preset.IsZombies) return "ZOMBIES";
                 var key = State.GametypeKey ?? (CurrentEntry != null ? CurrentEntry.Gametype : null);
                 return key == null ? "" : GameData.GametypeName(key).ToUpperInvariant();
+            }
+        }
+
+        /// <summary>The mode half of "Now playing": Zombies, or the gametype's name.</summary>
+        public string NowMode
+        {
+            get
+            {
+                if (Preset.IsZombies) return "Zombies";
+                var key = State.GametypeKey ?? (CurrentEntry != null ? CurrentEntry.Gametype : null);
+                return key == null ? "" : GameData.GametypeName(key);
             }
         }
 
@@ -265,6 +273,13 @@ namespace S2x.ServerManager.ViewModels
             }
         }
 
+        // The occupancy bar: humans in the fill, bots after them, free slots empty.
+        private int SlotCount { get { return Math.Max(1, State.Cap > 0 ? State.Cap : Preset.MaxPlayers); } }
+        public GridLength HumansWidth { get { return Star(Math.Min(State.Humans, SlotCount)); } }
+        public GridLength BotsWidth { get { return Star(Math.Min(State.Bots, Math.Max(0, SlotCount - State.Humans))); } }
+        public GridLength FreeWidth { get { return Star(Math.Max(0, SlotCount - State.Humans - State.Bots)); } }
+        private static GridLength Star(int value) { return new GridLength(Math.Max(0, value), GridUnitType.Star); }
+
         public string HumansText { get { return State.Humans.ToString(); } }
         public string BotsText { get { return State.Bots.ToString(); } }
         public string FreeText { get { return State.Free.ToString(); } }
@@ -308,8 +323,10 @@ namespace S2x.ServerManager.ViewModels
         {
             get
             {
-                return string.Format("{0} in rotation {1} {2} {1} cap {3}",
-                    Preset.Rotation.Count, GameData.MiddleDot, PlannedBots, Cap);
+                // "vote": the NEXT line is still the rotation's, which a vote may change.
+                return string.Format("{0} in rotation {1} {2} {1} cap {3}{4}",
+                    Preset.Rotation.Count, GameData.MiddleDot, PlannedBots, Cap,
+                    Preset.UsesMapVote ? " " + GameData.MiddleDot + " vote" : "");
             }
         }
 
@@ -321,6 +338,7 @@ namespace S2x.ServerManager.ViewModels
         {
             get
             {
+                if (Preset.UsesAutoBalance) return "auto-balance " + Preset.BotFill;
                 if (!Preset.IsProfile) return Preset.BotFill + " bots";
                 LaunchProfile profile;
                 var entry = LaunchProfiles.Find(_fleet.Profiles, Preset.LaunchProfileId, Preset.LaunchEntryKey, out profile);

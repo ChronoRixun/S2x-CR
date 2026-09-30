@@ -11,26 +11,39 @@ namespace S2x.ServerManager.Views
     public partial class ConsoleDrawer : UserControl
     {
         private ConsoleViewModel _console;
+        private bool _loaded;
 
         public ConsoleDrawer()
         {
             InitializeComponent();
-            DataContextChanged += Rebind;
+            DataContextChanged += (s, e) => Listen();
             grip.DragDelta += (s, e) => { if (_console != null) _console.Height -= e.VerticalChange; };
             // Opened on a log that is already long, the newest line is the one wanted.
-            Loaded += (s, e) => Appended();
+            Loaded += (s, e) => { _loaded = true; Listen(); Appended(); };
+            Unloaded += (s, e) => { _loaded = false; Listen(); };
             IsVisibleChanged += (s, e) => Appended();
         }
 
-        private void Rebind(object sender, DependencyPropertyChangedEventArgs e)
+        private void OpenAdmin(object sender, RoutedEventArgs e)
         {
-            var old = e.OldValue as ConsoleViewModel;
-            if (old != null)
+            if (_console?.Card == null) return;
+            new AdminWindow(_console.Card.Preset.Port, _console.Card.Name) { Owner = Window.GetWindow(this) }.ShowDialog();
+        }
+
+        /// <summary>
+        /// Listens to the console only while this drawer is loaded: the console lives as long as
+        /// the fleet, and a handler left on it kept a closed window alive with it.
+        /// </summary>
+        private void Listen()
+        {
+            var wanted = _loaded ? DataContext as ConsoleViewModel : null;
+            if (wanted == _console) return;
+            if (_console != null)
             {
-                old.LinesAppended -= Appended;
-                old.FilterFocusRequested -= FocusFilter;
+                _console.LinesAppended -= Appended;
+                _console.FilterFocusRequested -= FocusFilter;
             }
-            _console = e.NewValue as ConsoleViewModel;
+            _console = wanted;
             if (_console == null) return;
             _console.LinesAppended += Appended;
             _console.FilterFocusRequested += FocusFilter;

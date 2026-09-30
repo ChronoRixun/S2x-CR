@@ -8,7 +8,7 @@ using S2x.ServerManager.Services;
 namespace S2x.ServerManager.Views
 {
     /// <summary>One registered folder, as the dialog shows it.</summary>
-    internal sealed class ProfileRow
+    internal sealed class ProfileRow : ViewModels.Unchanging
     {
         public string Folder { get; set; }
         public string Summary { get; set; }

@@ -65,6 +65,8 @@ namespace S2x.ServerManager.Models
             "mp_zombie_windmill", "The Tortured Path: Into the Storm",
             "mp_zombie_dnk", "The Tortured Path: Across the Depths",
             "mp_zombie_dig_02", "The Tortured Path: Beyond the Veil",
+            "mp_zombie_windmill_srv", "Bodega Cervantes",
+            "mp_zombie_dnk_srv", "U.S.S. Mount Olympus",
             "mp_zombie_descent", "The Frozen Dawn");
 
         public static readonly Dictionary<string, string> ZombieMapPacks = Map(
@@ -73,6 +75,8 @@ namespace S2x.ServerManager.Models
             "mp_zombie_windmill", "DLC 3",
             "mp_zombie_dnk", "DLC 3",
             "mp_zombie_dig_02", "DLC 3",
+            "mp_zombie_windmill_srv", "DLC 3",
+            "mp_zombie_dnk_srv", "DLC 3",
             "mp_zombie_descent", "DLC 4");
 
         public static readonly List<KeyValuePair<string, string>> Gametypes = Pairs(
@@ -97,6 +101,14 @@ namespace S2x.ServerManager.Models
             "ctf", "CTF",
             "gun", "GUN",
             "ball", "GRID");
+
+        // Every player for themselves: there are no teams to keep even.
+        public static readonly string[] FreeForAllGametypes = { "dm", "gun" };
+
+        public static bool IsFreeForAll(string gametype)
+        {
+            return Array.IndexOf(FreeForAllGametypes, gametype) >= 0;
+        }
 
         public static readonly List<KeyValuePair<string, int>> DefaultScoreLimits = new List<KeyValuePair<string, int>>
         {

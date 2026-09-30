@@ -61,6 +61,30 @@ namespace S2x.ServerManager.Models
         // its place in the presets folder, and the PowerShell launcher ignores the key.
         public bool Hidden;
 
+        // s2x_autobalance.gsc runs the bots instead of the native one-shot bot_fill: BotFill is
+        // then the match size it keeps. Multiplayer only, and never for a launch profile, whose
+        // package writes its own cfg.
+        public bool AutoBalance;
+
+        // s2x_servercmds.gsc: chat commands (!help, !rules, !discord, !nextmap) and the vote for
+        // the next map at match end. Multiplayer only, and never for a launch profile, like
+        // auto-balance. Rules and Discord are kept as typed; the cfg gets them cleaned
+        // (Services\CfgText.cs) when it is written.
+        public bool ChatCommands;
+        public readonly List<string> Rules = new List<string>();
+        public string Discord = "";
+        public bool MapVote;
+        public int VoteChoices = DefaultVoteChoices;
+        public int VoteSeconds = DefaultVoteSeconds;
+
+        public const int MaxRules = 5;
+        public const int DefaultVoteChoices = 3;
+        public const int MinVoteChoices = 2;
+        public const int MaxVoteChoices = 5;
+        public const int DefaultVoteSeconds = 15;
+        public const int MinVoteSeconds = 10;
+        public const int MaxVoteSeconds = 30;
+
         // A server a launch profile starts: the profile and the entry in it. Null for a server
         // this app starts itself.
         public string LaunchProfileId;
@@ -72,6 +96,18 @@ namespace S2x.ServerManager.Models
 
         public bool IsZombies { get { return string.Equals(Mode, "zombies", StringComparison.OrdinalIgnoreCase); } }
         public bool IsProfile { get { return !string.IsNullOrEmpty(LaunchProfileId) && !string.IsNullOrEmpty(LaunchEntryKey); } }
+
+        /// <summary>Whether a launch of this preset hands its bots to the auto-balance script.</summary>
+        public bool UsesAutoBalance { get { return AutoBalance && !IsZombies && !IsProfile; } }
+
+        /// <summary>Whether a launch of this preset turns the chat commands on.</summary>
+        public bool UsesChatCommands { get { return ChatCommands && !IsZombies && !IsProfile; } }
+
+        /// <summary>Whether a launch of this preset turns the end-of-match map vote on.</summary>
+        public bool UsesMapVote { get { return MapVote && !IsZombies && !IsProfile; } }
+
+        /// <summary>Whether a launch of this preset needs s2x_servercmds.gsc in the game folder.</summary>
+        public bool UsesServerCmds { get { return UsesChatCommands || UsesMapVote; } }
 
         /// <summary>The cap the game allows: a Zombies party is four, a multiplayer one eighteen.</summary>
         public static int CapCeiling(bool zombies) { return zombies ? 4 : 18; }
@@ -108,6 +144,12 @@ namespace S2x.ServerManager.Models
                 Advertise = Advertise,
                 ShuffleOnLaunch = ShuffleOnLaunch,
                 Hidden = Hidden,
+                AutoBalance = AutoBalance,
+                ChatCommands = ChatCommands,
+                Discord = Discord,
+                MapVote = MapVote,
+                VoteChoices = VoteChoices,
+                VoteSeconds = VoteSeconds,
                 LaunchProfileId = LaunchProfileId,
                 LaunchEntryKey = LaunchEntryKey,
                 Raw = (Dictionary<string, object>)CopyValue(Raw) ?? new Dictionary<string, object>(StringComparer.Ordinal),
@@ -115,6 +157,7 @@ namespace S2x.ServerManager.Models
             foreach (var pair in ScoreLimits) copy.ScoreLimits[pair.Key] = pair.Value;
             foreach (var entry in Rotation) copy.Rotation.Add(entry.Copy());
             copy.ExtraLines.AddRange(ExtraLines);
+            copy.Rules.AddRange(Rules);
             return copy;
         }
 

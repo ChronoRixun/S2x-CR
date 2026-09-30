@@ -33,4 +33,6 @@ namespace gsc
 	void override_function(const std::string& name, game::BuiltinFunction func);
 	void add_function(const std::string& name, game::BuiltinFunction function);
 	void notify_chat(int client_num, const std::string& text, bool team);
+	// Server thread only. True means a registered script listener was notified, not client visibility.
+	bool notify_admin_notice(int client_num, const std::string& text, bool warning);
 }

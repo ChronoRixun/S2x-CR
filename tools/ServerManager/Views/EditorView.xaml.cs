@@ -21,22 +21,31 @@ namespace S2x.ServerManager.Views
         }
 
         private EditorViewModel _editor;
+        private bool _loaded;
 
         public EditorView()
         {
             InitializeComponent();
-            DataContextChanged += Rebind;
+            DataContextChanged += (s, e) => Listen();
+            Loaded += (s, e) => { _loaded = true; Listen(); };
+            Unloaded += (s, e) => { _loaded = false; Listen(); };
             // The colour swatches drop a code where the caret is, so the box has to say where
             // that is, and take the caret back afterwards.
             txtName.SelectionChanged += (s, e) => { if (_editor != null) _editor.CaretIndex = txtName.CaretIndex; };
             lstRotation.PreviewKeyDown += RotationKey;
         }
 
-        private void Rebind(object sender, DependencyPropertyChangedEventArgs e)
+        /// <summary>
+        /// Listens to the editor only while this view is loaded. The fleet keeps an editor per
+        /// preset for as long as it runs, and a handler left on one kept a closed window, with
+        /// everything drawn in it, alive as long as the editor was.
+        /// </summary>
+        private void Listen()
         {
-            var old = e.OldValue as EditorViewModel;
-            if (old != null) old.CaretSet -= MoveCaret;
-            _editor = e.NewValue as EditorViewModel;
+            var wanted = _loaded ? DataContext as EditorViewModel : null;
+            if (wanted == _editor) return;
+            if (_editor != null) _editor.CaretSet -= MoveCaret;
+            _editor = wanted;
             if (_editor != null) _editor.CaretSet += MoveCaret;
         }
 

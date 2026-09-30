@@ -180,7 +180,32 @@ namespace S2x.ServerManager.Services
             root["extraLines"] = preset.ExtraLines.Cast<object>().ToArray();
             root["shuffleOnLaunch"] = preset.ShuffleOnLaunch;
             root["hidden"] = preset.Hidden;
+            // The PowerShell launcher does not know this key: a save there drops it, and that
+            // server goes back to the native bot fill.
+            root["autoBalance"] = preset.AutoBalance;
+
+            // Two groups for s2x_servercmds.gsc, always written. Each is updated in the object
+            // the file had, as scoreLimits is, so a key a newer Manager put inside survives.
+            // The PowerShell launcher knows neither: a save there drops both, and that server
+            // goes back to no chat commands and no vote.
+            var chat = Group(root, "chatCommands");
+            chat["enabled"] = preset.ChatCommands;
+            chat["rules"] = preset.Rules.Where(rule => !string.IsNullOrWhiteSpace(rule))
+                .Take(ServerPreset.MaxRules).Cast<object>().ToArray();
+            chat["discord"] = preset.Discord ?? "";
+            var vote = Group(root, "mapVote");
+            vote["enabled"] = preset.MapVote;
+            vote["choices"] = Clamp(preset.VoteChoices, ServerPreset.MinVoteChoices, ServerPreset.MaxVoteChoices);
+            vote["seconds"] = Clamp(preset.VoteSeconds, ServerPreset.MinVoteSeconds, ServerPreset.MaxVoteSeconds);
             return root;
+        }
+
+        /// <summary>The object under <paramref name="key"/>, made (or put in place of a value that is not one) when missing.</summary>
+        private static Dictionary<string, object> Group(Dictionary<string, object> root, string key)
+        {
+            var group = Get(root, key) as Dictionary<string, object>;
+            if (group == null) root[key] = group = new Dictionary<string, object>(StringComparer.Ordinal);
+            return group;
         }
 
         public static ServerPreset Read(string file)
@@ -212,6 +237,31 @@ namespace S2x.ServerManager.Services
                 preset.Advertise = Bool(root, "advertise", true);
                 preset.ShuffleOnLaunch = Bool(root, "shuffleOnLaunch", false);
                 preset.Hidden = Bool(root, "hidden", false);
+                preset.AutoBalance = Bool(root, "autoBalance", false);
+
+                var chat = Get(root, "chatCommands") as Dictionary<string, object>;
+                if (chat != null)
+                {
+                    preset.ChatCommands = Bool(chat, "enabled", false);
+                    var rules = Get(chat, "rules") as object[];
+                    if (rules != null)
+                        foreach (var rule in rules)
+                        {
+                            // One rule is one line of the editor's box, so a line break a hand
+                            // edit put inside one becomes a space.
+                            var line = OneLine(Convert.ToString(rule, CultureInfo.InvariantCulture));
+                            if (line.Length == 0) continue;
+                            preset.Rules.Add(line);
+                            if (preset.Rules.Count == ServerPreset.MaxRules) break;
+                        }
+                    preset.Discord = OneLine(Str(chat, "discord"));
+                }
+                var vote = Get(root, "mapVote") as Dictionary<string, object>;
+                preset.MapVote = vote != null && Bool(vote, "enabled", false);
+                preset.VoteChoices = Clamp(Int(vote, "choices", ServerPreset.DefaultVoteChoices),
+                    ServerPreset.MinVoteChoices, ServerPreset.MaxVoteChoices);
+                preset.VoteSeconds = Clamp(Int(vote, "seconds", ServerPreset.DefaultVoteSeconds),
+                    ServerPreset.MinVoteSeconds, ServerPreset.MaxVoteSeconds);
 
                 var launch = Get(root, "launch") as Dictionary<string, object>;
                 if (launch != null)
@@ -296,6 +346,12 @@ namespace S2x.ServerManager.Services
             if (value is bool) return (bool)value;
             if (value == null) return fallback;
             return bool.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), out parsed) ? parsed : fallback;
+        }
+
+        private static string OneLine(string text)
+        {
+            return string.Join(" ", (text ?? "").Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(part => part.Trim()).Where(part => part.Length > 0));
         }
 
         private static int Clamp(int value, int low, int high)

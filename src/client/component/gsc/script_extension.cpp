@@ -1,4 +1,5 @@
 #include <std_include.hpp>
+#include "../network.hpp"
 #include "loader/component_loader.hpp"
 #include "game/game.hpp"
 #include "game/dvars.hpp"
@@ -8,6 +9,8 @@
 
 #include "component/command.hpp"
 #include "component/console/console.hpp"
+#include "component/scripting.hpp"
+#include "component/server_admin.hpp"
 
 #include "script_error.hpp"
 #include "script_extension.hpp"
@@ -354,6 +357,49 @@ namespace gsc
 			else game::Scr_AddString(""); // Bots and unavailable addresses have no public IP.
 		}
 
+		// Script VM and these registrations are accessed only on the server thread.
+		struct admin_notice_connection
+		{
+			decltype(std::to_array(game::mp::client_t{}.guid)) guid{};
+			game::netadr_s address{};
+			int qport{}, connected{};
+		};
+		std::unordered_map<int, admin_notice_connection> admin_notice_listeners;
+		bool admin_notice_watcher_ready{};
+
+		void reset_admin_notices()
+		{
+			admin_notice_listeners.clear();
+			admin_notice_watcher_ready = false;
+			server_admin::set_notice_ready(false);
+		}
+
+		void scr_admin_notice_ready()
+		{
+			if (game::Scr_GetNumParam() != 2 || game::Scr_GetType(0) != game::VAR_INTEGER ||
+				game::Scr_GetType(1) != game::VAR_INTEGER)
+				throw std::runtime_error("serveradminnoticeready(slot, ready) expects two integers");
+			if (!server_admin::enabled()) { game::Scr_AddInt(0); return; }
+			const auto slot = game::Scr_GetInt(0);
+			const auto ready = game::Scr_GetInt(1) != 0;
+			if (slot == -1)
+			{
+				if (!ready) reset_admin_notices();
+				else { admin_notice_watcher_ready = true; server_admin::set_notice_ready(true); }
+				game::Scr_AddInt(1);
+				return;
+			}
+			if (slot < 0 || slot >= *game::sv_maxclients) { game::Scr_AddInt(0); return; }
+			if (!ready) { admin_notice_listeners.erase(slot); game::Scr_AddInt(1); return; }
+			const auto* clients = *game::mp::svs_clients;
+			if (!clients || clients[slot].state < 3 || clients[slot].testClient ||
+				clients[slot].remoteAddress.type == game::NA_BOT || !clients[slot].guid[0] ||
+				!clients[slot].gentity || !clients[slot].gentity->client)
+			{ game::Scr_AddInt(0); return; }
+			admin_notice_listeners[slot] = {std::to_array(clients[slot].guid), clients[slot].remoteAddress, clients[slot].qport, clients[slot].lastConnectTime};
+			game::Scr_AddInt(1);
+		}
+
 		void scr_get_player_roster()
 		{
 			if (game::Scr_GetNumParam()) throw std::runtime_error("getplayerroster() expects no arguments");
@@ -447,6 +493,31 @@ namespace gsc
 		utils::hook::invoke<void>(0x68B4A0_g, static_cast<int>(game::VAR_STRING), static_cast<std::uint64_t>(event));
 	}
 
+	bool notify_admin_notice(const int client_num, const std::string& text, const bool warning)
+	{
+		if (!server_admin::enabled() || !admin_notice_watcher_ready || text.empty() || text.size() > 160 ||
+			text.find('\0') != std::string::npos || !game::SV_Loaded() || game::virtual_lobby_loaded() ||
+			client_num < 0 || client_num >= *game::sv_maxclients) return false;
+		const auto found = admin_notice_listeners.find(client_num);
+		if (found == admin_notice_listeners.end()) return false;
+		auto* entities = game::mp::g_entities.get();
+		const auto* clients = *game::mp::svs_clients;
+		if (!entities || !clients || clients[client_num].state < 3 || clients[client_num].testClient ||
+			clients[client_num].remoteAddress.type == game::NA_BOT || !entities[client_num].client ||
+			found->second.guid != std::to_array(clients[client_num].guid) ||
+			found->second.address != clients[client_num].remoteAddress || found->second.qport != clients[client_num].qport ||
+			found->second.connected != clients[client_num].lastConnectTime) return false;
+		// The script prints this as a quoted server command; a double quote would end the text early.
+		auto message = text;
+		std::replace(message.begin(), message.end(), '"', '\'');
+		const auto event = utils::hook::invoke<unsigned>(0x6891F0_g, "s2x_admin_notice", 0u);
+		game::Scr_AddInt(warning ? 1 : 0);
+		game::Scr_AddString(message.c_str());
+		game::Scr_Notify(&entities[client_num], event, 2);
+		utils::hook::invoke<void>(0x68B4A0_g, static_cast<int>(game::VAR_STRING), static_cast<std::uint64_t>(event));
+		return true;
+	}
+
 	class extension final : public generic_component
 	{
 	public:
@@ -460,6 +531,9 @@ namespace gsc
 				add_function("filewrite", &scr_file_write);
 				add_function("getip", &scr_get_ip);
 				add_function("getplayerroster", &scr_get_player_roster);
+				add_function("serveradminnoticeready", &scr_admin_notice_ready);
+				scripting::on_init([] { reset_admin_notices(); });
+				scripting::on_shutdown([](int) { reset_admin_notices(); });
 			}
 
 			scr_error_hook.create(game::Scr_Error, scr_error_stub);

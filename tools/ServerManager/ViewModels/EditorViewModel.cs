@@ -11,7 +11,7 @@ using S2x.ServerManager.Views;
 
 namespace S2x.ServerManager.ViewModels
 {
-    internal sealed class SwatchViewModel
+    internal sealed class SwatchViewModel : Unchanging
     {
         public Brush Fill { get; set; }
         public Brush Stroke { get; set; }
@@ -20,15 +20,15 @@ namespace S2x.ServerManager.ViewModels
     }
 
     /// <summary>One button of a segmented control: mode, name pool, difficulty.</summary>
-    internal sealed class SegmentOption
+    internal sealed class SegmentOption : Unchanging
     {
         public string Label { get; set; }
-        public Brush Background { get; set; }
-        public Brush Foreground { get; set; }
+        /// <summary>The chosen one: the Segment style lights it.</summary>
+        public bool IsOn { get; set; }
         public RelayCommand PickCommand { get; set; }
     }
 
-    internal sealed class PickOption
+    internal sealed class PickOption : Unchanging
     {
         public string Key { get; set; }
         public string Label { get; set; }
@@ -37,7 +37,7 @@ namespace S2x.ServerManager.ViewModels
         public override string ToString() { return Label; }
     }
 
-    internal sealed class PipViewModel
+    internal sealed class PipViewModel : Unchanging
     {
         public Brush Fill { get; set; }
         public Brush Stroke { get; set; }
@@ -105,6 +105,13 @@ namespace S2x.ServerManager.ViewModels
         private string _minText;
         private string _delayText;
         private bool _advertise;
+        private bool _autoBalance;
+        private bool _chatCommands;
+        private string _rulesText;
+        private string _discord;
+        private bool _mapVote;
+        private int _voteChoices;
+        private int _voteSeconds;
         private string _extraText;
         private string _saved;
         private RotationRowViewModel _selectedRow;
@@ -132,6 +139,13 @@ namespace S2x.ServerManager.ViewModels
             _minText = preset.MinPlayers.ToString();
             _delayText = preset.StartDelay.ToString();
             _advertise = preset.Advertise;
+            _autoBalance = preset.AutoBalance;
+            _chatCommands = preset.ChatCommands;
+            _rulesText = string.Join(Environment.NewLine, preset.Rules);
+            _discord = preset.Discord ?? "";
+            _mapVote = preset.MapVote;
+            _voteChoices = preset.VoteChoices;
+            _voteSeconds = preset.VoteSeconds;
             if (preset.IsProfile) { _launchId = preset.LaunchProfileId; _launchKey = preset.LaunchEntryKey; }
             _extraText = string.Join(Environment.NewLine, preset.ExtraLines);
             foreach (var pair in GameData.DefaultScoreLimits)
@@ -231,10 +245,6 @@ namespace S2x.ServerManager.ViewModels
         public bool IsZombies { get { return _isZombies; } }
         public bool IsMultiplayer { get { return !_isZombies; } }
         public Visibility MultiplayerVisibility { get { return _isZombies ? Visibility.Collapsed : Visibility.Visible; } }
-        public Brush MpBackground { get { return _isZombies ? Palette.Transparent : Palette.Accent; } }
-        public Brush MpForeground { get { return _isZombies ? Palette.Muted : Palette.Bar; } }
-        public Brush ZmBackground { get { return _isZombies ? Palette.Accent : Palette.Transparent; } }
-        public Brush ZmForeground { get { return _isZombies ? Palette.Bar : Palette.Muted; } }
 
         /// <summary>
         /// The port the running process is on: the one the preset was saved with. The box above
@@ -383,7 +393,7 @@ namespace S2x.ServerManager.ViewModels
             {
                 var wanted = Math.Max(0, Math.Min(Cap, value));
                 if (!Set(ref _botFill, wanted)) return;
-                Raise("BotPips"); Raise("BotSummary");
+                Raise("BotPips"); Raise("BotSummary"); Raise("AutoBalanceNote");
                 Touched();
             }
         }
@@ -403,7 +413,59 @@ namespace S2x.ServerManager.ViewModels
 
         public string BotSummary
         {
-            get { return _botFill + " bots " + GameData.MiddleDot + " " + _botNames + " " + GameData.MiddleDot + " " + _botDifficulty; }
+            get
+            {
+                var fill = AutoBalance ? "auto-balance " + _botFill : _botFill + " bots";
+                return fill + " " + GameData.MiddleDot + " " + _botNames + " " + GameData.MiddleDot + " " + _botDifficulty;
+            }
+        }
+
+        /// <summary>
+        /// s2x_autobalance.gsc runs the bots instead of the native fill, and bot fill becomes the
+        /// match size it keeps. Multiplayer only, and not for a profile server, whose package
+        /// writes its own cfg.
+        /// </summary>
+        public bool AutoBalanceEnabled { get { return !_isZombies && !IsProfile; } }
+
+        /// <summary>Off wherever it cannot apply, which is also what Save writes there.</summary>
+        public bool AutoBalance
+        {
+            get { return _autoBalance && AutoBalanceEnabled; }
+            set
+            {
+                if (!AutoBalanceEnabled || !Set(ref _autoBalance, value)) return;
+                AutoBalanceChanged();
+                Touched();
+            }
+        }
+
+        public Visibility AutoBalanceNoteVisibility { get { return AutoBalance ? Visibility.Visible : Visibility.Collapsed; } }
+
+        /// <summary>
+        /// What the switch does, and the one thing about this server most worth knowing with it
+        /// on. Advice only: nothing here stops a save or a launch.
+        /// </summary>
+        public string AutoBalanceNote
+        {
+            get
+            {
+                if (!AutoBalance) return "";
+                string more = null;
+                if (Cap < ServerPreset.CapCeiling(false))
+                    more = "The player cap limits how many people can join; 18 lets the match grow past the bot fill size.";
+                else if (Rotation.Any(row => GameData.IsFreeForAll(row.Entry.Gametype)))
+                    more = "On free-for-all maps it only keeps the player count at the bot fill size.";
+                else if (_botFill % 2 == 1)
+                    more = "An odd size puts one extra player on one side.";
+                var note = "Bots fill to the bot fill size and leave as people join; teams are kept even.";
+                return more == null ? note : note + Environment.NewLine + more;
+            }
+        }
+
+        private void AutoBalanceChanged()
+        {
+            Raise("AutoBalance"); Raise("AutoBalanceEnabled"); Raise("AutoBalanceNote");
+            Raise("AutoBalanceNoteVisibility"); Raise("BotSummary");
         }
 
         public List<SegmentOption> PoolOptions
@@ -424,7 +486,177 @@ namespace S2x.ServerManager.ViewModels
             }
         }
 
-        // ── 05 lobby ──────────────────────────────────────────────────────────────
+        // ── 05 chat commands ──────────────────────────────────────────────────────
+        /// <summary>
+        /// s2x_servercmds.gsc runs the chat commands and the map vote. Multiplayer only, and not
+        /// for a profile server, whose package writes its own cfg.
+        /// </summary>
+        public bool ServerCmdsEnabled { get { return !_isZombies && !IsProfile; } }
+        public Visibility ServerCmdsNoteVisibility { get { return IsProfile ? Visibility.Visible : Visibility.Collapsed; } }
+
+        /// <summary>Off wherever it cannot apply, which is also what Save writes there.</summary>
+        public bool ChatCommands
+        {
+            get { return _chatCommands && ServerCmdsEnabled; }
+            set
+            {
+                if (!ServerCmdsEnabled || !Set(ref _chatCommands, value)) return;
+                Raise("ChatSummary");
+                Touched();
+            }
+        }
+
+        /// <summary>The rules box: one rule per line.</summary>
+        public string RulesText
+        {
+            get { return _rulesText; }
+            set
+            {
+                if (!Set(ref _rulesText, value ?? "")) return;
+                Raise("RulesCount"); Raise("RulesCountBrush"); Raise("RulesNote"); Raise("RulesNoteVisibility");
+                Raise("RulesPlaceholderVisibility"); Raise("ChatSummary");
+                Touched();
+            }
+        }
+
+        /// <summary>Every rule typed: the box's lines that are not blank, trimmed.</summary>
+        private List<string> TypedRules
+        {
+            get { return NonBlankLines(_rulesText).Select(line => line.Trim()).ToList(); }
+        }
+
+        /// <summary>The rules Save writes: the first five typed.</summary>
+        public List<string> Rules { get { return TypedRules.Take(ServerPreset.MaxRules).ToList(); } }
+
+        public string RulesCount { get { return TypedRules.Count + "/" + ServerPreset.MaxRules; } }
+        public Brush RulesCountBrush { get { return TypedRules.Count > ServerPreset.MaxRules ? Palette.Danger : Palette.Faint; } }
+
+        /// <summary>Advice only: what the server will not get of what was typed.</summary>
+        public string RulesNote
+        {
+            get
+            {
+                var notes = new List<string>();
+                if (TypedRules.Count > ServerPreset.MaxRules) notes.Add("Only the first " + ServerPreset.MaxRules + " rules are used.");
+                if (Rules.Any(rule => CfgText.Bytes(rule) > CfgText.RuleBytes))
+                    notes.Add("A rule is cut at " + CfgText.RuleBytes + " bytes; accented letters and emoji take 2 to 4 each.");
+                return string.Join(Environment.NewLine, notes);
+            }
+        }
+
+        public Visibility RulesNoteVisibility { get { return RulesNote.Length == 0 ? Visibility.Collapsed : Visibility.Visible; } }
+        public Visibility RulesPlaceholderVisibility { get { return string.IsNullOrEmpty(_rulesText) ? Visibility.Visible : Visibility.Collapsed; } }
+
+        public string Discord
+        {
+            get { return _discord; }
+            set
+            {
+                if (!Set(ref _discord, value ?? "")) return;
+                Raise("DiscordPlaceholderVisibility"); Raise("ChatSummary");
+                Touched();
+            }
+        }
+
+        public Visibility DiscordPlaceholderVisibility { get { return string.IsNullOrEmpty(_discord) ? Visibility.Visible : Visibility.Collapsed; } }
+
+        public string ChatSummary
+        {
+            get
+            {
+                if (!ChatCommands) return "off";
+                var count = Rules.Count;
+                var text = "on " + GameData.MiddleDot + " " + (count == 0 ? "no rules" : count + (count == 1 ? " rule" : " rules"));
+                return _discord.Trim().Length > 0 ? text + " " + GameData.MiddleDot + " discord" : text;
+            }
+        }
+
+        // ── 06 map vote ───────────────────────────────────────────────────────────
+        /// <summary>The vote times on offer, in seconds; a preset file may hold any value from 10 to 30.</summary>
+        public static readonly int[] VoteTimes = { 10, 15, 20, 30 };
+
+        /// <summary>Off wherever it cannot apply, which is also what Save writes there.</summary>
+        public bool MapVote
+        {
+            get { return _mapVote && ServerCmdsEnabled; }
+            set
+            {
+                if (!ServerCmdsEnabled || !Set(ref _mapVote, value)) return;
+                Raise("MapVoteSummary"); Raise("MapVoteNote"); Raise("MapVoteNoteVisibility");
+                Touched();
+            }
+        }
+
+        public int VoteChoices { get { return _voteChoices; } }
+        public int VoteSeconds { get { return _voteSeconds; } }
+
+        public List<SegmentOption> ChoiceOptions
+        {
+            get
+            {
+                return Enumerable.Range(ServerPreset.MinVoteChoices, ServerPreset.MaxVoteChoices - ServerPreset.MinVoteChoices + 1)
+                    .Select(count => Segment(count.ToString(), _voteChoices == count, () =>
+                    {
+                        _voteChoices = count;
+                        Raise("VoteChoices"); Raise("ChoiceOptions"); Raise("MapVoteSummary"); Touched();
+                    })).ToList();
+            }
+        }
+
+        public List<SegmentOption> TimeOptions
+        {
+            get
+            {
+                return VoteTimes.Select(seconds => Segment(seconds.ToString(), _voteSeconds == seconds, () =>
+                {
+                    _voteSeconds = seconds;
+                    Raise("VoteSeconds"); Raise("TimeOptions"); Raise("MapVoteSummary"); Touched();
+                })).ToList();
+            }
+        }
+
+        public string MapVoteSummary
+        {
+            get { return MapVote ? _voteChoices + " choices " + GameData.MiddleDot + " " + _voteSeconds + " s" : "off"; }
+        }
+
+        public Visibility MapVoteNoteVisibility { get { return MapVote ? Visibility.Visible : Visibility.Collapsed; } }
+
+        /// <summary>
+        /// How the vote treats the rotation, and what this server needs for it to show. Advice
+        /// only: nothing here stops a save or a launch.
+        /// </summary>
+        public string MapVoteNote
+        {
+            get
+            {
+                if (!MapVote) return "";
+                var notes = new List<string>
+                {
+                    "Choice 1 is always the rotation's next map; a tie or no votes keeps the rotation. A voted map replaces the next rotation entry.",
+                };
+                // The current match is never on the ballot and choice 1 is the next one, so two
+                // other entries are the least that leaves something to choose.
+                if (Rotation.Select(row => row.Entry.Map + " " + row.Entry.Gametype).Distinct().Count() < 3)
+                    notes.Add("Needs at least 3 rotation entries to offer a choice.");
+                notes.Add("Needs the S2x build with map-vote support; older builds show no vote.");
+                return string.Join(Environment.NewLine, notes);
+            }
+        }
+
+        private void ServerCmdsChanged()
+        {
+            Raise("ServerCmdsEnabled"); Raise("ServerCmdsNoteVisibility");
+            Raise("ChatCommands"); Raise("ChatSummary");
+            Raise("MapVote"); Raise("MapVoteSummary"); Raise("MapVoteNote"); Raise("MapVoteNoteVisibility");
+        }
+
+        private static IEnumerable<string> NonBlankLines(string text)
+        {
+            return (text ?? "").Split(new[] { "\r\n", "\n" }, StringSplitOptions.None).Where(line => !string.IsNullOrWhiteSpace(line));
+        }
+
+        // ── 07 lobby ──────────────────────────────────────────────────────────────
         public int Cap
         {
             get
@@ -451,7 +683,7 @@ namespace S2x.ServerManager.ViewModels
                 // text has to move too, or the box keeps a number the server will not use.
                 if (_botFill > Cap) { _botFill = Cap; Raise("BotFill"); }
                 ClampMinimum();
-                Raise("Cap"); Raise("BotPips"); Raise("BotSummary"); Raise("LobbySummary");
+                Raise("Cap"); Raise("BotPips"); Raise("BotSummary"); Raise("LobbySummary"); Raise("AutoBalanceNote");
                 Touched();
             }
         }
@@ -543,11 +775,12 @@ namespace S2x.ServerManager.ViewModels
         public Visibility LobbyFieldsVisibility { get { return IsProfile ? Visibility.Collapsed : Visibility.Visible; } }
         public Visibility LobbyTextVisibility { get { return IsProfile ? Visibility.Visible : Visibility.Collapsed; } }
 
-        public string LobbyNumber { get { return _isZombies ? "03" : "05"; } }
-        public string VisibilityNumber { get { return _isZombies ? "04" : "06"; } }
-        public string AdvancedNumber { get { return _isZombies ? "05" : "07"; } }
+        // Multiplayer has rules, bots, chat commands and the map vote before these; Zombies none.
+        public string LobbyNumber { get { return _isZombies ? "03" : "07"; } }
+        public string VisibilityNumber { get { return _isZombies ? "04" : "08"; } }
+        public string AdvancedNumber { get { return _isZombies ? "05" : "09"; } }
 
-        // ── 06 visibility ─────────────────────────────────────────────────────────
+        // ── 08 visibility ─────────────────────────────────────────────────────────
         public bool Advertise
         {
             get { return _advertise; }
@@ -572,7 +805,7 @@ namespace S2x.ServerManager.ViewModels
             }
         }
 
-        // ── 07 advanced ───────────────────────────────────────────────────────────
+        // ── 09 advanced ───────────────────────────────────────────────────────────
         public string ExtraText
         {
             get { return _extraText; }
@@ -662,6 +895,23 @@ namespace S2x.ServerManager.ViewModels
 
         public Brush DotBrush { get { return _state.Status == ServerStatus.Stopped ? Palette.Off : StateBrush; } }
 
+        public Brush StateTint
+        {
+            get
+            {
+                switch (_state.Status)
+                {
+                    case ServerStatus.Running: return Palette.OkTint;
+                    case ServerStatus.Starting:
+                    case ServerStatus.NotAnswering: return Palette.AccentTint;
+                    case ServerStatus.Crashed: return Palette.DangerTint;
+                    default: return Palette.MutedTint;
+                }
+            }
+        }
+
+        public bool IsRunning { get { return _state.Status == ServerStatus.Running; } }
+
         public string StatusSub
         {
             get
@@ -727,7 +977,7 @@ namespace S2x.ServerManager.ViewModels
             // the port being typed would borrow another server's players and map.
             _state = _fleet.StateFor(OwnedPort);
             if (IsStopped && _portLocked) { _portLocked = false; Raise("PortWarning"); Raise("PortWarningVisibility"); }
-            Raise("StateCaps"); Raise("StateBrush"); Raise("DotBrush"); Raise("StatusSub");
+            Raise("StateCaps"); Raise("StateBrush"); Raise("DotBrush"); Raise("StateTint"); Raise("IsRunning"); Raise("StatusSub");
             Raise("LaunchVisibility"); Raise("RunningVisibility"); Raise("DeleteVisibility");
             foreach (var row in Rotation) row.Refresh();
         }
@@ -974,6 +1224,10 @@ namespace S2x.ServerManager.ViewModels
             Raise("IsProfile"); Raise("ShuffleEnabled"); Raise("LobbySummary"); Raise("LobbyText");
             Raise("LobbyFieldsVisibility"); Raise("LobbyTextVisibility");
             Raise("AdvancedEnabled"); Raise("AdvancedNoteVisibility"); Raise("WritesTo");
+            // A profile server cannot take auto-balance, and the rotation decides the note.
+            AutoBalanceChanged();
+            // Nor the chat commands or the vote, and the rotation decides the vote's note too.
+            ServerCmdsChanged();
             RandomizeCommand.Refresh();
         }
 
@@ -1008,8 +1262,7 @@ namespace S2x.ServerManager.ViewModels
             return new SegmentOption
             {
                 Label = label,
-                Background = on ? Palette.Accent : Palette.Transparent,
-                Foreground = on ? Palette.Bar : Palette.Muted,
+                IsOn = on,
                 PickCommand = new RelayCommand(pick),
             };
         }
@@ -1030,7 +1283,11 @@ namespace S2x.ServerManager.ViewModels
                 .Append(_botFill).Append('').Append(_botNames).Append('').Append(_botDifficulty).Append('')
                 .Append(Cap).Append('').Append(MinPlayers).Append('').Append(StartDelay).Append('')
                 .Append(_advertise).Append('').Append(string.Join("\n", ExtraLines)).Append('')
-                .Append(_launchId).Append('').Append(_launchKey).Append('');
+                .Append(_launchId).Append('').Append(_launchKey).Append('')
+                .Append(AutoBalance).Append('');
+            text.Append(ChatCommands).Append('\u0001').Append(string.Join("\n", Rules)).Append('\u0001')
+                .Append(_discord.Trim()).Append('\u0001').Append(MapVote).Append('\u0001')
+                .Append(_voteChoices).Append('\u0001').Append(_voteSeconds).Append('\u0001');
             foreach (var row in Rotation) text.Append(row.Entry.Gametype).Append(' ').Append(row.Entry.Map).Append(',');
             text.Append('');
             foreach (var mode in Modes()) text.Append(mode).Append('=').Append(_scores[mode]).Append(',');
@@ -1052,6 +1309,14 @@ namespace S2x.ServerManager.ViewModels
             target.MinPlayers = MinPlayers;
             target.StartDelay = StartDelay;
             target.Advertise = _advertise;
+            target.AutoBalance = AutoBalance;
+            target.ChatCommands = ChatCommands;
+            target.Rules.Clear();
+            target.Rules.AddRange(Rules);
+            target.Discord = _discord.Trim();
+            target.MapVote = MapVote;
+            target.VoteChoices = _voteChoices;
+            target.VoteSeconds = _voteSeconds;
             target.LaunchProfileId = _launchId;
             target.LaunchEntryKey = _launchKey;
             target.ExtraLines.Clear();

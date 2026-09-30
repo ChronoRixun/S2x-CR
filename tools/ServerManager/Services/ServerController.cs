@@ -19,6 +19,8 @@ namespace S2x.ServerManager.Services
     internal sealed class ServerController
     {
         private readonly string _gameDir;
+        private readonly ManagedServerOwnershipStore _adminOwnership;
+        private readonly ServerScriptInstaller _scripts;
 
         // Ports being started or stopped right now. Looking for a server on a port and then
         // launching one is two steps, and a double click or a Start racing Start All can slip
@@ -30,7 +32,13 @@ namespace S2x.ServerManager.Services
         private const int ProfileScriptSeconds = 90;
         private const int ProfileServerSeconds = 10;
 
-        public ServerController(string gameDir) { _gameDir = gameDir; }
+        public ServerController(string gameDir) : this(gameDir, new ManagedServerOwnershipStore()) { }
+        public ServerController(string gameDir, ManagedServerOwnershipStore ownership, ServerScriptInstaller scripts = null)
+        {
+            _gameDir = gameDir;
+            _adminOwnership = ownership ?? throw new ArgumentNullException(nameof(ownership));
+            _scripts = scripts ?? new ServerScriptInstaller();
+        }
 
         public string GameDir { get { return _gameDir; } }
 
@@ -69,6 +77,9 @@ namespace S2x.ServerManager.Services
 
                 if (snapshot.IsProfile) return StartProfile(snapshot, port);
 
+                // The scripts go into the game folder before the cfg that switches them on.
+                var note = PrepareScripts(snapshot);
+
                 var cfgPath = GameFolder.CfgPath(_gameDir, port);
                 Directory.CreateDirectory(Path.GetDirectoryName(cfgPath));
                 File.WriteAllText(cfgPath, BuildServerCfg(snapshot), new UTF8Encoding(false));
@@ -77,10 +88,12 @@ namespace S2x.ServerManager.Services
                 // runs before the dedicated party exists and is dropped. g_consoleLog gives this
                 // server a log of its own: the default is s2x\logs\console.log, which every
                 // server on the box appends to at once, so nothing in it says which one wrote it.
-                var args = string.Format(
-                    "-noupdate -dedicated{0} +set net_port {1} +set g_consoleLog {2} +exec {3} +map_rotate",
-                    snapshot.IsZombies ? " -zombies" : "", port,
-                    GameFolder.ServerLogDvar(port), Path.GetFileName(cfgPath));
+                // Supplying zombiesMode below avoids the bootstrap replacing the owned process.
+                var adminNonce = Guid.NewGuid().ToString("N");
+                var args = "-server-manager-admin " + adminNonce + " " + string.Format(
+                    "-noupdate -dedicated{0} +set net_port {1} +set sv_lanOnly {4} +set master_server_enable {5} +set g_consoleLog {2} +exec {3} +map_rotate",
+                    snapshot.IsZombies ? " -zombies +zombiesMode 1" : "", port,
+                    GameFolder.ServerLogDvar(port), Path.GetFileName(cfgPath), snapshot.Advertise ? 0 : 1, snapshot.Advertise ? 1 : 0);
 
                 var process = Process.Start(new ProcessStartInfo
                 {
@@ -91,7 +104,10 @@ namespace S2x.ServerManager.Services
                 });
                 if (process == null) return "Windows did not start s2x.exe.";
                 File.WriteAllText(GameFolder.PidPath(_gameDir, port), process.Id.ToString());
-                return null;
+                try { _adminOwnership.Register(process.Id, port, adminNonce); }
+                catch (Exception ex) { return "Server started, but administration ownership could not be saved: " + ex.Message + (note == null ? "" : " " + note); }
+                // It started; the note goes into the toast that says so.
+                return note == null ? null : "Starting " + snapshot.PlainName + " on :" + port + ". " + note;
             }
             catch (Exception ex)
             {
@@ -103,6 +119,75 @@ namespace S2x.ServerManager.Services
             {
                 Release(port);
             }
+        }
+
+        /// <summary>
+        /// Every server script this launch uses, in place before its cfg is written, and what
+        /// the host should be told about them as one note for the start toast, or null. Each
+        /// script stands on its own: one that cannot be put in place turns off only what it runs.
+        /// </summary>
+        public string PrepareScripts(ServerPreset snapshot)
+        {
+            var notes = new[] { PrepareAutoBalance(snapshot), PrepareServerCmds(snapshot) }
+                .Where(note => note != null).ToList();
+            return notes.Count == 0 ? null : string.Join(" ", notes);
+        }
+
+        /// <summary>
+        /// Puts s2x_autobalance.gsc into the game folder for a launch that uses it, and returns
+        /// what the host should be told, or null. A script that could not be put in place turns
+        /// auto-balance off for this launch only: the snapshot is the launch's own copy, so the
+        /// cfg goes back to the native bot fill and the server still gets its bots.
+        /// </summary>
+        public string PrepareAutoBalance(ServerPreset snapshot)
+        {
+            if (!snapshot.UsesAutoBalance) return null;
+            string problem;
+            try
+            {
+                var result = _scripts.InstallAutoBalance(_gameDir);
+                if (!result.Failed) return result.Custom ? Capital(result.Message) + "." : null;
+                problem = result.Message;
+            }
+            catch (Exception ex)
+            {
+                problem = ex.Message.Trim().TrimEnd('.');
+            }
+            snapshot.AutoBalance = false;
+            return "Auto-balance is not active (" + problem + "); bots use the normal bot fill.";
+        }
+
+        /// <summary>
+        /// Puts s2x_servercmds.gsc into the game folder for a launch that uses the chat commands
+        /// or the map vote, and returns what the host should be told, or null. A script that
+        /// could not be put in place turns both off for this launch only (the snapshot is the
+        /// launch's own copy): the cfg then says 0 for them, and the server starts without them.
+        /// </summary>
+        public string PrepareServerCmds(ServerPreset snapshot)
+        {
+            if (!snapshot.UsesServerCmds) return null;
+            string problem;
+            try
+            {
+                var result = _scripts.InstallServerCmds(_gameDir);
+                if (!result.Failed) return result.Custom ? Capital(result.Message) + "." : null;
+                problem = result.Message;
+            }
+            catch (Exception ex)
+            {
+                problem = ex.Message.Trim().TrimEnd('.');
+            }
+            // Only what was on is named, so the note never claims more than this server had.
+            var what = snapshot.UsesChatCommands && snapshot.UsesMapVote ? "Chat commands and the map vote are"
+                : snapshot.UsesChatCommands ? "Chat commands are" : "The map vote is";
+            snapshot.ChatCommands = false;
+            snapshot.MapVote = false;
+            return what + " not active (" + problem + ").";
+        }
+
+        private static string Capital(string text)
+        {
+            return string.IsNullOrEmpty(text) ? text : char.ToUpperInvariant(text[0]) + text.Substring(1);
         }
 
         /// <summary>
@@ -125,7 +210,10 @@ namespace S2x.ServerManager.Services
             }
 
             string program, arguments;
-            SplitCommand(FillCommand(entry, port, snapshot), out program, out arguments);
+            var adminNonce = string.IsNullOrWhiteSpace(entry.Admin) ? null : Guid.NewGuid().ToString("N");
+            var command = FillCommand(entry, port, snapshot);
+            if (adminNonce != null) command += " " + entry.Admin.Replace("{admin}", adminNonce);
+            SplitCommand(command, out program, out arguments);
             var output = new List<string>();
             var errors = new List<string>();
             var closed = new CountdownEvent(2);
@@ -166,15 +254,21 @@ namespace S2x.ServerManager.Services
             for (int second = 0; ; second++)
             {
                 S2xProcess server;
-                if (ProcessInspector.DedicatedServers().Servers.TryGetValue(port, out server))
+                if (ProcessInspector.DedicatedServers().Servers.TryGetValue(port, out server) &&
+                    (adminNonce == null || ManagedServerOwnershipStore.HasNonce(server.CommandLine, adminNonce)))
                 {
                     File.WriteAllText(GameFolder.PidPath(_gameDir, port), server.Pid.ToString());
+                    if (adminNonce != null)
+                    {
+                        try { _adminOwnership.Register(server.Pid, port, adminNonce); }
+                        catch (Exception ex) { return "Server started, but administration ownership could not be saved: " + ex.Message; }
+                    }
                     return null;
                 }
                 if (second == ProfileServerSeconds) break;
                 Thread.Sleep(1000);
             }
-            return "The start script finished, but no server came up on :" + port + "." + Said(output, errors);
+            return "The start script finished, but no " + (adminNonce == null ? "server" : "server matching this Manager launch") + " came up on :" + port + "." + Said(output, errors);
         }
 
         /// <summary>The entry's start command for this server, its placeholders filled.</summary>
@@ -293,7 +387,8 @@ namespace S2x.ServerManager.Services
         /// <summary>
         /// Build-ServerCfg's lines in its order first, so a preset the PowerShell launcher wrote
         /// still comes out as the text it wrote, then the editor's own lines, then the host's
-        /// advanced block last so it wins. Bots and score limits are multiplayer only.
+        /// advanced block last so it wins. Bots, auto-balance, score limits, chat commands and the
+        /// map vote are multiplayer only.
         /// </summary>
         public static string BuildServerCfg(ServerPreset preset)
         {
@@ -322,9 +417,11 @@ namespace S2x.ServerManager.Services
                 lines.Add("set scr_dom_roundlimit 1");
             }
 
+            // With auto-balance the script owns every bot, so the native one-shot fill adds none.
+            var autoBalance = preset.UsesAutoBalance;
             if (!zombies)
             {
-                lines.Add("set bot_fill " + preset.BotFill);
+                lines.Add("set bot_fill " + (autoBalance ? 0 : preset.BotFill));
                 lines.Add("set bot_names " + preset.BotNames);
             }
 
@@ -353,11 +450,63 @@ namespace S2x.ServerManager.Services
             lines.Add("set master_server_enable " + (preset.Advertise ? "1" : "0"));
             lines.Add("set sv_lanOnly " + (preset.Advertise ? "0" : "1"));
 
+            // s2x_autobalance.gsc keeps the match at the bot fill size and the teams even; the
+            // game's own team balance would move players under it. Off is written too: every
+            // multiplayer server in this game folder loads the script, and this keeps it inert
+            // on the ones that do not use it.
+            if (autoBalance)
+            {
+                lines.Add("set s2x_autobalance 1");
+                lines.Add("set s2x_autobalance_target " + preset.BotFill);
+                lines.Add("set scr_teambalance 0");
+            }
+            else if (!zombies)
+            {
+                lines.Add("set s2x_autobalance 0");
+            }
+
+            // s2x_servercmds.gsc: chat commands and the end-of-match map vote. Off is written
+            // too, for the reason auto-balance's is: every multiplayer server in the folder loads
+            // the script. The host's text is cleaned for the cfg here, never when it is saved.
+            if (!zombies) lines.AddRange(ServerCmdsLines(preset));
+
             // Passed through as written: a blank line is dropped, anything else goes as typed.
             foreach (var line in preset.ExtraLines)
                 if (!string.IsNullOrWhiteSpace(line)) lines.Add(line);
 
             return string.Join("\n", lines);
+        }
+
+        /// <summary>
+        /// The chat commands' and the map vote's lines, each off line always there. Rules are
+        /// numbered 1..k in order, a rule with nothing left once cleaned taking no number, since
+        /// the script stops at the first one that is empty.
+        /// </summary>
+        private static IEnumerable<string> ServerCmdsLines(ServerPreset preset)
+        {
+            var chat = preset.UsesChatCommands;
+            yield return "set s2x_chatcmds " + (chat ? 1 : 0);
+            if (chat)
+            {
+                var number = 0;
+                foreach (var rule in preset.Rules)
+                {
+                    var text = CfgText.Clean(rule, CfgText.RuleBytes);
+                    if (text.Length == 0) continue;
+                    if (++number > ServerPreset.MaxRules) break;
+                    yield return "set s2x_rules" + number + " \"" + text + "\"";
+                }
+                var discord = CfgText.Clean(preset.Discord, CfgText.DiscordBytes);
+                if (discord.Length > 0) yield return "set s2x_discord \"" + discord + "\"";
+            }
+
+            var vote = preset.UsesMapVote;
+            yield return "set s2x_mapvote " + (vote ? 1 : 0);
+            if (vote)
+            {
+                yield return "set s2x_mapvote_choices " + Math.Max(ServerPreset.MinVoteChoices, Math.Min(ServerPreset.MaxVoteChoices, preset.VoteChoices));
+                yield return "set s2x_mapvote_time " + Math.Max(ServerPreset.MinVoteSeconds, Math.Min(ServerPreset.MaxVoteSeconds, preset.VoteSeconds));
+            }
         }
     }
 }

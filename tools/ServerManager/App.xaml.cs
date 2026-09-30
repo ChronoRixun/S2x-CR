@@ -20,6 +20,50 @@ namespace S2x.ServerManager
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+            var settingsPath = Argument(e.Args, "--settings-path");
+            if (settingsPath != null && (string.IsNullOrWhiteSpace(settingsPath) || settingsPath.StartsWith("--", StringComparison.Ordinal)))
+            { Stop("--settings-path needs a file path.", 2); return; }
+            ThemeManager.Initialize(settingsPath);
+            // --theme and --effects change what this run shows without saving it.
+            var theme = Argument(e.Args, "--theme");
+            var effects = Argument(e.Args, "--effects");
+            if (theme != null || effects != null)
+            {
+                var mode = ThemeManager.Current;
+                bool migrated;
+                if (theme != null && !ThemeCatalog.TryParse(theme, out mode, out migrated))
+                { Stop("--theme takes " + ThemeCatalog.Names + ".", 2); return; }
+                var on = ThemeManager.EffectsEnabled;
+                if (effects != null)
+                {
+                    if (string.Equals(effects, "on", StringComparison.OrdinalIgnoreCase)) on = true;
+                    else if (string.Equals(effects, "off", StringComparison.OrdinalIgnoreCase)) on = false;
+                    else { Stop("--effects takes on or off.", 2); return; }
+                }
+                ThemeManager.Apply(mode, on, false);
+            }
+
+            var settingsPreview = Argument(e.Args, "--screenshot-settings");
+            if (settingsPreview != null)
+            {
+                if (string.IsNullOrWhiteSpace(settingsPreview) || settingsPreview.StartsWith("--", StringComparison.Ordinal)) { Stop("--screenshot-settings <png> needs a path.", 2); return; }
+                var dialog = new Views.SettingsDialog();
+                MainWindow = dialog;
+                CaptureStandalone(dialog, settingsPreview);
+                return;
+            }
+
+            var masterPreview = Argument(e.Args, "--demo-master");
+            if (masterPreview != null)
+            {
+                if (string.IsNullOrWhiteSpace(masterPreview) || masterPreview.StartsWith("--", StringComparison.Ordinal)) { Stop("--demo-master <png> needs a path.", 2); return; }
+                var model = MasterBrowserViewModel.Demo();
+                var preview = new Views.MasterBrowserWindow(model, false);
+                MainWindow = preview;
+                CaptureStandalone(preview, masterPreview);
+                return;
+            }
+
 
             var demo = Argument(e.Args, "--demo");
             var demoEditor = Argument(e.Args, "--demo-editor");
@@ -209,9 +253,36 @@ namespace S2x.ServerManager
             }, DispatcherPriority.Loaded);
         }
 
+        private void CaptureStandalone(Window window, string path)
+        {
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            window.WindowStartupLocation = WindowStartupLocation.Manual;
+            window.Left = -20000; window.Top = -20000;
+            window.ShowInTaskbar = false; window.ShowActivated = false;
+            window.Show();
+            Dispatcher.InvokeAsync(async () =>
+            {
+                var code = 0;
+                try
+                {
+                    window.UpdateLayout();
+                    await Dispatcher.Yield(DispatcherPriority.ContextIdle);
+                    window.UpdateLayout();
+                    Save(window, path);
+                }
+                catch (Exception ex) { Console.Error.WriteLine(ex); code = 2; }
+                window.Close(); Shutdown(code);
+            }, DispatcherPriority.Loaded);
+        }
+
         private static void Save(Window window, string path)
         {
-            var bitmap = new RenderTargetBitmap(ShotWidth, ShotHeight, 96, 96, PixelFormats.Pbgra32);
+            // A window with the system frame is wider and taller than what it draws; the frame is
+            // not rendered, so size the image to the client area the template fills.
+            var client = VisualTreeHelper.GetChildrenCount(window) > 0 ? VisualTreeHelper.GetChild(window, 0) as FrameworkElement : null;
+            var width = client != null && client.ActualWidth > 0 ? client.ActualWidth : window.ActualWidth;
+            var height = client != null && client.ActualHeight > 0 ? client.ActualHeight : window.ActualHeight;
+            var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width), (int)Math.Ceiling(height), 96, 96, PixelFormats.Pbgra32);
             bitmap.Render(window);
             var png = new PngBitmapEncoder();
             png.Frames.Add(BitmapFrame.Create(bitmap));

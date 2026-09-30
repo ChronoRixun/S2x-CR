@@ -15,8 +15,8 @@
     <AssemblyTitle>S2x Server Manager</AssemblyTitle>
     <Product>S2x Server Manager</Product>
     <Company>S2x community</Company>
-    <Version>1.0.1</Version>
-    <FileVersion>1.0.1.0</FileVersion>
+    <Version>1.2.0</Version>
+    <FileVersion>1.2.0.0</FileVersion>
     <ApplicationIcon>Assets\S2xServerManager.ico</ApplicationIcon>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <DebugType>portable</DebugType>
@@ -29,6 +29,22 @@
          assembly it references too. Both are in the framework, so nothing ships beside the exe. -->
     <Reference Include="System.Web.Extensions" />
     <Reference Include="System.Web" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Server scripts ride inside the exe and are written into the game folder when a server
+         needs them (Services\ServerScriptInstaller.cs), so the release is still one file. -->
+    <EmbeddedResource Include="ServerScripts\s2x_autobalance.gsc"
+                      LogicalName="S2x.ServerManager.ServerScripts.s2x_autobalance.gsc" />
+    <EmbeddedResource Include="ServerScripts\s2x_servercmds.gsc"
+                      LogicalName="S2x.ServerManager.ServerScripts.s2x_servercmds.gsc" />
+    <!-- Theme pack fonts, built into the exe as WPF Resources (still one file). Drop the .ttf/.otf
+         files listed in Assets/Fonts/README.md into that folder; the wildcards pick them up and
+         Services/ThemeFonts.cs uses any family it finds there instead of its Windows fallback.
+         Their licence texts go in Assets/Fonts/licenses and ship inside the exe the same way. -->
+    <Resource Include="Assets\Fonts\*.ttf" />
+    <Resource Include="Assets\Fonts\*.otf" />
+    <Resource Include="Assets\Fonts\licenses\*.txt" />
   </ItemGroup>
 
 </Project>
