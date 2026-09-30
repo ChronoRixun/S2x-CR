@@ -344,8 +344,11 @@ namespace S2x.ServerManager.Services
             }
 
             lines.Add("set bot_DifficultyDefault " + preset.BotDifficulty);
-            lines.Add("set party_maxplayers " + preset.MaxPlayers);
-            lines.Add("set party_minplayers " + preset.MinPlayers);
+            // The limits were party_maxplayers and party_minplayers, which the game swallows
+            // before the server sees them, so no exe ever applied them (S2x-CR#39). v1.6.1
+            // reads these names.
+            lines.Add("set sv_maxplayers " + preset.MaxPlayers);
+            lines.Add("set sv_minplayers " + preset.MinPlayers);
             lines.Add("set party_matchStartDelay " + preset.StartDelay);
             lines.Add("set master_server_enable " + (preset.Advertise ? "1" : "0"));
             lines.Add("set sv_lanOnly " + (preset.Advertise ? "0" : "1"));

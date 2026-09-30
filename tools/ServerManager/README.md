@@ -217,8 +217,9 @@ churn beyond the keys that changed.
 `Build-ServerCfg`'s lines come first, in its order, so a preset the launcher wrote still produces
 the text the launcher wrote: `sv_hostname`, `scr_<gt>_scorelimit` for each mode in the rotation,
 `scr_dom_halftime 0` and `scr_dom_roundlimit 1` for single-round Domination, `bot_fill`,
-`bot_names`, `sv_maprotation`. Then the editor's: `bot_DifficultyDefault`, `party_maxplayers`,
-`party_minplayers`, `party_matchStartDelay`, and `master_server_enable 1` with `sv_lanOnly 0`
+`bot_names`, `sv_maprotation`. Then the editor's: `bot_DifficultyDefault`, `sv_maxplayers`,
+`sv_minplayers` (S2x v1.6.1 and later; the `party_` names the cfg carried before were swallowed
+by the game, so no exe ever applied them), `party_matchStartDelay`, and `master_server_enable 1` with `sv_lanOnly 0`
 when the server advertises, 0 and 1 when it does not. The advanced block is last, verbatim, so it
 wins. In Zombies the score limits, `bot_fill` and `bot_names` are left out: bots do not run there
 and the modes do not match. A quote or a line break in the server name is dropped before the name

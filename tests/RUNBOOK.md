@@ -7,10 +7,11 @@ it, so every server ran 18 wide (a 6v6 on box 4 took 17 humans). The limits are 
 `sv_maxplayers` and `sv_minplayers` (#39, `fd5c54a`). Tested on private LAN servers built from
 the fix: `sv_maxplayers 12` reports `sv_maxclients 12` and holds `bot_fill 14` to 12, a
 Zombies server takes `sv_maxplayers 3`, and a cfg with the old names behaves as it always did.
-Not run: a real client joining a capped server as its 13th player, and box 4 itself. Box 4:
-section 10 as written, then add `set sv_maxplayers <cap>` to each preset's Advanced lines,
-because the Server Manager in this zip (1.0.0) still writes the old names; a Manager that
-writes the new ones is on the way. Players need nothing. The rest of this runbook is v1.6.0's.
+Not run: a real client joining a capped server as its 13th player, and box 4 itself. The Server
+Manager in this zip is 1.0.1: the same Manager with its player cap field writing the new names,
+so a preset's cap applies as set. Box 4: section 10 as written; after START ALL each server's
+lobby and the master list show x/<cap>. Players need nothing. The rest of this runbook is
+v1.6.0's.
 
 **Written:** 2026-09-26 (the v1.5.0 runbook, rewritten for what changed since v1.5.0)
 **Build under test:** `integration` at `c45126a`, packaged as `v1.6.0-rc1`: twelve economy fixes (#19, #24 to #32, #36, #37) and upstream #71's singleplayer healer entry. Until the tag exists the exe reports itself as `v1.5.0-28-gc45126a`.
