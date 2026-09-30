@@ -65,6 +65,8 @@ namespace dedicated_party
 		game::dvar_t* sv_maxplayers{};
 		game::dvar_t* sv_minplayers{};
 		game::dvar_t* sv_maprotation{};
+		game::dvar_t* s2x_nextmap{};
+		game::dvar_t* s2x_nextmap_preview{};
 		bool map_rotate_requested{};
 
 		void set_stage(const dedicated_party_stage stage)
@@ -449,6 +451,41 @@ namespace dedicated_party
 			return true;
 		}
 
+		bool same_match(const dedicated_match_t& a, const dedicated_match_t& b)
+		{
+			return a.map_name == b.map_name && a.gametype == b.gametype;
+		}
+
+		// Publishes "<map> <gametype>" for the match that plays next, so scripts can show
+		// it. " fixed" marks an operator `map` override, which a script result cannot change.
+		void publish_next_preview()
+		{
+			if (!s2x_nextmap_preview)
+			{
+				return;
+			}
+
+			const auto& state = dedicated_party_state;
+			std::string text{};
+			if (state.requested_next_match.has_value())
+			{
+				text = state.requested_next_match->map_name + " "
+					+ state.requested_next_match->gametype + " fixed";
+			}
+			else if (state.requested_rotation_match.has_value())
+			{
+				text = state.requested_rotation_match->map_name + " "
+					+ state.requested_rotation_match->gametype;
+			}
+			else if (!state.rotation.empty())
+			{
+				const auto& match = state.rotation[state.next_rotation_index % state.rotation.size()];
+				text = match.map_name + " " + match.gametype;
+			}
+
+			game::Dvar_SetStringByName("s2x_nextmap_preview", text.data());
+		}
+
 		bool parse_multiplayer_map_rotation(std::vector<dedicated_match_t>& rotation)
 		{
 			rotation.clear();
@@ -739,6 +776,7 @@ namespace dedicated_party
 			console::info("Dedicated party: selected next map %s %s.\n",
 				match.map_name.data(), match.gametype.data());
 			set_stage(dedicated_party_stage::waiting_for_match_settings);
+			publish_next_preview();
 		}
 
 		std::int64_t party_host_auto_start_stub(game::PartyData* party_data, void* active_client)
@@ -825,13 +863,88 @@ namespace dedicated_party
 			return dedicated_party_state.rotation[index];
 		}
 
+		bool is_plain_name(const std::string& value)
+		{
+			return !value.empty() && value.size() <= 64
+				&& std::all_of(value.begin(), value.end(), [](const unsigned char character)
+				{
+					return (character >= 'a' && character <= 'z')
+						|| (character >= '0' && character <= '9')
+						|| character == '_';
+				});
+		}
+
+		// Reads the one-shot "<map> <gametype>" a game script (for example a map vote) left in
+		// s2x_nextmap. It runs only on the main pipeline after the game script has stopped,
+		// and clears the dvar even when the value is rejected, so a bad value is never retried.
+		std::optional<dedicated_match_t> take_script_next_match()
+		{
+			if (!s2x_nextmap || !s2x_nextmap->current.string || !*s2x_nextmap->current.string)
+			{
+				return {};
+			}
+
+			const std::string value = s2x_nextmap->current.string;
+			game::Dvar_SetStringByName("s2x_nextmap", "");
+
+			std::istringstream stream{ utils::string::to_lower(value) };
+			std::string map_name{};
+			std::string gametype{};
+			std::string extra{};
+			dedicated_match_t match{};
+			if (!(stream >> map_name >> gametype) || (stream >> extra)
+				|| !is_plain_name(map_name) || !is_plain_name(gametype)
+				|| !make_match(map_name, gametype, match))
+			{
+				console::error("Dedicated party: ignoring s2x_nextmap '%s'; the rotation continues.\n",
+					value.data());
+				return {};
+			}
+
+			return match;
+		}
+
 		dedicated_match_t take_next_match()
 		{
+			auto scripted = take_script_next_match();
+
 			if (dedicated_party_state.requested_next_match.has_value())
 			{
+				if (scripted.has_value())
+				{
+					console::info("Dedicated party: the server's map override replaces the vote result %s %s.\n",
+						scripted->map_name.data(), scripted->gametype.data());
+				}
+
 				auto match = std::move(*dedicated_party_state.requested_next_match);
 				dedicated_party_state.requested_next_match.reset();
 				return match;
+			}
+
+			if (scripted.has_value())
+			{
+				// The script result replaces the next rotation entry, so the rotation still
+				// moves one slot per match. When the entry after it is the same match, use
+				// that up too so a voted match never plays twice in a row.
+				if (dedicated_party_state.requested_rotation_match.has_value())
+				{
+					dedicated_party_state.requested_rotation_match.reset();
+				}
+				else if (!dedicated_party_state.rotation.empty())
+				{
+					take_rotation_match();
+				}
+
+				if (!dedicated_party_state.rotation.empty()
+					&& same_match(dedicated_party_state.rotation[dedicated_party_state.next_rotation_index],
+						*scripted))
+				{
+					take_rotation_match();
+				}
+
+				console::info("Dedicated party: vote chose the next map %s %s (replaces the next rotation entry).\n",
+					scripted->map_name.data(), scripted->gametype.data());
+				return std::move(*scripted);
 			}
 
 			if (dedicated_party_state.requested_rotation_match.has_value())
@@ -1191,6 +1304,7 @@ namespace dedicated_party
 		const auto& match = *dedicated_party_state.requested_rotation_match;
 		console::info("Next dedicated rotation match set to %s %s.\n",
 			match.map_name.data(), match.gametype.data());
+		publish_next_preview();
 		return true;
 	}
 
@@ -1205,6 +1319,7 @@ namespace dedicated_party
 		console::info("%s dedicated match set to %s %s.\n",
 			is_active() ? "Next" : "Initial",
 			map_name.data(), gametype.data());
+		publish_next_preview();
 		return true;
 	}
 
@@ -1318,6 +1433,16 @@ namespace dedicated_party
 			{
 				sv_maprotation = game::Dvar_RegisterString(
 					"sv_maprotation", "", game::DVAR_FLAG_NONE);
+
+				// A game script (for example a map vote) sets s2x_nextmap to "<map> <gametype>";
+				// the next return to the lobby consumes it. s2x_nextmap_api tells scripts that
+				// this build reads it; older builds read 0.
+				s2x_nextmap = game::Dvar_RegisterString(
+					"s2x_nextmap", "", game::DVAR_FLAG_NONE);
+				s2x_nextmap_preview = game::Dvar_RegisterString(
+					"s2x_nextmap_preview", "", game::DVAR_FLAG_NONE);
+				game::Dvar_RegisterInt("s2x_nextmap_api", 1, 1, 1, game::DVAR_FLAG_READ);
+				publish_next_preview();
 			}, scheduler::pipeline::main);
 
 			if (game::environment::is_multiplayer())
