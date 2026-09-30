@@ -12,13 +12,13 @@ class PickerCheck {
    var ft=asm.GetType("S2x.ServerManager.ViewModels.FleetViewModel",true);
    var lp=asm.GetType("S2x.ServerManager.Services.LaunchProfiles",true);
    bool missing=args[1]=="missing";
-   string[] maps={"mp_zombie_windmill_srv","mp_zombie_dnk_srv"};
-   string[] ids={"zombies-bots-bodega","zombies-bots-olympus"};
-   string[] keys={"bodega","olympus"};
-   for(int m=0;m<2;m++) for(int bots=2;bots<=3;bots++) {
+   string[] maps={"mp_zombie_windmill_srv","mp_zombie_dnk_srv","mp_zombie_dig_02_srv"};
+   string[] ids={"zombies-bots-bodega","zombies-bots-olympus","zombies-bots-altar"};
+   string[] keys={"bodega","olympus","altar"};
+   for(int m=0;m<maps.Length;m++) for(int bots=2;bots<=3;bots++) {
     var fleet=ft.GetMethod("DemoEditor").Invoke(null,new object[]{"zombies"});
     var profiles=(IList)Get(fleet,"Profiles");
-    for(int k=0;k<2;k++){var p=lp.GetMethod("Read").Invoke(null,new object[]{args[k+2]});Require(((IList)Get(p,"Entries")).Count==2,"profile loads both entries "+ids[k]);profiles.Add(p);}
+    for(int k=0;k<ids.Length;k++){var p=lp.GetMethod("Read").Invoke(null,new object[]{args[k+2]});Require(((IList)Get(p,"Entries")).Count==2,"profile loads both entries "+ids[k]);profiles.Add(p);}
     var editor=Get(fleet,"Editor");
     editor.GetType().GetMethod("ProfilesChanged").Invoke(editor,null);
     var map=((IEnumerable)Get(editor,"MapOptions")).Cast<object>().FirstOrDefault(x=>(string)Get(x,"Key")==maps[m]);

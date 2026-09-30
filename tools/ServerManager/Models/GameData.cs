@@ -67,6 +67,7 @@ namespace S2x.ServerManager.Models
             "mp_zombie_dig_02", "The Tortured Path: Beyond the Veil",
             "mp_zombie_windmill_srv", "Bodega Cervantes",
             "mp_zombie_dnk_srv", "U.S.S. Mount Olympus",
+            "mp_zombie_dig_02_srv", "Altar of Blood",
             "mp_zombie_descent", "The Frozen Dawn");
 
         public static readonly Dictionary<string, string> ZombieMapPacks = Map(
@@ -77,6 +78,7 @@ namespace S2x.ServerManager.Models
             "mp_zombie_dig_02", "DLC 3",
             "mp_zombie_windmill_srv", "DLC 3",
             "mp_zombie_dnk_srv", "DLC 3",
+            "mp_zombie_dig_02_srv", "DLC 3",
             "mp_zombie_descent", "DLC 4");
 
         public static readonly List<KeyValuePair<string, string>> Gametypes = Pairs(

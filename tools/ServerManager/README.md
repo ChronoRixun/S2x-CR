@@ -8,7 +8,7 @@ Version 1.1.1 adds local player administration for servers this Manager started:
 announcements, warnings and kicks, from the console drawer's ADMIN button. It needs the 1.1.1 core
 s2x.exe; see ADMINISTRATION.md. Version 1.1.0 added saved appearance themes, persistent card
 ordering, and a read-only master-server browser. The theme pack (see Themes, below) replaces
-1.1.0's Classic and Light themes with eight new ones and keeps High contrast. The Bodega Cervantes and U.S.S. Mount Olympus
+1.1.0's Classic and Light themes with eight new ones and keeps High contrast. The Bodega Cervantes, U.S.S. Mount Olympus and Altar of Blood
 survival maps are included in the map picker, so their registered two/three-bot launch profiles
 appear. The bot mods remain separate packages.
 
