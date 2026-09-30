@@ -1,5 +1,17 @@
 # S2x-CR release runbook: v1.6.0
 
+**v1.6.1 addendum (2026-09-29):** one change on top of v1.6.0, for hosts only. The dedicated
+server's player limit never worked: the cfg's `party_maxplayers` and `party_minplayers` are
+names the stock engine keeps for itself, and a `set` on them is swallowed before any dvar sees
+it, so every server ran 18 wide (a 6v6 on box 4 took 17 humans). The limits are now
+`sv_maxplayers` and `sv_minplayers` (#39, `fd5c54a`). Tested on private LAN servers built from
+the fix: `sv_maxplayers 12` reports `sv_maxclients 12` and holds `bot_fill 14` to 12, a
+Zombies server takes `sv_maxplayers 3`, and a cfg with the old names behaves as it always did.
+Not run: a real client joining a capped server as its 13th player, and box 4 itself. Box 4:
+section 10 as written, then add `set sv_maxplayers <cap>` to each preset's Advanced lines,
+because the Server Manager in this zip (1.0.0) still writes the old names; a Manager that
+writes the new ones is on the way. Players need nothing. The rest of this runbook is v1.6.0's.
+
 **Written:** 2026-09-26 (the v1.5.0 runbook, rewritten for what changed since v1.5.0)
 **Build under test:** `integration` at `c45126a`, packaged as `v1.6.0-rc1`: twelve economy fixes (#19, #24 to #32, #36, #37) and upstream #71's singleplayer healer entry. Until the tag exists the exe reports itself as `v1.5.0-28-gc45126a`.
 **Repo:** `D:\S2x`. **Game:** `D:\Program Files\Steam\steamapps\common\Call of Duty WWII`. **Box 4:** runs the v1.5.0 code with the Server Manager's launch profiles: four Multiplayer presets, two Zombies servers from a separately installed server package, and the status card with `-Ports`.
