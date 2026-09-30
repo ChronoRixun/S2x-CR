@@ -1277,7 +1277,7 @@ namespace party
 	}
 
 	// The slots this server actually owns: sv_maxclients (a dedicated server sets
-	// it to party_maxplayers) bounded by the mode's maximum, so a four-slot
+	// it to sv_maxplayers) bounded by the mode's maximum, so a four-slot
 	// server is not treated as an eighteen-slot one.
 	int get_match_capacity()
 	{

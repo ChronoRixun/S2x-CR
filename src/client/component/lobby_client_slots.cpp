@@ -31,7 +31,7 @@ namespace lobby_client_slots
 		// index is never bounded by sv_maxclients. Stock S2 gets away with that because
 		// SV_Startup (game+0x6DCDB0) sizes svs_clients by sv_maxclients and the dvar
 		// defaults to 48 - exactly the size of the party member table. The dedicated party
-		// sets sv_maxclients to party_maxplayers (dedicated_party.cpp,
+		// sets sv_maxclients to sv_maxplayers (dedicated_party.cpp,
 		// apply_configured_party_limits), so a four-player server owns a four-entry
 		// array while this walk still reaches slot 47. The three dedicated-server crashes
 		// of 2026-09-13 all faulted here on slot 11 (RSI = 0xC4FCD0, ~12.9 MB past a

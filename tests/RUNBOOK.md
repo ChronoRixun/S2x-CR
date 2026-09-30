@@ -110,7 +110,7 @@ The local dedicated server for section 7 takes its settings from `<game folder>\
 ```
 set sv_hostname "rc test"
 set master_server_enable 0
-set party_maxplayers 18
+set sv_maxplayers 18
 set party_matchStartDelay 15
 set bot_fill 8
 set bot_names nostalgia
