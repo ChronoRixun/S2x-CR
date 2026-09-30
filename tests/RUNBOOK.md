@@ -10,8 +10,9 @@ Zombies server takes `sv_maxplayers 3`, and a cfg with the old names behaves as 
 Not run: a real client joining a capped server as its 13th player, and box 4 itself. The Server
 Manager in this zip is 1.0.1: the same Manager with its player cap field writing the new names,
 so a preset's cap applies as set. Box 4: section 10 as written; after START ALL each server's
-lobby and the master list show x/<cap>. Players need nothing. The rest of this runbook is
-v1.6.0's.
+lobby and the master list show x/<cap>. Players need nothing. Released 2026-09-29 from
+`integration` at `3c8ad10`: https://github.com/ChronoRixun/S2x-CR/releases/tag/v1.6.1
+(`s2x-cr-v1.6.1.zip`, 16,118,845 bytes). The rest of this runbook is v1.6.0's.
 
 **Written:** 2026-09-26 (the v1.5.0 runbook, rewritten for what changed since v1.5.0)
 **Build under test:** `integration` at `c45126a`, packaged as `v1.6.0-rc1`: twelve economy fixes (#19, #24 to #32, #36, #37) and upstream #71's singleplayer healer entry. Until the tag exists the exe reports itself as `v1.5.0-28-gc45126a`.
