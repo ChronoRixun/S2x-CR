@@ -15,8 +15,8 @@
     <AssemblyTitle>S2x Server Manager</AssemblyTitle>
     <Product>S2x Server Manager</Product>
     <Company>S2x community</Company>
-    <Version>1.2.0</Version>
-    <FileVersion>1.2.0.0</FileVersion>
+    <Version>1.2.1</Version>
+    <FileVersion>1.2.1.0</FileVersion>
     <ApplicationIcon>Assets\S2xServerManager.ico</ApplicationIcon>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <DebugType>portable</DebugType>
