@@ -69,7 +69,7 @@ try {
  (Get $off 'ExtraLines').Add('set g_speed 190')
  $expected=@('set sv_hostname "Cfg test"','set scr_war_scorelimit 75','set scr_dom_halftime 0','set scr_dom_roundlimit 1',
   'set bot_fill 12','set bot_names nostalgia','set sv_maprotation "gametype war map mp_house"','set bot_DifficultyDefault regular',
-  'set party_maxplayers 18','set party_minplayers 1','set party_matchStartDelay 60','set master_server_enable 1','set sv_lanOnly 0',
+  'set sv_maxplayers 18','set sv_minplayers 1','set party_matchStartDelay 60','set master_server_enable 1','set sv_lanOnly 0',
   'set s2x_autobalance 0','set s2x_chatcmds 0','set s2x_mapvote 0','set g_speed 190') -join "`n"
  Require ((CallStatic $controllerType 'BuildServerCfg' @($off)) -eq $expected) 'off: bot_fill as before, s2x_autobalance 0 after the editor lines (then the chat command and map vote off lines), advanced block last'
  $on=Preset 'mp' $true

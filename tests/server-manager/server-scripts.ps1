@@ -119,7 +119,7 @@ try {
  function Cfg($preset) { CallStatic $controllerType 'BuildServerCfg' @($preset) }
  $head=@('set sv_hostname "Cfg test"','set scr_war_scorelimit 75','set scr_dom_halftime 0','set scr_dom_roundlimit 1',
   'set bot_fill 12','set bot_names nostalgia','set sv_maprotation "gametype war map mp_house"','set bot_DifficultyDefault regular',
-  'set party_maxplayers 18','set party_minplayers 1','set party_matchStartDelay 60','set master_server_enable 1','set sv_lanOnly 0','set s2x_autobalance 0')
+  'set sv_maxplayers 18','set sv_minplayers 1','set party_matchStartDelay 60','set master_server_enable 1','set sv_lanOnly 0','set s2x_autobalance 0')
  $on=Preset 'mp'
  Put $on 'ChatCommands' $true; Put $on 'MapVote' $true; Put $on 'VoteChoices' 4; Put $on 'VoteSeconds' 20
  Rules $on @('No spawn camping',' \ ','Be nice; no "toxic" chat, 100% ^1fair')
