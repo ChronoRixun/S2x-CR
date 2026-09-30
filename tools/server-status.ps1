@@ -312,6 +312,7 @@ function Join-Names([string[]]$Items) {
 
 function New-ServerField($Server, $Info, $Listed, [long]$Now) {
     $hostname = if ($Info) { [string]$Info['hostname'] } elseif ($Server) { $Server.hostname } else { '' }
+    if (-not $hostname -and $Server) { $hostname = "Server on :$($Server.port)" }
     $name = Format-ServerName $hostname
     if ($null -eq $Info) {
         $why = 'Not responding'
@@ -513,7 +514,10 @@ function Update-Card {
         # Unknown ports that do not answer are not servers; a launcher server with a pid file is.
         if ($null -eq $info -and -not ($server -and $server.expected)) { continue }
         $hostname = if ($info) { [string]$info['hostname'] } else { $server.hostname }
-        if ($NameFilter -and $hostname -notmatch $NameFilter) { continue }
+        # A profile server that stops answering has no cfg to name it; it was started from
+        # this folder, so it stays on the card (red) rather than failing the name filter.
+        $unnamedOwn = -not $hostname -and $server -and $server.expected
+        if ($NameFilter -and -not $unnamedOwn -and $hostname -notmatch $NameFilter) { continue }
         $isListed = if ($null -eq $listed) { $null } else { $listed.ContainsKey("${PublicHost}:$p") }
         $serverFields += New-ServerField $server $info $isListed $now
         if ($info) { $online++ } else { $down++ }

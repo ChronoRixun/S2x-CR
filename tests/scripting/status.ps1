@@ -97,6 +97,16 @@ Check ($fields[0].name -eq 'Status' -and $fields[0].value.StartsWith($StatusLigh
 $entries = @($fields | Where-Object { $_.name.StartsWith($StatusLights[0]) })
 Check ($entries.Count -eq 1 -and $entries[0].name -eq ($StatusLights[0] + ' Test Server') -and $entries[0].value.Contains('Gun Game on London Docks') -and $entries[0].value.Contains('In the server browser')) 'The server must get one green entry named after it'
 Check (@($fields | Where-Object name -eq 'Recent arrivals / departures').Count -eq 1) 'The roster must add the presence field'
+# A launch-profile server (pid file, no cfg) that is alive but not answering has no name to
+# filter on; it must show red under a name filter instead of leaving the card.
+$NameFilter = "^\^1Test"
+function Get-LauncherServers { return @{ 27031 = @{ port = 27031; hostname = ''; rotation = @(); expected = $true; running = $true } } }
+Update-Card | Out-Null
+$fields = @($script:published.fields)
+Check ($fields[0].value.StartsWith($StatusLights[2] + ' 1 online, 1 not responding')) 'Status must count the silent profile server as down'
+Check (@($fields | Where-Object { $_.name -eq ($StatusLights[1] + ' Server on :27031') -and $_.value.StartsWith('Not responding') }).Count -eq 1) 'The silent profile server must get a red entry named by its port'
+$NameFilter = ''
+function Get-LauncherServers { return @{} }
 $existing = @{ title = 'Keep me'; fields = @(@{ name = 'Rules'; value = 'Keep'; inline = $false }, @{ name = 'Recent arrivals / departures'; value = 'Old'; inline = $false }) }
 $merged = Merge-Embed $existing @($join.field)
 Check ($merged.title -eq 'Keep me' -and @($merged.fields | Where-Object name -eq 'Rules').Count -eq 1) 'Unmanaged embed fields must survive'
