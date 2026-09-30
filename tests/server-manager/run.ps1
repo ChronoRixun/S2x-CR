@@ -37,14 +37,14 @@ try {
  & $RoslynCsc /nologo /r:System.Core.dll "/out:$out/profile-tests.exe" $profileTest
  if($LASTEXITCODE){throw 'Profile test compile failed'}
  $fixtures=@()
- foreach($spec in @(@('bodega','mp_zombie_windmill_srv'),@('olympus','mp_zombie_dnk_srv'))){
+ foreach($spec in @(@('bodega','mp_zombie_windmill_srv'),@('olympus','mp_zombie_dnk_srv'),@('altar','mp_zombie_dig_02_srv'))){
   $dir=Join-Path $out ('profile-'+$spec[0]);New-Item -ItemType Directory -Force $dir|Out-Null
   Set-Content (Join-Path $dir 'start.ps1') "throw 'Test fixture only'"
   $entries=@(foreach($bots in @(2,3)){@{key=($spec[0]+'-'+$bots);game='zombies';map=$spec[1];mode="With $bots bots";start='start.ps1';log='test.log'}})
   @{profile=('zombies-bots-'+$spec[0]);entries=$entries}|ConvertTo-Json -Depth 5|Set-Content (Join-Path $dir 'server-manager.json')
   $fixtures+=$dir
  }
- & "$out/profile-tests.exe" (Resolve-Path tools/ServerManager/bin/Release/net48/S2xServerManager.exe).Path fixed $fixtures[0] $fixtures[1]
+ & "$out/profile-tests.exe" (Resolve-Path tools/ServerManager/bin/Release/net48/S2xServerManager.exe).Path fixed $fixtures[0] $fixtures[1] $fixtures[2]
  if($LASTEXITCODE){throw 'Survival profile editor regression failed'}
  if($LiveMaster){& "$out/master-tests.exe" --smoke;if($LASTEXITCODE){throw 'Live master query did not complete; check network access.'}}
  Write-Output 'PASS Server Manager regression suite'
