@@ -286,6 +286,8 @@ $MapNames = @{
 }
 
 function Format-Map([string]$Map) {
+    # The Zombies bots kits run server-side copies of the DLC maps, named <map>_srv.
+    $Map = $Map -replace '_srv$', ''
     if ($MapNames.ContainsKey($Map)) { return $MapNames[$Map] }
     $name = $Map -replace '^mp_', '' -replace '_s2$', '' -replace '_', ' '
     return (Get-Culture).TextInfo.ToTitleCase($name)

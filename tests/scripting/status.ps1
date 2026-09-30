@@ -68,6 +68,7 @@ Check ($launcher[27030].hostname -eq 'Preset' -and $launcher[27030].rotation.Cou
 Check ($launcher[27031].hostname -eq '' -and $launcher[27031].rotation.Count -eq 0) 'The profile server has no cfg to read'
 Check (-not $launcher[27030].expected -and -not $launcher[27031].expected) 'A pid that is not an s2x process must not mark a server as expected'
 $GameDir = ''
+Check ((Format-Map 'mp_london_srv') -eq 'London Docks' -and (Format-Map 'mp_zombie_dig_02_srv') -eq 'Zombie Dig 02') 'A _srv map variant must be named like its base map'
 $before = [IO.File]::ReadAllText($PresenceStateFile)
 $ChannelId = ''; $MessageId = ''; $TokenFile = ''; $DryRun = $true
 $script:discordCalls = 0
