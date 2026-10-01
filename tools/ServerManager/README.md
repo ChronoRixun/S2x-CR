@@ -293,9 +293,12 @@ Colour codes (`^1` to `^7`) work in rules and in the Discord line.
 06 · MAP VOTE in the editor lets the players of a multiplayer server pick the next map when a
 match ends. After the Victory/Defeat screen, a ballot of 2 to 5 choices (Choices, 3 by default)
 opens for 10, 15, 20 or 30 seconds (Vote time, 15 by default; a preset file may hold any value
-from 10 to 30). Players type `!1` to `!N` (or `!vote N`) and can change their vote; the vote
-closes when the time is up, or three seconds after everyone has voted. Bots do not vote, and a
-match with no people in it has no vote.
+from 10 to 30). The ballot sits on a dark panel in the middle of the screen, readable over the
+final killcam. Players vote with keys: AIM and FIRE move a cursor over the choices (the D-pad
+too) and JUMP or USE votes for the one under it; a green bar marks their vote, which they can
+change. Typing `!1` to `!N` (or `!vote N`) in chat works as well. The vote closes when the time
+is up, or three seconds after everyone has voted, and the panel then shows NEXT MAP with the
+winner. Bots do not vote, and a match with no people in it has no vote.
 
 - Choice 1 is always the rotation's own next map, marked `(next)`. Choices 2 to N are other
   entries of the rotation, different maps first; the match just played is never on the ballot.
