@@ -21,7 +21,7 @@ S2x is a custom client project for Call of Duty®: WWII, focused on preserving a
 | `s2x.exe`, `s2x.pdb` | The client, and symbols for readable crash reports |
 | `s2x\ui_scripts\` | Menu patches: server browser, dedicated lobby, rank and Zombies unlocks |
 | `s2x\scripts\mp\` | Server-side scripts: Gun Game bot costumes, chat events for server scripting |
-| `s2x\tools\` | The dedicated server launcher and the Discord status card script |
+| `s2x\tools\` | The Server Manager for dedicated servers, the older launcher script and the Discord status card script |
 
 ## Community
 
@@ -44,6 +44,8 @@ Where an item carries a status, it says where the item stands upstream: **Fork o
 - **Ready to offer:** the player limit works. `sv_maxplayers 12` caps a server at 12 and `sv_minplayers` sets how many it waits for. The old names, `party_maxplayers` and `party_minplayers`, are names the stock game keeps for itself: a `set` on them is swallowed before any dvar registered under them sees it, so every server ran 18 wide whatever its cfg said. Cfgs need the new names. ([#39](https://github.com/ChronoRixun/S2x-CR/issues/39))
 - **Ready to offer:** chat for server scripts, `level waittill("say", player, message, team_chat)`. **Fork only:** the rest of [server scripting](tools/server-scripts/README.md): small text files, a player's address and a roster snapshot. ([#9](https://github.com/ChronoRixun/S2x-CR/issues/9))
 - **Fork only:** bots that fill the server. `bot_fill 17` adds bots on every map start; they make room as people join. `bot_names` picks a name pool: `default`, `modern` (2016-2026 gamertags) or `nostalgia` (2005-2015 Xbox 360 era). Both are saved dvars.
+- **Fork only:** a script can pick the next map. `s2x_nextmap "<map> <gametype>"`, set during a match, replaces the next rotation entry once; `s2x_nextmap_preview` says what plays next, and an operator's `map` command still wins. The Server Manager's end-of-match map vote uses it.
+- **Fork only:** local administration for the Server Manager. A server started with `-server-manager-admin <nonce>` opens a local pipe, readable only by the account that started it, for player lists, announcements, warnings and kicks. There is no remote console and no ban list.
 
 ### Progression
 

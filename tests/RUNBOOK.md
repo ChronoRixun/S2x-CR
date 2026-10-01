@@ -1,5 +1,21 @@
 # S2x-CR release runbook: v1.6.0
 
+**v1.6.2 addendum (2026-09-30):** for hosts. Two native additions and Server Manager 1.2.2:
+the local administration bridge (`-server-manager-admin <nonce>`, from the Manager 1.1.1 work)
+and the one-shot `s2x_nextmap` read in the dedicated party (`0815e33`); the Manager adds themes,
+auto-balance, chat commands, a key-driven end-of-match map vote and ADMIN; the status card finds
+launch-profile servers and names the `_srv` Zombies maps. Tested on OJAMD with two real players
+on a LAN-only server built from `rc/v1.6.2` (2026-09-29 and 2026-09-30): ADMIN announce, warn
+and kick (after Refresh players; a roster older than 30 s answers `stale_target` by design);
+auto-balance replacing bots as people join and leave, the countdown and a live switch;
+`!help`, `!rules`, `!discord`, `!nextmap`; map votes by chat and by keys over the final killcam,
+early close three seconds after everyone voted, no-vote and tie keeping the rotation, and the
+exe loading the winning map. Automated: client build clean, Manager suite 397 PASS, the native
+admin harness and the status card test pass. Not run with people: a scorestreak kept across a
+live auto-balance switch (verified with bots only), the 160-character admin message, the theme
+walk-through. Box 4: section 10, then turn the new options on per preset in the Manager.
+Players need nothing.
+
 **v1.6.1 addendum (2026-09-29):** one change on top of v1.6.0, for hosts only. The dedicated
 server's player limit never worked: the cfg's `party_maxplayers` and `party_minplayers` are
 names the stock engine keeps for itself, and a `set` on them is swallowed before any dvar sees
