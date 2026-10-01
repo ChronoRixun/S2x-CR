@@ -14,7 +14,8 @@ exe loading the winning map. Automated: client build clean, Manager suite 397 PA
 admin harness and the status card test pass. Not run with people: a scorestreak kept across a
 live auto-balance switch (verified with bots only), the 160-character admin message, the theme
 walk-through. Box 4: section 10, then turn the new options on per preset in the Manager.
-Players need nothing.
+Players need nothing. Released 2026-09-30 from `integration` at `6c2295c`:
+https://github.com/ChronoRixun/S2x-CR/releases/tag/v1.6.2 (`s2x-cr-v1.6.2.zip`, 18,027,793 bytes).
 
 **v1.6.1 addendum (2026-09-29):** one change on top of v1.6.0, for hosts only. The dedicated
 server's player limit never worked: the cfg's `party_maxplayers` and `party_minplayers` are
