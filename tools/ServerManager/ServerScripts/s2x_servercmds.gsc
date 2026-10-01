@@ -19,9 +19,14 @@
 //   set s2x_mapvote_test_bots 1     bots count as voters
 //   set s2x_mapvote_test_vote k     every bot votes !k after the vote opens; 9 splits bots 2/3
 //
-// HUD rule: settext gets only fixed labels and the N ballot rows, each set once per map
-// (5 + N distinct strings). Everything else goes through iprintln/iprintlnbold; counts use
-// setvalue and the clock settimer. This file never notifies level "say" (that is
+// Voting: AIM moves the cursor up, FIRE moves it down, JUMP (or USE) votes for the row under it;
+// the D-pad moves it too. !1 .. !N in chat still work. Keys come from notifyonplayercommand,
+// the way stock S2 reads the D-pad and the forfeit button.
+//
+// HUD rule: settext gets only fixed labels, the N ballot rows and the result's map name, each
+// set once per map (at most 9 + N distinct strings), and only in mv_text and mv_hud_result.
+// Counts use setvalue and the clock settimer; nothing is printed in the middle of the screen,
+// where it would sit on the panel. This file never notifies level "say" (that is
 // s2x_server_events.gsc's job) and listens to the per-player "s2x_chat" notify only.
 
 init()
@@ -131,9 +136,15 @@ sc_handle(message)
 	sc_log(self.name + " " + cmd);
 }
 
+// Lists only what this server has: !rules and !discord need text from the host.
 sc_help()
 {
-	text = "^3Server:^7 !rules  !discord  !nextmap";
+	text = "^3Server:^7";
+	if (level.s2x_sc_rules.size > 0)
+		text += "  !rules";
+	if (level.s2x_sc_discord != "")
+		text += "  !discord";
+	text += "  !nextmap";
 	if (level.s2x_sc_vote)
 		text += "  !vote";
 	self iprintln(text);
@@ -474,11 +485,14 @@ mv_open()
 	level.s2x_mv_state = "open";
 	mv_hud_create(seconds);
 
+	// People get the cursor and the keys; in the bot test the bots do too, so that code runs.
 	count = level.s2x_mv_ballot.size;
+	testing = getdvarint("s2x_mapvote_test_bots") == 1;
 	foreach (player in mv_voters())
-		player iprintlnbold("^3MAP VOTE:^7 type ^3!1^7 - ^3!" + count + "^7 in chat");
-	for (i = 0; i < count; i++)
-		iprintln("^3!" + (i + 1) + "^7 " + mv_row_text(i));
+	{
+		if (testing || (!isbot(player) && !istestclient(player)))
+			player mv_player_open();
+	}
 	mv_log("open: " + count + " choices, " + seconds + " s");
 
 	if (getdvarint("s2x_mapvote_test_bots") == 1)
@@ -498,6 +512,7 @@ mv_parse_choice(words)
 	return 0;
 }
 
+// A vote typed in chat: !k.
 mv_cast(choice)
 {
 	if (!mv_is_voter(self))
@@ -506,9 +521,83 @@ mv_cast(choice)
 	if (isdefined(self.s2x_mv_next) && now < self.s2x_mv_next)
 		return;
 	self.s2x_mv_next = now + 1000;
-	self.s2x_mv_choice = choice - 1;
-	self iprintln("^3Map vote:^7 you picked " + mv_row_text(choice - 1));
-	mv_log(self.name + " voted " + choice);
+	self mv_pick(choice - 1);
+}
+
+// Records a vote (row index) and moves this player's bars onto it.
+mv_pick(index)
+{
+	if (!mv_is_voter(self))
+		return;
+	self.s2x_mv_choice = index;
+	self.s2x_mv_cursor = index;
+	if (isdefined(self.s2x_mv_bar_pick))
+	{
+		self mv_place(self.s2x_mv_bar_pick, index);
+		self.s2x_mv_bar_pick.alpha = 0.45;
+	}
+	if (isdefined(self.s2x_mv_bar_cursor))
+		self mv_place(self.s2x_mv_bar_cursor, index);
+	mv_log(self.name + " voted " + (index + 1));
+}
+
+// ---------------------------------------------------------------------------
+// Keys. notifyonplayercommand registrations last for the map, which ends with the vote.
+// ---------------------------------------------------------------------------
+
+mv_player_open()
+{
+	self.s2x_mv_cursor = 0;
+	self.s2x_mv_bar_cursor = self mv_bar((1, 1, 1), 0.16);
+	self.s2x_mv_bar_pick = self mv_bar((0.3, 0.9, 0.4), 0);
+	self mv_place(self.s2x_mv_bar_cursor, 0);
+	self mv_place(self.s2x_mv_bar_pick, 0);
+
+	self notifyonplayercommand("s2x_mv_up", "+speed_throw");
+	self notifyonplayercommand("s2x_mv_up", "+toggleads_throw");
+	self notifyonplayercommand("s2x_mv_up", "+actionslot 1");
+	self notifyonplayercommand("s2x_mv_down", "+attack");
+	self notifyonplayercommand("s2x_mv_down", "+actionslot 2");
+	self notifyonplayercommand("s2x_mv_pick", "+gostand");
+	self notifyonplayercommand("s2x_mv_pick", "+usereload");
+	self notifyonplayercommand("s2x_mv_pick", "+activate");
+	self thread mv_key("s2x_mv_up", -1);
+	self thread mv_key("s2x_mv_down", 1);
+	self thread mv_key("s2x_mv_pick", 0);
+}
+
+mv_key(event, step)
+{
+	self endon("disconnect");
+	level endon("s2x_mv_closed");
+	for (;;)
+	{
+		self waittill(event);
+		if (level.s2x_mv_state != "open")
+			continue;
+		now = gettime();
+		if (isdefined(self.s2x_mv_key_next) && now < self.s2x_mv_key_next)
+			continue;
+		self.s2x_mv_key_next = now + 150;
+		if (step == 0)
+		{
+			self mv_pick(self.s2x_mv_cursor);
+			continue;
+		}
+		count = level.s2x_mv_ballot.size;
+		self.s2x_mv_cursor = (self.s2x_mv_cursor + step + count) % count;
+		self mv_place(self.s2x_mv_bar_cursor, self.s2x_mv_cursor);
+	}
+}
+
+mv_player_close()
+{
+	if (isdefined(self.s2x_mv_bar_cursor))
+		self.s2x_mv_bar_cursor destroy();
+	if (isdefined(self.s2x_mv_bar_pick))
+		self.s2x_mv_bar_pick destroy();
+	self.s2x_mv_bar_cursor = undefined;
+	self.s2x_mv_bar_pick = undefined;
 }
 
 mv_status()
@@ -595,6 +684,7 @@ mv_run()
 mv_close(counts)
 {
 	level.s2x_mv_state = "closed";
+	level notify("s2x_mv_closed");
 	winner = mv_winner(counts);
 	shown = winner;
 	if (shown < 0)
@@ -606,10 +696,6 @@ mv_close(counts)
 		setdvar("s2x_nextmap", entry[0] + " " + entry[1]);
 
 	mv_hud_result(winner, shown);
-	if (winner < 0)
-		iprintlnbold("^3MAP VOTE:^7 no winner, the rotation continues");
-	else
-		iprintlnbold("^3NEXT MAP:^7 " + sc_entry_name(entry[0], entry[1]));
 	mv_log("closed: winner " + (winner + 1) + ", next " + entry[0] + " " + entry[1]);
 
 	wait 3;
@@ -671,7 +757,12 @@ mv_test_votes()
 }
 
 // ---------------------------------------------------------------------------
-// Vote HUD: level elements, so spectators and late joiners see them too.
+// Vote HUD. The panel is made of level elements, so spectators and late joiners see it too;
+// each voter also has two bars of their own, the cursor and their vote.
+// Layout (virtual 640x480, offsets from the screen centre):
+//   backdrop (black) with a gold title strip, MAP VOTE, two hint lines, one row per choice
+//   with its count on the right, "Vote ends in" and the clock.
+// Materials: "black" and the stock HUD bar's "progress_bar_fill" (tinted), both always loaded.
 // ---------------------------------------------------------------------------
 
 mv_text(text, point, x, y, scale)
@@ -692,33 +783,77 @@ mv_style(elem)
 	elem.sort = 10;
 }
 
+mv_box(material, width, height, y, color, alpha, sort)
+{
+	elem = maps\mp\gametypes\_hud_util::_id_282A(material, width, height);
+	elem maps\mp\gametypes\_hud_util::setpoint("CENTER", "CENTER", 0, y);
+	mv_style(elem);
+	elem.color = color;
+	elem.alpha = alpha;
+	elem.sort = sort;
+	level.s2x_mv_elems[level.s2x_mv_elems.size] = elem;
+	return elem;
+}
+
+// A per-player bar behind one row (see mv_place).
+mv_bar(color, alpha)
+{
+	bar = self maps\mp\gametypes\_hud_util::createicon("progress_bar_fill", level.s2x_mv_width - 12, 18);
+	mv_style(bar);
+	bar.color = color;
+	bar.alpha = alpha;
+	bar.sort = 9;
+	return bar;
+}
+
+mv_place(bar, row)
+{
+	if (isdefined(bar))
+		bar maps\mp\gametypes\_hud_util::setpoint("CENTER", "CENTER", 0, level.s2x_mv_row_y[row]);
+}
+
 mv_hud_create(seconds)
 {
 	level.s2x_mv_elems = [];
 	count = level.s2x_mv_ballot.size;
-	top = -60 - count * 9;
+	width = 360;
+	height = 92 + count * 20;
+	centre = -30;
+	top = centre - height / 2;
+	left = 0 - width / 2 + 16;
+	right = width / 2 - 16;
+	level.s2x_mv_width = width;
+	level.s2x_mv_centre = centre;
 
-	level.s2x_mv_title = mv_text("MAP VOTE", "CENTER", 0, top, 1.6);
-	level.s2x_mv_hint = mv_text("Type !1 - !" + count + " in chat", "CENTER", 0, top + 20, 1.2);
+	level.s2x_mv_back = mv_box("black", width, height, centre, (1, 1, 1), 0.78, 7);
+	level.s2x_mv_strip = mv_box("progress_bar_fill", width, 28, top + 14, (0.55, 0.42, 0.12), 0.9, 8);
+	level.s2x_mv_title = mv_text("MAP VOTE", "CENTER", 0, top + 14, 1.6);
+	level.s2x_mv_title.color = (1, 0.92, 0.7);
+	level.s2x_mv_hint = mv_text("AIM / FIRE to move, JUMP to vote", "CENTER", 0, top + 38, 1.1);
+	level.s2x_mv_hint2 = mv_text("or type !1 - !" + count + " in chat", "CENTER", 0, top + 52, 0.9);
+	level.s2x_mv_hint2.alpha = 0.7;
 
 	level.s2x_mv_rows = [];
 	level.s2x_mv_counts = [];
+	level.s2x_mv_row_y = [];
 	for (i = 0; i < count; i++)
 	{
-		y = top + 44 + i * 18;
-		level.s2x_mv_rows[i] = mv_text(mv_row_text(i), "LEFT", -150, y, 1.3);
+		y = top + 74 + i * 20;
+		level.s2x_mv_row_y[i] = y;
+		level.s2x_mv_rows[i] = mv_text(mv_row_text(i), "LEFT", left, y, 1.3);
 
 		value = maps\mp\gametypes\_hud_util::_id_2829("default", 1.3);
-		value maps\mp\gametypes\_hud_util::setpoint("RIGHT", "CENTER", 150, y);
+		value maps\mp\gametypes\_hud_util::setpoint("RIGHT", "CENTER", right, y);
 		value setvalue(0);
 		mv_style(value);
+		value.color = (1, 0.85, 0.3);
 		level.s2x_mv_elems[level.s2x_mv_elems.size] = value;
 		level.s2x_mv_counts[i] = value;
 	}
 
-	y = top + 52 + count * 18;
-	level.s2x_mv_ends = mv_text("Vote ends in", "RIGHT", 10, y, 1.2);
-	timer = maps\mp\gametypes\_hud_util::_id_282B("default", 1.2);
+	y = top + 80 + count * 20;
+	level.s2x_mv_ends = mv_text("Vote ends in", "RIGHT", 10, y, 1.1);
+	timer = maps\mp\gametypes\_hud_util::_id_282B("default", 1.1);
 	timer maps\mp\gametypes\_hud_util::setpoint("LEFT", "CENTER", 16, y);
 	timer settimer(seconds);
 	mv_style(timer);
@@ -744,26 +879,46 @@ mv_hud_update(counts)
 	}
 }
 
+// The result replaces the ballot inside a smaller panel: NEXT MAP on the strip, the map on
+// its own line under it, and one line saying how it was chosen.
 mv_hud_result(winner, shown)
 {
-	level.s2x_mv_title settext("NEXT MAP");
-	if (winner < 0)
-		level.s2x_mv_hint settext("Rotation continues");
-	else
-		level.s2x_mv_hint.alpha = 0;
+	foreach (player in level.players)
+		player mv_player_close();
+
+	foreach (row in level.s2x_mv_rows)
+		row.alpha = 0;
+	foreach (value in level.s2x_mv_counts)
+		value.alpha = 0;
+	level.s2x_mv_hint.alpha = 0;
+	level.s2x_mv_hint2.alpha = 0;
 	level.s2x_mv_ends.alpha = 0;
 	level.s2x_mv_timer.alpha = 0;
-	for (i = 0; i < level.s2x_mv_rows.size; i++)
-	{
-		if (i == shown)
-			level.s2x_mv_rows[i].color = (0.45, 1, 0.45);
-		else
-			level.s2x_mv_rows[i].alpha = 0.35;
-	}
+
+	width = level.s2x_mv_width;
+	height = 96;
+	centre = level.s2x_mv_centre;
+	top = centre - height / 2;
+	level.s2x_mv_back setshader("black", width, height);
+	level.s2x_mv_back maps\mp\gametypes\_hud_util::setpoint("CENTER", "CENTER", 0, centre);
+	level.s2x_mv_strip maps\mp\gametypes\_hud_util::setpoint("CENTER", "CENTER", 0, top + 14);
+	level.s2x_mv_title maps\mp\gametypes\_hud_util::setpoint("CENTER", "CENTER", 0, top + 14);
+	level.s2x_mv_title settext("NEXT MAP");
+
+	entry = level.s2x_mv_ballot[shown];
+	name = mv_text(sc_entry_name(entry[0], entry[1]), "CENTER", 0, top + 48, 1.5);
+	name.color = (0.55, 1, 0.55);
+	if (winner < 0)
+		how = mv_text("No winner: the rotation continues", "CENTER", 0, top + 74, 1.0);
+	else
+		how = mv_text("Chosen by vote", "CENTER", 0, top + 74, 1.0);
+	how.alpha = 0.75;
 }
 
 mv_hud_destroy()
 {
+	foreach (player in level.players)
+		player mv_player_close();
 	foreach (elem in level.s2x_mv_elems)
 	{
 		if (isdefined(elem))
