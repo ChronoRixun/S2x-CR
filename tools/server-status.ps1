@@ -3,8 +3,8 @@
     Keeps a Discord embed up to date with the live state of the S2x dedicated servers on a box.
 
 .DESCRIPTION
-    Works out which servers to report: every port passed in, plus every s2x\server-<port>.cfg
-    the launcher wrote in the game folder. Queries each one the way the game client does (OOB
+    Works out which servers to report: every port passed in, plus every server the launcher or
+    the Server Manager started from the game folder (its s2x\server-<port>.cfg or .pid file). Queries each one the way the game client does (OOB
     "s2x_getInfo" with the S2 packet trailer), asks the master server which of them it lists,
     and edits an existing bot embed: a "Status" field with the count, then one field per
     server, named after it with the colour codes stripped, carrying map and mode, players, the
@@ -38,7 +38,7 @@ param(
     [int]$Port = 27016,
     # More ports to query, comma-separated, ranges allowed: "27015,27017-27019".
     [string]$Ports = '',
-    # Game folder whose s2x\server-<port>.cfg files name the launcher's servers. Defaults to
+    # Game folder whose s2x\server-<port>.cfg and .pid files name the box's servers. Defaults to
     # the game folder this script is installed in (<game>\s2x\tools\server-status.ps1).
     [string]$GameDir = '',
     # Regex on the raw server name, colour codes included. Empty reports every server found.
@@ -214,19 +214,24 @@ function Get-MasterListing {
 }
 
 # --- the launcher's servers ----------------------------------------------------------------
-# The launcher writes s2x\server-<port>.cfg and s2x\server-<port>.pid for each server it
-# starts and removes the pid file when it stops one, so the cfg files list the servers this
-# box runs and a pid file marks one that is meant to be up.
+# The launcher and the Server Manager write s2x\server-<port>.cfg and s2x\server-<port>.pid
+# for each server they start and remove the pid file when they stop one, so the cfg files
+# list the servers this box runs and a pid file marks one that is meant to be up. A launch
+# profile's server has only the pid file (its package carries its own cfg), so the pid files
+# name servers too; the query supplies what the missing cfg would have.
 function Get-LauncherServers {
     $servers = @{}
     if (-not $GameDir) { return $servers }
     $dir = Join-Path $GameDir 's2x'
     if (-not (Test-Path -LiteralPath $dir)) { return $servers }
-    foreach ($cfg in Get-ChildItem -LiteralPath $dir -Filter 'server-*.cfg' -File -ErrorAction SilentlyContinue) {
-        if ($cfg.Name -notmatch '^server-(\d+)\.cfg$') { continue }
-        $p = [int]$Matches[1]
+    $ports = @{}
+    foreach ($file in Get-ChildItem -LiteralPath $dir -Filter 'server-*.*' -File -ErrorAction SilentlyContinue) {
+        if ($file.Name -match '^server-(\d+)\.(cfg|pid)$') { $ports[[int]$Matches[1]] = $true }
+    }
+    foreach ($p in @($ports.Keys)) {
         $server = @{ port = $p; hostname = ''; rotation = @(); expected = $false; running = $false }
-        foreach ($line in Get-Content -LiteralPath $cfg.FullName -Encoding UTF8 -ErrorAction SilentlyContinue) {
+        $cfgFile = Join-Path $dir "server-$p.cfg"
+        foreach ($line in Get-Content -LiteralPath $cfgFile -Encoding UTF8 -ErrorAction SilentlyContinue) {
             if ($line -match '^\s*seta?\s+sv_hostname\s+"?([^"]*)"?') { $server.hostname = $Matches[1] }
             elseif ($line -match '^\s*seta?\s+sv_maprotation\s+"?([^"]*)"?') {
                 $tokens = $Matches[1].Trim() -split '\s+'
@@ -281,6 +286,8 @@ $MapNames = @{
 }
 
 function Format-Map([string]$Map) {
+    # The Zombies bots kits run server-side copies of the DLC maps, named <map>_srv.
+    $Map = $Map -replace '_srv$', ''
     if ($MapNames.ContainsKey($Map)) { return $MapNames[$Map] }
     $name = $Map -replace '^mp_', '' -replace '_s2$', '' -replace '_', ' '
     return (Get-Culture).TextInfo.ToTitleCase($name)
@@ -305,6 +312,7 @@ function Join-Names([string[]]$Items) {
 
 function New-ServerField($Server, $Info, $Listed, [long]$Now) {
     $hostname = if ($Info) { [string]$Info['hostname'] } elseif ($Server) { $Server.hostname } else { '' }
+    if (-not $hostname -and $Server) { $hostname = "Server on :$($Server.port)" }
     $name = Format-ServerName $hostname
     if ($null -eq $Info) {
         $why = 'Not responding'
@@ -506,7 +514,10 @@ function Update-Card {
         # Unknown ports that do not answer are not servers; a launcher server with a pid file is.
         if ($null -eq $info -and -not ($server -and $server.expected)) { continue }
         $hostname = if ($info) { [string]$info['hostname'] } else { $server.hostname }
-        if ($NameFilter -and $hostname -notmatch $NameFilter) { continue }
+        # A profile server that stops answering has no cfg to name it; it was started from
+        # this folder, so it stays on the card (red) rather than failing the name filter.
+        $unnamedOwn = -not $hostname -and $server -and $server.expected
+        if ($NameFilter -and -not $unnamedOwn -and $hostname -notmatch $NameFilter) { continue }
         $isListed = if ($null -eq $listed) { $null } else { $listed.ContainsKey("${PublicHost}:$p") }
         $serverFields += New-ServerField $server $info $isListed $now
         if ($info) { $online++ } else { $down++ }

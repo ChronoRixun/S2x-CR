@@ -54,6 +54,21 @@ Check ($empty.state.players.Count -eq 0 -and $empty.state.events.Count -eq 3) 'E
 $many = @(1..40 | ForEach-Object { @{ id = '{0:x}' -f (100 + $_); name = 'Player' + $_ } })
 Roster $many
 Check ((Get-PresenceUpdate $info).state.events.Count -eq 8) 'History must stay bounded'
+# The launcher's servers: a preset has a cfg and a pid file, a launch profile's server only
+# the pid file, and a stale pid (no s2x process behind it) never marks a server as expected.
+$GameDir = Join-Path $testRoot 'game'
+[void][IO.Directory]::CreateDirectory((Join-Path $GameDir 's2x'))
+Set-Content -LiteralPath (Join-Path $GameDir 's2x\server-27030.cfg') -Encoding UTF8 -Value @('set sv_hostname "Preset"', 'set sv_maprotation "gametype gun map mp_london"')
+Set-Content -LiteralPath (Join-Path $GameDir 's2x\server-27030.pid') -Value $PID
+Set-Content -LiteralPath (Join-Path $GameDir 's2x\server-27031.pid') -Value $PID
+Set-Content -LiteralPath (Join-Path $GameDir 's2x\server-notaport.pid') -Value $PID
+$launcher = Get-LauncherServers
+Check ($launcher.Count -eq 2 -and $launcher.ContainsKey(27030) -and $launcher.ContainsKey(27031)) 'Both the cfg and the pid-only server must be found'
+Check ($launcher[27030].hostname -eq 'Preset' -and $launcher[27030].rotation.Count -eq 1) 'The preset keeps its cfg name and rotation'
+Check ($launcher[27031].hostname -eq '' -and $launcher[27031].rotation.Count -eq 0) 'The profile server has no cfg to read'
+Check (-not $launcher[27030].expected -and -not $launcher[27031].expected) 'A pid that is not an s2x process must not mark a server as expected'
+$GameDir = ''
+Check ((Format-Map 'mp_london_srv') -eq 'London Docks' -and (Format-Map 'mp_zombie_dig_02_srv') -eq 'Zombie Dig 02') 'A _srv map variant must be named like its base map'
 $before = [IO.File]::ReadAllText($PresenceStateFile)
 $ChannelId = ''; $MessageId = ''; $TokenFile = ''; $DryRun = $true
 $script:discordCalls = 0
@@ -82,8 +97,18 @@ Check ($fields[0].name -eq 'Status' -and $fields[0].value.StartsWith($StatusLigh
 $entries = @($fields | Where-Object { $_.name.StartsWith($StatusLights[0]) })
 Check ($entries.Count -eq 1 -and $entries[0].name -eq ($StatusLights[0] + ' Test Server') -and $entries[0].value.Contains('Gun Game on London Docks') -and $entries[0].value.Contains('In the server browser')) 'The server must get one green entry named after it'
 Check (@($fields | Where-Object name -eq 'Recent arrivals / departures').Count -eq 1) 'The roster must add the presence field'
+# A launch-profile server (pid file, no cfg) that is alive but not answering has no name to
+# filter on; it must show red under a name filter instead of leaving the card.
+$NameFilter = "^\^1Test"
+function Get-LauncherServers { return @{ 27031 = @{ port = 27031; hostname = ''; rotation = @(); expected = $true; running = $true } } }
+Update-Card | Out-Null
+$fields = @($script:published.fields)
+Check ($fields[0].value.StartsWith($StatusLights[2] + ' 1 online, 1 not responding')) 'Status must count the silent profile server as down'
+Check (@($fields | Where-Object { $_.name -eq ($StatusLights[1] + ' Server on :27031') -and $_.value.StartsWith('Not responding') }).Count -eq 1) 'The silent profile server must get a red entry named by its port'
+$NameFilter = ''
+function Get-LauncherServers { return @{} }
 $existing = @{ title = 'Keep me'; fields = @(@{ name = 'Rules'; value = 'Keep'; inline = $false }, @{ name = 'Recent arrivals / departures'; value = 'Old'; inline = $false }) }
 $merged = Merge-Embed $existing @($join.field)
 Check ($merged.title -eq 'Keep me' -and @($merged.fields | Where-Object name -eq 'Rules').Count -eq 1) 'Unmanaged embed fields must survive'
 Check (@($merged.fields | Where-Object name -eq 'Recent arrivals / departures').Count -eq 1) 'Presence field must replace itself'
-Write-Output 'PASS: roster joins/leaves, stale/offline/map guards, bounded history, escaping, dry run, failed/successful publication, published card layout and embed merge'
+Write-Output 'PASS: roster joins/leaves, stale/offline/map guards, bounded history, launcher cfg and pid discovery, escaping, dry run, failed/successful publication, published card layout and embed merge'
