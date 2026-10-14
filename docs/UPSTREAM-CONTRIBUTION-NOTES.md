@@ -8,7 +8,7 @@ Potential contributions to assess separately:
 
 - Hosting and party lifecycle compatibility fixes, with direct-connect, dedicated-server and reconnect evidence.
 - Server Manager compatibility improvements, including the measured WMI timeout adjustment; separate CR branding and defaults.
-- Marketplace catalog visibility and paging corrections if the live CWL shop investigation establishes a general defect. The current blank pack UI is unresolved, not a confirmed paging defect.
+- Marketplace catalog visibility and paging corrections if the live CWL shop investigation establishes a general defect. The ready/cache-verified native CWL menu and purchase passed; the early blank probe did not establish a paging defect.
 - Economy transaction replay, rollback and persistence validation improvements that apply independently of CR prices, rewards and catalog choices.
 - Progression readiness and duplicate-reward protections, with MP/ZM and migration boundary coverage.
 
@@ -18,4 +18,4 @@ For each proposed contribution, record the triggering case, minimal source diff,
 
 ## Candidate validation in progress
 
-Native MP purchases, rare-drop opening, contract activation, Headquarters loading and redemption of a synthetic claimable objective passed. Repeat reward claims were refused. CWL shop population, Zombies and live progression checks remain outstanding. Nothing has been deployed.
+Native MP purchases, rare-drop opening, contract activation, Headquarters loading and redemption of a synthetic claimable objective passed. Repeat reward claims were refused. CWL shop population/purchase, Zombies purchase/opening and synthetic MP/ZM native rank/replay checks subsequently passed. A gameplay melee kill also earned XP, promoted rank 3 and delivered the next Zombies drop; see tests/client-economy/README.md for fixture limitations. Nothing has been deployed.
