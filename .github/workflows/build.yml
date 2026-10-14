@@ -26,7 +26,6 @@ jobs:
       fail-fast: false
       matrix:
         configuration:
-  workflow_dispatch:
           - Debug
           - Release
     steps:
