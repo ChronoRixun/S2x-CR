@@ -2,6 +2,7 @@
 
 #include "catalog.hpp"
 #include "cwl.hpp"
+#include "cr_catalog.hpp"
 
 #include "resource.hpp"
 
@@ -31,11 +32,26 @@ namespace demonware::marketplace_catalog
 			value.skus_.reserve(count);
 		}
 
-		void add_sku(sku_record record)
+		void add_sku(sku_record record, const bool first = false)
 		{
 			const auto index = value.skus_.size();
-			value.skus_by_type_[record.fields.sku_type].push_back(index);
+			auto& indices = value.skus_by_type_[record.fields.sku_type];
+			if (first) indices.insert(indices.begin(), index);
+			else indices.push_back(index);
 			value.skus_.emplace_back(std::move(record));
+		}
+
+		void prioritize_cr_skus()
+		{
+			for (auto& [type, indices] : value.skus_by_type_)
+			{
+				const auto priority = [&](const std::size_t i)
+				{
+					const auto* local = marketplace_cr::find(value.skus_[i].fields.sku_id);
+					return !local ? 3 : local->consumable ? 0 : local->bundle ? 2 : 1;
+				};
+				std::stable_sort(indices.begin(), indices.end(), [&](const auto a, const auto b) { return priority(a) < priority(b); });
+			}
 		}
 
 		std::size_t sku_count(const std::uint8_t type) const
@@ -517,6 +533,38 @@ namespace demonware::marketplace_catalog
 			sku.raw = wire.get_buffer();
 			builder.add_sku(std::move(sku));
 		}
+
+		// Emit CR's local contracts and promotional bundles through the upstream
+		// catalog. Purchases validate the same policy under the economy lock.
+		for (const auto& entry : marketplace_cr::products)
+		{
+			if (builder.contains_product(entry.id) || std::ranges::any_of(builder.value.skus(),
+				[&](const sku_record& sku) { return sku.fields.sku_id == entry.id; }))
+			{
+				return {load_status::invalid, {}, "CR policy identity collision"};
+			}
+			sku_record sku;
+			sku.fields.sku_id = sku.fields.field_36 = entry.id;
+			sku.fields.sku_data = entry.data;
+			sku.fields.promotional_text = entry.text;
+			sku.fields.prices.push_back({6, entry.price});
+			byte_buffer sku_wire;
+			sku.fields.serialize(&sku_wire);
+			sku.raw = sku_wire.get_buffer();
+			builder.add_sku(std::move(sku), entry.consumable);
+			product_record product;
+			product.fields.product_id = entry.id;
+			for (const auto item : entry.items)
+			{
+				if (item) product.fields.items.push_back({item, 1});
+			}
+			byte_buffer product_wire;
+			product.fields.serialize(&product_wire);
+			product.raw = product_wire.get_buffer();
+			builder.add_product(std::move(product));
+		}
+
+		builder.prioritize_cr_skus();
 
 		for (const auto& pack : marketplace_cwl::packs)
 		{

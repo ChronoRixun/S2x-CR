@@ -423,15 +423,19 @@ namespace demonware::achievement_store
 		// Retail kind-5 descriptors, matching dwGameChallenges IDs 370/371 and AboveAndBeyondTarget
 		achievement_record meta_order(const int kind)
 		{
-			const auto daily = kind == 1;
+			const auto daily = kind == 1 || kind == 8;
+			const auto zombies = kind == 8 || kind == 9;
 
 			achievement_record record{};
-			record.name = daily ? "above_beyond_daily" : "above_beyond_weekly";
+			record.name = zombies ? (daily ? "zm_above_beyond_daily" : "zm_above_beyond_weekly") :
+				(daily ? "above_beyond_daily" : "above_beyond_weekly");
 			record.kind = 5;
 			record.progress_target = daily ? 6 : 3;
 			record.fulfilled_times = 0;
 			record.status = achievement_status::in_progress;
-			record.success_rewards = daily
+			record.success_rewards = zombies
+				? R"([{"type":"grant_product","product":{"id":6,"items":[{"id":6,"quantity":1,"usage_duration":null,"override_usage_duration":0}],"currencies":[]}}])"
+				: daily
 				? R"([{"type":"grant_product","product":{"id":1,"items":[{"id":1,"quantity":1,"usage_duration":null,"override_usage_duration":0}],"currencies":[]}}])"
 				: R"([{"type":"grant_product","product":{"id":2,"items":[{"id":2,"quantity":1,"usage_duration":null,"override_usage_duration":0}],"currencies":[]}}])";
 
@@ -873,7 +877,7 @@ namespace demonware::achievement_store
 			record.status = achievement_status::finished;
 
 			achievement_record* bonus{};
-			if (granting && (record.kind == 1 || record.kind == 2) && !advance_meta_order(record.kind, timestamp, bonus))
+			if (granting && (record.kind == 1 || record.kind == 2 || record.kind == 8 || record.kind == 9) && !advance_meta_order(record.kind, timestamp, bonus))
 			{
 				return false;
 			}
@@ -996,6 +1000,8 @@ namespace demonware::achievement_store
 
 		append_missing(result, meta_order(1));
 		append_missing(result, meta_order(2));
+		append_missing(result, meta_order(8));
+		append_missing(result, meta_order(9));
 
 		for (auto& record : hq_rewards::initial_records())
 		{

@@ -178,7 +178,7 @@ namespace demonware::achievement_orders
 			if (!kind || !kind->IsInt() || !achievement_kind::periodic(kind->GetInt()) ||
 				!limit || !limit->IsUint() ||
 				limit->GetUint() != (achievement_kind::special(kind->GetInt()) ? 1u : 3u) ||
-				!sets || !sets->IsArray() || sets->Empty() || sets->Size() > 64)
+				!sets || !sets->IsArray() || sets->Empty() || sets->Size() > 256)
 			{
 				return std::nullopt;
 			}

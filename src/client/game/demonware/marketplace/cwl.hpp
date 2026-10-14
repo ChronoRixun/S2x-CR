@@ -5,7 +5,7 @@
 
 namespace demonware::marketplace_cwl
 {
-	inline constexpr std::uint32_t price = 500; // price was verified with YouTube videos showing it off
+	inline constexpr std::uint32_t price = 1000; // CR local Armory Credit policy
 
 	struct pack
 	{

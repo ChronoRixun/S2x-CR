@@ -1,4 +1,7 @@
-# Upstream economy comparison
+# Original upstream economy comparison
+
+Historical audit before CR restoration. See [current coverage](CR-ECONOMY-RESTORATION.md) for the implemented restoration and migration limitations. The upstream evidence below refers to base0048253; referenced files have since changed.
+
 
 Compared on 2026-10-13: CR integration `6bfd9d6` in `D:\S2x`, and upstream master `0048253` in this rebuild candidate. This is a source comparison, not a runtime certification. The comparison itself was read-only: no existing profile was written or migrated, and no candidate was deployed over an existing installation. Separate isolated hosting smoke checks are recorded in [candidate validation](UPSTREAM-REBUILD-VALIDATION.md).
 

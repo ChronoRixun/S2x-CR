@@ -1,6 +1,7 @@
 #include <std_include.hpp>
 #include "loader/component_loader.hpp"
 #include "zombies_progression.hpp"
+#include "cr_progression.hpp"
 #include "economy.hpp"
 #include "component/achievement_sync.hpp"
 #include "component/scheduler.hpp"
@@ -271,6 +272,7 @@ namespace zombies_progression
 			return value;
 		}
 
+
 		bool process_rank(const reward_game_events::event& event, const std::uint64_t user)
 		{
 			const auto level = parameter(event, "1");
@@ -310,7 +312,6 @@ namespace zombies_progression
 				return false;
 			}
 
-			int grants{};
 			const auto now = static_cast<std::uint32_t>(time(nullptr));
 			const auto result = achievement_store::mutate(reward->record.name, [&](achievement_record& record)
 			{
@@ -324,23 +325,10 @@ namespace zombies_progression
 					return false;
 				}
 
-				grants = earned - record.fulfilled_times;
 				record.fulfilled_times = earned;
 				record.progress = 1;
 				record.status = achievement_status::finished;
 				record.completion_timestamp = now;
-				return true;
-			}, [&](marketplace_store::transaction& state)
-			{
-				marketplace_store::inventory_record item;
-				for (int count = 0; count < grants; ++count)
-				{
-					if (!supply_drop_inventory::grant(state, reward->item, user, now, item))
-					{
-						return false;
-					}
-				}
-
 				return true;
 			});
 
@@ -354,8 +342,6 @@ namespace zombies_progression
 				achievement_sync::request_refresh();
 			}
 
-			// Fetch current absolute quantities, including on acknowledgement retry.
-			economy::request_inventory_refresh();
 			return true;
 		}
 
@@ -490,6 +476,11 @@ namespace zombies_progression
 
 	bool process(const demonware::reward_game_events::event& event, const std::uint64_t user)
 	{
+		if (!cr_progression::process(event, user))
+		{
+			return false;
+		}
+
 		if (!user || game::environment::is_dedicated() || !game::environment::is_zombies())
 		{
 			return true;
@@ -497,7 +488,7 @@ namespace zombies_progression
 
 		if (event.name == "player_rank_up")
 		{
-			return process_rank(event, user);
+			return process_rank(event, user); // Retain native milestone completion; CR alone grants drops.
 		}
 
 		const auto target = resolve_target(event);

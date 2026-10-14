@@ -40,10 +40,10 @@ namespace demonware::loot_policy
 			"weapon_other",
 		};
 
-		// S2x local weights, the historical backend odds are unknown
-		constexpr std::array<unsigned, rarity_count> common_weights{600, 260, 80, 45, 15};
-		constexpr std::array<unsigned, rarity_count> improved_weights{350, 380, 160, 80, 30};
-		constexpr std::array<unsigned, rarity_count> guaranteed_rare_weights{0, 650, 220, 100, 30};
+		// CR local weights; historical retail backend odds remain unknown.
+		constexpr std::array<unsigned, rarity_count> common_weights{45, 30, 15, 8, 2};
+		constexpr std::array<unsigned, rarity_count> improved_weights{45, 30, 15, 8, 2};
+		constexpr std::array<unsigned, rarity_count> guaranteed_rare_weights{0, 60, 25, 12, 3};
 
 		std::uint64_t next_selection_value(std::uint64_t& state)
 		{

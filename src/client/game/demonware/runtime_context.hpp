@@ -17,6 +17,7 @@ namespace demonware::runtime_context
 		std::uint32_t producer_thread_id{};
 		float loot_rarity_scale{1.0f};
 		std::optional<zombie_rank> zombies{};
+		std::optional<zombie_rank> multiplayer{};
 	};
 
 	std::shared_ptr<const identity> get_snapshot();

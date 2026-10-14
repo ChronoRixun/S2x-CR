@@ -6,7 +6,7 @@ The candidate retains CR hosting: bot fill and name pools, capped match slots, l
 
 ## Economy decision
 
-The candidate uses one upstream economy backend. Existing CR stores have not been converted or replaced. Read [the comparison](docs/UPSTREAM-ECONOMY-COMPARISON.md) before considering a client upgrade: CR weapon contracts/Orders, several MP rank/prestige grants and Zombies bonus Orders are absent upstream, and `hq_economy.json` is not imported. Never rename that file to `marketplace.json`.
+The candidate keeps one upstream economy backend and restores the CR acquisition/reward policies. Read [restoration coverage and validation](docs/CR-ECONOMY-RESTORATION.md) and the [offline migration guide](docs/CR-ECONOMY-MIGRATION.md). Existing CR stores remain untouched; conversion writes only a new file after explicit review and rejects ambiguous data. The [original comparison](docs/UPSTREAM-ECONOMY-COMPARISON.md) describes the losses before this restoration.
 
 ## Build
 

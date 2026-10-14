@@ -210,17 +210,8 @@ namespace economy
 			return amount && amount <= max_grant_amount;
 		}
 
-		void give(const command::params& args, const bool item)
+		void grant_value(const std::uint32_t id, const std::uint32_t amount, const bool item)
 		{
-			std::uint32_t id{};
-			std::uint32_t amount{1};
-			if (!parse_give_arguments(args, item, id, amount))
-			{
-				console::info("Usage: %s <id> %s (decimal or 0x, amount 1 to 2147483647)\n",
-					item ? "giveItem" : "giveCurrency", item ? "[amount]" : "<amount>");
-				return;
-			}
-
 			const auto identity = runtime_context::get_snapshot();
 			if (!identity)
 			{
@@ -240,6 +231,34 @@ namespace economy
 
 			queue_refresh(item);
 			console::info("Granted %u of %s %u (0x%x)\n", amount, item ? "item" : "currency", id, id);
+		}
+
+		void give(const command::params& args, const bool item)
+		{
+			std::uint32_t id{};
+			std::uint32_t amount{1};
+			if (!parse_give_arguments(args, item, id, amount))
+			{
+				console::info("Usage: %s <id> %s (decimal or 0x, amount 1 to 2147483647)\n",
+					item ? "giveItem" : "giveCurrency", item ? "[amount]" : "<amount>");
+				return;
+			}
+
+			grant_value(id, amount, item);
+		}
+
+		void hq_grant(const command::params& args)
+		{
+			std::uint32_t id{}, amount{};
+			const std::string_view kind = args.size() > 1 ? args[1] : "";
+			if (args.size() != 4 || (kind != "currency" && kind != "item") ||
+				!economy_tools::parse_number(args[2], id) || !economy_tools::parse_number(args[3], amount) ||
+				!amount || amount > max_grant_amount)
+			{
+				console::info("Usage: hqgrant <currency|item> <decimal or 0x id> <positive amount>\n");
+				return;
+			}
+			grant_value(id, amount, kind == "item");
 		}
 
 		std::uint32_t quantity(const marketplace_store::snapshot& state, const std::uint32_t id)
@@ -597,6 +616,20 @@ namespace economy
 
 			wallet_fetch_success_hook.create(0x27B230_g, wallet_fetch_success);
 			ui_scripting::on_start(install_store_functions);
+
+			command::add("hqgrant", hq_grant);
+			command::add("hqwallet", [](const command::params& args) { list_currencies(args, false); });
+			command::add("hqeconomy", [](const command::params& args)
+			{
+				if (args.size() != 1)
+				{
+					console::info("hqeconomy: restart the client to reload an externally changed authoritative store.\n");
+					return;
+				}
+				const auto state = marketplace_store::get_snapshot();
+				console::info("HQ economy: status %u, %zu currencies, %zu inventory rows. Use hqwallet or listItems.\n",
+					static_cast<unsigned>(state.status), state.currencies.size(), state.inventory.size());
+			});
 
 			command::add("giveItem", [](const command::params& args)
 			{

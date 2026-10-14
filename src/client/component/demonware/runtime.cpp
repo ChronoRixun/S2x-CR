@@ -70,6 +70,25 @@ namespace demonware_runtime
 				game::LiveStorage_PlayerDataGetIntByNameArray(controller, &experience, 1, 3)};
 		}
 
+		std::optional<demonware::runtime_context::zombie_rank> read_multiplayer_rank()
+		{
+			if (game::environment::is_dedicated() || game::environment::is_zombies()) return {};
+			const auto controller = game::CL_ControllerIndexFromClientNum(0);
+			if (controller < 0 || !game::LiveStorage_DoWeHaveStats(controller)) return {};
+			// Ranked StatsGroup 0. CR stats.cpp documents native 0xD71B0's
+			// experience + inventoryTotalXP - inventoryXPAtLastReset calculation.
+			static const auto prestige = game::DDL_HashString("prestige");
+			static const auto experience = game::DDL_HashString("experience");
+			static const auto inventory = game::DDL_HashString("inventoryTotalXP");
+			static const auto reset = game::DDL_HashString("inventoryXPAtLastReset");
+			const auto xp = static_cast<std::int64_t>(game::LiveStorage_PlayerDataGetIntByNameArray(controller, &experience, 1, 0)) +
+				game::LiveStorage_PlayerDataGetIntByNameArray(controller, &inventory, 1, 0) -
+				game::LiveStorage_PlayerDataGetIntByNameArray(controller, &reset, 1, 0);
+			if (xp < 0 || xp > INT_MAX) return {};
+			return demonware::runtime_context::zombie_rank{
+				game::LiveStorage_PlayerDataGetIntByNameArray(controller, &prestige, 1, 0), static_cast<int>(xp)};
+		}
+
 		void publish_identity()
 		{
 			if (!accepting_work.load(std::memory_order_acquire) || !is_producer_thread())
@@ -90,8 +109,9 @@ namespace demonware_runtime
 			const std::string persona = name_length ? std::string{name, name_length} : "S2x";
 			const auto rarity_scale = loot_rarity_scale ? loot_rarity_scale->current.value : 1.0f;
 			const auto zombies = read_zombie_rank();
+			const auto multiplayer = read_multiplayer_rank();
 			if (current && current->persona_name == persona && current->loot_rarity_scale == rarity_scale &&
-				current->zombies == zombies)
+				current->zombies == zombies && current->multiplayer == multiplayer)
 			{
 				return;
 			}
@@ -102,7 +122,7 @@ namespace demonware_runtime
 				return;
 			}
 
-			demonware::runtime_context::publish({user_id, persona, producer_thread, rarity_scale, zombies});
+			demonware::runtime_context::publish({user_id, persona, producer_thread, rarity_scale, zombies, multiplayer});
 		}
 
 		bool database_ready()

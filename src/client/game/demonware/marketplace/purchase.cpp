@@ -1,6 +1,7 @@
 #include <std_include.hpp>
 #include "purchase.hpp"
 #include "cwl.hpp"
+#include "cr_catalog.hpp"
 #include "store.hpp"
 #include "inventory_expiry.hpp"
 #include "game/demonware/achievement/orders.hpp"
@@ -196,6 +197,9 @@ namespace demonware::marketplace_purchase
 		}
 
 		const auto* cwl = marketplace_cwl::find(input.sku_id);
+		const auto* cr = marketplace_cr::find(input.sku_id);
+		const auto bundle = cr && cr->bundle;
+		const auto rare = cr && cr->consumable;
 		const auto contract = product && product->items.size() == 1 && product->items[0].second == 1 ?
 			achievement_orders::contract_for_token(product->items[0].first, static_cast<std::uint64_t>(time(nullptr))) : std::nullopt;
 		const auto fingerprint = "purchase:" + std::to_string(input.player_id) + ":" +
@@ -221,7 +225,7 @@ namespace demonware::marketplace_purchase
 
 				if (sku->sku_id != input.sku_id || sku->sold_out ||
 					sku->maximum_quantity != UINT32_MAX || sku->prices.size() != 1 ||
-					sku->prices[0].currency != (collection || contract || cwl ? 6 : 2) || !sku->prices[0].value ||
+					sku->prices[0].currency != (collection || contract || cwl || bundle || rare ? 6 : 2) || !sku->prices[0].value ||
 					sku->field_40 != 1 || sku->field_106 || sku->field_107 != 1 ||
 					sku->field_108 || sku->field_112 || sku->field_116 || sku->field_120 != 2 ||
 					sku->field_268 || sku->field_272 || sku->field_276)
@@ -244,7 +248,7 @@ namespace demonware::marketplace_purchase
 				}
 				else
 				{
-					if ((!supported_sku(input.sku_id) && !contract && !cwl) || sku->sku_type != marketplace_sku::quartermaster_sku_type)
+					if ((!supported_sku(input.sku_id) && !contract && !cwl && !bundle && !rare) || sku->sku_type != marketplace_sku::quartermaster_sku_type)
 					{
 						error = terminal_error;
 						return false;
@@ -256,7 +260,7 @@ namespace demonware::marketplace_purchase
 						return false;
 					}
 
-					if (product->product_id != sku->field_36 || product->items.empty() || product->items.size() > (cwl ? cwl->items.size() : 2) ||
+					if (product->product_id != sku->field_36 || product->items.empty() || product->items.size() > (cwl ? cwl->items.size() : bundle ? marketplace_product::maximum_items : 2) ||
 						product->field_20 || product->field_24 || !product->blob_3.empty() ||
 						!product->pairs_1.empty() || !product->pairs_2.empty())
 					{
@@ -268,6 +272,26 @@ namespace demonware::marketplace_purchase
 				}
 
 				const auto& price = sku->prices[0];
+				if (cr)
+				{
+					const auto count = static_cast<std::size_t>(std::ranges::count_if(cr->items, [](const auto id) { return id != 0; }));
+					const auto owned = transaction.get_inventory(cr->items[0]);
+					if (price.value != cr->price || sku->sku_data != cr->data || sku->promotional_text != cr->text ||
+						contents.size() != count || (bundle && owned && owned->quantity))
+					{
+						error = terminal_error;
+						return false;
+					}
+					for (std::size_t i = 0; i < count; ++i)
+					{
+						if (contents[i].first != cr->items[i] || contents[i].second != 1)
+						{
+							error = terminal_error;
+							return false;
+						}
+					}
+				}
+
 				if (cwl)
 				{
 					const auto owned = transaction.get_inventory(cwl->items[0]);
@@ -375,7 +399,7 @@ namespace demonware::marketplace_purchase
 				std::vector<marketplace_store::inventory_record> items;
 				for (const auto& [item_id, quantity] : contents)
 				{
-					if ((!collection && !contract && !cwl && item_id != 2 && item_id != 6) || !quantity || quantity > INT32_MAX ||
+					if ((!collection && !contract && !cwl && !bundle && item_id != 2 && item_id != 6) || !quantity || quantity > INT32_MAX ||
 						std::ranges::any_of(items, [item_id](const auto& item) { return item.item_id == item_id; }))
 					{
 						error = terminal_error;
@@ -413,14 +437,14 @@ namespace demonware::marketplace_purchase
 						return false;
 					}
 
-					if ((!contract && !cwl) || !item.quantity)
+					if ((!contract && !cwl && !bundle) || !item.quantity)
 					{
 						item.quantity += quantity;
 					}
 					item.mod_date_time = static_cast<std::uint32_t>(now);
 					const auto edited = transaction.set_inventory(item);
 					if (edited != marketplace_store::edit_result::updated &&
-						!((contract || cwl) && edited == marketplace_store::edit_result::unchanged))
+						!((contract || cwl || bundle) && edited == marketplace_store::edit_result::unchanged))
 					{
 						return false;
 					}
