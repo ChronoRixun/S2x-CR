@@ -4,6 +4,10 @@ This branch rebuilds CR on Brentdevent/S2x master `0048253` (2026-10-12). It is 
 
 The candidate retains CR hosting: bot fill and name pools, capped match slots, local Server Manager administration/notices, script file storage/chat/roster APIs, one-shot map selection and map voting, hosted score-limit mirroring, loose CSV string tables, Server Manager, launch profiles, auto-balance and status scripts. It retains upstream's raw UDP networking, custom sessions, RmlUi launcher, improved browser, rcon and IW4MAdmin support.
 
+## GitHub release candidate
+
+The fork-only v1.7.0-rc1 release preparation, upgrade boundaries, measured compatibility and artifact provenance are recorded in [the release notes](docs/RELEASE-v1.7.0-rc1.md). No experimental companion-bot kit is part of this fork release. The tested upstream base is 0048253; the subsequent mod-manager and muzzle-flash additions at current upstream 26358ff are not included in this RC.
+
 ## Economy decision
 
 The candidate keeps one upstream economy backend and restores the CR acquisition/reward policies. Read [restoration coverage and validation](docs/CR-ECONOMY-RESTORATION.md) and the [offline migration guide](docs/CR-ECONOMY-MIGRATION.md). Existing CR stores remain untouched; conversion writes only a new file after explicit review and rejects ambiguous data. The [original comparison](docs/UPSTREAM-ECONOMY-COMPARISON.md) describes the losses before this restoration.
