@@ -353,7 +353,7 @@ function New-ServerField($Server, $Info, $Listed, [long]$Now) {
     $botText = if ($bots -eq 1) { '1 bot active' } else { "$bots bots active" }
     $lines += $playing
     $lines += "$people · $botText · $slots total slots"
-    if ($Info['gametype'] -eq 'zombies' -and $bots -eq 0 -and $humans -eq 0) {
+    if ($Info['gametype'] -eq 'zombies' -and $bots -eq 0 -and $humans -eq 0 -and $name -match '(?i)\bzombie bots\b') {
         $lines += 'Companions join when you do'
     }
     if ($Server -and $Server.rotation.Count -gt 0) {

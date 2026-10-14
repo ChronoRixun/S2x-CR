@@ -127,6 +127,9 @@ Check ($countField.value.Contains('1 player')) 'Card must show clients minus bot
 Check ($countField.value.Contains('7 bots active') -and $countField.value.Contains('8 total slots')) 'Card must distinguish active bots and total slots'
 Check (!$countField.value.Contains('bots fill the rest')) 'Card must not invent configured bot fill'
 $zinfo=@{};foreach($key in $info.Keys){$zinfo[$key]=$info[$key]};$zinfo.gametype='zombies';$zinfo.clients='0';$zinfo.bots='0';$zinfo.sv_maxclients='4'
+$ordinaryZcard=New-ServerField $null $zinfo $true 1
+Check (!$ordinaryZcard.value.Contains('Companions join when you do')) 'Ordinary Zombies must not advertise the excluded companion kit'
+$zinfo.hostname='CR''s Zombie Bots Haus'
 $zcard=New-ServerField $null $zinfo $true 1
 Check ($zcard.value.Contains('Companions join when you do') -and $zcard.value.Contains('0 players online')) 'Empty Zombies must explain human-triggered companions'
 $zinfo.clients='4';$zinfo.bots='3';$zcard=New-ServerField $null $zinfo $false 1
