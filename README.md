@@ -1,45 +1,29 @@
-# S2x ⭐
+# S2x-CR upstream rebuild candidate
 
-> [!WARNING]
-> S2x is actively being developed, and several features are already implemented, but the project is not yet feature-complete.
->
-> Expect bugs, crashes, missing features, and general instability.
->
-> Dedicated servers, modding support, online functionality, and further gameplay stability are still in development.
+This branch rebuilds CR on Brentdevent/S2x master `0048253` (2026-10-12). It is a candidate for validation, not an installed upgrade. The existing CR `integration` branch and deployed servers are unchanged.
 
-S2x is a custom client project for **Call of Duty®: WWII**, focused on preserving and extending functionality for campaign, multiplayer, and zombies.
+The candidate retains CR hosting: bot fill and name pools, capped match slots, local Server Manager administration/notices, script file storage/chat/roster APIs, one-shot map selection and map voting, hosted score-limit mirroring, loose CSV string tables, Server Manager, launch profiles, auto-balance and status scripts. It retains upstream's raw UDP networking, custom sessions, RmlUi launcher, improved browser, rcon and IW4MAdmin support.
 
-Join the S2x community on [Discord](https://discord.gg/wdC8Jpc2cC).
+## Economy decision
 
-The project is inspired by the work of the former XLabs community, but S2x is an independent project and is not affiliated with XLabs, Activision, Sledgehammer Games, Microsoft, or any related publisher, developer, or trademark holder.
+The candidate uses one upstream economy backend. Existing CR stores have not been converted or replaced. Read [the comparison](docs/UPSTREAM-ECONOMY-COMPARISON.md) before considering a client upgrade: CR weapon contracts/Orders, several MP rank/prestige grants and Zombies bonus Orders are absent upstream, and `hq_economy.json` is not imported. Never rename that file to `marketplace.json`.
 
-## Requirements
+## Build
 
-You must own a legitimate Steam copy of **Call of Duty®: WWII** to use S2x.
+Initialize the pinned submodules, run `tools/premake5.exe vs2022`, then build `build/s2x.sln` in Debug and Release x64 with Visual Studio 2022. Release output is `build/bin/x64/Release/s2x.exe` and its matching PDB. Build the Manager with `msbuild tools/ServerManager/S2xServerManager.csproj /restore /p:Configuration=Release`.
 
-S2x does **not** provide game files, cracked executables, or any method to obtain the game without purchasing it. Please support the original developers and publishers by owning a legal copy of the game.
+## Candidate testing and installation boundaries
 
-## Compile from source code
+Use a separate game/test folder and fresh loose files from this branch. The client normally loads scripts from both `<executable folder>/s2x` and `%LOCALAPPDATA%/s2x/data`; LUI initialization can execute folders from both roots. Copying a new executable over an old CR installation does not remove obsolete Lua wrappers.
 
-- Clone the Git repository using [Git](https://git-scm.com/install/windows) or [GitHub Desktop](https://desktop.github.com/download/). **Do not download it as a ZIP**, as that will not include the required submodules.
-- Run the `generate.bat` script to generate the project solution.
-- Build the project using the generated solution file at `build\s2x.sln`.
+For isolated testing, `-appdata-dir <absolute directory>` replaces the entire S2x AppData root, including loose data, caches and script storage. It does not select a different game profile: use a separate working/game folder for dedicated testing, or a new named `-profile <name>` for client testing. Both roots must be considered. Existing game-local mods need an inventory and backup before a later installation; this candidate performs no cleanup or migration.
 
-## Credits
+Updates remain opt-in (`-update`; `-noupdate` takes precedence). The update service still serves upstream builds, so do not use it to refresh a CR candidate. CR loose files are never pruned by an upstream update manifest. Obtain matching CR binaries/data/tools as one package.
 
-- [momo5502](https://github.com/momo5502) - Former lead developer of [XLabsProject](https://github.com/XLabsProject), research, codebase, and Sogen.
-- [Auroramod](https://github.com/auroramod) - Multiple components, int 2d patching, and Demonware emulation.
-- [Mallgrab](https://github.com/mallgrab/CWHook) - Cold War Arxan research.
-- [Wanted](https://github.com/WantedDV) - `find_lea_target` helper and feedback on VirtualAlloc hook research.
+## Hosting
 
-## Disclaimer
+Use `sv_maxplayers` and `sv_minplayers`, `bot_fill` and `bot_names` (`default`, `modern`, `nostalgia`). Server scripts set `s2x_nextmap "<map> <gametype>"`; an operator's pending `map` or `sv_mapRotationCurrent` wins over a vote. `s2x_nextmap_preview` describes the pending choice and `s2x_nextmap_api` reports availability.
 
-S2x is an independent community project created for educational, research, preservation, and interoperability purposes.
+The [Server Manager guide](tools/ServerManager/README.md) and [script API guide](tools/server-scripts/README.md) describe fleet operation. Manager/status probes support the current raw packet format and validated legacy fallbacks. Current `clients` includes bots; human counts subtract `bots`.
 
-This project is not affiliated with, endorsed by, sponsored by, or approved by Activision Publishing, Inc., Sledgehammer Games, Microsoft, Steam, Valve, XLabs, or any related companies.
-
-Call of Duty, Call of Duty: WWII, and all related names, logos, assets, and trademarks are property of their respective owners.
-
-S2x does not include or distribute copyrighted game files. Users are required to own a legitimate copy of the game.
-
-The maintainers are not responsible for misuse of this software. Use responsibly.
+See [candidate validation](docs/UPSTREAM-REBUILD-VALIDATION.md) for checks and runtime limits. No existing economy, profile or deployed server is replaced by this branch.

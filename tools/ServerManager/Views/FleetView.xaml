@@ -1,0 +1,484 @@
+<UserControl x:Class="S2x.ServerManager.Views.FleetView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:S2x.ServerManager.Views"
+             Foreground="{DynamicResource Ink}">
+
+  <UserControl.Resources>
+
+    <DataTemplate x:Key="PingBarTemplate">
+      <Rectangle Width="3" Height="{Binding Height}" Fill="{Binding Fill}" VerticalAlignment="Bottom" Margin="0,0,2,0"/>
+    </DataTemplate>
+
+    <!-- the rotation preview, shared by the running and the stopped card: one line of runs,
+         so a long rotation ends in an ellipsis instead of being cut mid-word -->
+    <DataTemplate x:Key="NextRowTemplate">
+      <DockPanel Margin="0,12,0,0" Visibility="{Binding NextRow}">
+        <TextBlock views:TextEffects.Tracked="{Binding NextLabel}" Style="{StaticResource Caps}"
+                   Foreground="{DynamicResource Muted}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+        <TextBlock views:TextEffects.NextItems="{Binding NextThree}" FontSize="{DynamicResource SizeBodyXS}"
+                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+      </DockPanel>
+    </DataTemplate>
+
+    <!-- ── the card ──────────────────────────────────────────────────────── -->
+    <DataTemplate x:Key="CardTemplate">
+      <!-- A hidden card is on screen because SHOW HIDDEN is on, and it is dimmed to say so. -->
+      <Grid Margin="0,0,16,16" Opacity="{Binding CardOpacity}" views:CardReorder.Enabled="True" Focusable="True" FocusVisualStyle="{StaticResource KeyboardFocus}" AutomationProperties.Name="{Binding PlainName}"
+            ToolTip="Drag a card to reorder. Focus it and press Alt+Left or Alt+Right to move it with the keyboard.">
+        <Border Panel.ZIndex="10" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="4"
+                Background="{DynamicResource Bar}" BorderBrush="{DynamicResource Accent}" BorderThickness="2" Padding="10,5" IsHitTestVisible="False">
+          <Border.Style><Style TargetType="Border"><Style.Triggers>
+            <DataTrigger Binding="{Binding Path=(views:CardReorder.Hint), RelativeSource={RelativeSource AncestorType=Grid}}" Value="">
+              <Setter Property="Visibility" Value="Collapsed"/>
+            </DataTrigger>
+          </Style.Triggers></Style></Border.Style>
+          <TextBlock Text="{Binding Path=(views:CardReorder.Hint), RelativeSource={RelativeSource AncestorType=Grid}}" Foreground="{DynamicResource Accent}" FontWeight="Bold"/>
+        </Border>
+        <!-- The theme's card shadow, on a plate of its own so the card's text is not drawn
+             through an effect. -->
+        <Border Background="{DynamicResource Bar}" CornerRadius="{DynamicResource Radius}"
+                Effect="{DynamicResource CardShadow}" IsHitTestVisible="False"/>
+        <Border Background="{Binding CardBackground}" BorderBrush="{Binding CardEdge}" BorderThickness="1"
+                CornerRadius="{DynamicResource Radius}">
+          <Grid views:ThemeAssist.ClipRadius="{DynamicResource RadiusValue}">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+              <RowDefinition Height="40"/>
+            </Grid.RowDefinitions>
+
+            <!-- head: port and mode, name, state -->
+            <Border Grid.Row="0" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="84"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0" Padding="0,12">
+                  <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock Text="{Binding PortText}" FontFamily="{DynamicResource FontMono}" FontStretch="Normal"
+                               FontSize="{DynamicResource SizePort}" Foreground="{DynamicResource Ink}" HorizontalAlignment="Center"/>
+                    <Border Style="{StaticResource Tag}" Margin="0,6,0,0" HorizontalAlignment="Center">
+                      <TextBlock views:TextEffects.Tracked="{Binding ModeBadge}" Style="{StaticResource TagText}"/>
+                    </Border>
+                  </StackPanel>
+                </Border>
+                <StackPanel Grid.Column="1" Margin="14,12" VerticalAlignment="Center">
+                  <TextBlock views:TextEffects.ColorName="{Binding Name}" FontSize="{DynamicResource SizeHeading}" FontWeight="SemiBold"
+                             TextTrimming="CharacterEllipsis"/>
+                  <DockPanel Margin="0,8,0,0">
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding UptimeLine}" Style="{StaticResource Mono}"
+                               VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    <views:StatusBadge Foreground="{Binding StateBrush}" Background="{Binding StateTint}" Pulse="{Binding IsRunning}">
+                      <TextBlock views:TextEffects.Tracked="{Binding StateCaps}"/>
+                    </views:StatusBadge>
+                  </DockPanel>
+                  <!-- Two presets on one port is one server; the second never gets the socket. -->
+                  <TextBlock Text="{Binding SharedNote}" Visibility="{Binding SharedVisibility}"
+                             FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Accent}" Margin="0,6,0,0"
+                             TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <StackPanel Grid.Row="1" Margin="16,14,16,14">
+
+              <!-- running: what is on, how full it is -->
+              <StackPanel Visibility="{Binding LivePlate}">
+                <DockPanel>
+                  <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <ItemsControl ItemsSource="{Binding PingBars}" Margin="0,0,7,1"
+                                  ItemTemplate="{StaticResource PingBarTemplate}" VerticalAlignment="Bottom">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal" VerticalAlignment="Bottom"/></ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                    <TextBlock Text="{Binding PingText, StringFormat={}{0} ms}" Style="{StaticResource Mono}"
+                               Foreground="{DynamicResource Muted}"/>
+                  </StackPanel>
+                  <TextBlock views:TextEffects.Tracked="NOW PLAYING" Style="{StaticResource Caps}" Foreground="{DynamicResource Muted}"
+                             VerticalAlignment="Center"/>
+                </DockPanel>
+                <TextBlock Margin="0,8,0,0" FontSize="{DynamicResource SizeBodyL}" TextTrimming="CharacterEllipsis">
+                  <Run Text="{Binding MapName, Mode=OneWay}" Foreground="{DynamicResource Ink}" FontWeight="SemiBold"/>
+                  <Run Text="&#xB7;" Foreground="{DynamicResource Ghost}"/>
+                  <Run Text="{Binding NowMode, Mode=OneWay}" Foreground="{DynamicResource Accent}"/>
+                </TextBlock>
+                <!-- Humans in the fill, bots after them, the rest empty. -->
+                <Border Margin="0,10,0,0" Height="8" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}"
+                        BorderThickness="1" views:ThemeAssist.FitRadius="{DynamicResource RadiusBadgeValue}">
+                  <Grid views:ThemeAssist.ClipRadius="{DynamicResource RadiusBadgeValue}">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="{Binding HumansWidth}"/>
+                      <ColumnDefinition Width="{Binding BotsWidth}"/>
+                      <ColumnDefinition Width="{Binding FreeWidth}"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Background="{DynamicResource Fill}" Effect="{DynamicResource Glow}"/>
+                    <Border Grid.Column="1" Background="{DynamicResource EdgeHot}"/>
+                  </Grid>
+                </Border>
+                <DockPanel Margin="0,8,0,0" LastChildFill="False">
+                  <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
+                    <Rectangle Width="7" Height="7" Fill="{DynamicResource Fill}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <TextBlock Text="{Binding HumansText}" Style="{StaticResource Mono}" Foreground="{DynamicResource Ink}"/>
+                    <TextBlock Text=" humans" Style="{StaticResource Mono}" Foreground="{DynamicResource Muted}"/>
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
+                    <Rectangle Width="7" Height="7" Fill="{DynamicResource EdgeHot}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <TextBlock Text="{Binding BotsText}" Style="{StaticResource Mono}" Foreground="{DynamicResource Ink}"/>
+                    <TextBlock Text=" bots" Style="{StaticResource Mono}" Foreground="{DynamicResource Muted}"/>
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal">
+                    <Rectangle Width="7" Height="7" Stroke="{DynamicResource EdgeHot}" StrokeThickness="1"
+                               VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <TextBlock Text="{Binding FreeText}" Style="{StaticResource Mono}" Foreground="{DynamicResource Ink}"/>
+                    <TextBlock Text=" free" Style="{StaticResource Mono}" Foreground="{DynamicResource Muted}"/>
+                  </StackPanel>
+                </DockPanel>
+              </StackPanel>
+
+              <!-- stopped: what it would run -->
+              <Grid MinHeight="70" Visibility="{Binding StoppedPlate}">
+                <Rectangle Stroke="{DynamicResource Line}" StrokeThickness="1" StrokeDashArray="4 3"
+                           RadiusX="{DynamicResource RadiusValue}" RadiusY="{DynamicResource RadiusValue}"/>
+                <TextBlock Text="{Binding RotationSummary}" FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Muted}"
+                           VerticalAlignment="Bottom" Margin="14,30,14,12" TextTrimming="CharacterEllipsis"/>
+              </Grid>
+
+              <!-- not answering / process gone -->
+              <Border Visibility="{Binding HealthPlate}" Padding="14,12" CornerRadius="{DynamicResource Radius}"
+                      Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
+                <StackPanel>
+                  <TextBlock views:TextEffects.Tracked="{Binding HealthCaps}" Style="{StaticResource CapsL}"
+                             Foreground="{Binding StateBrush}" Effect="{DynamicResource TextGlow}" TextWrapping="Wrap"/>
+                  <TextBlock Text="{Binding HealthLine}" FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Ink}"
+                             TextWrapping="Wrap" Margin="0,8,0,0"/>
+                  <TextBlock Text="{Binding HealthMono}" Style="{StaticResource Mono}" Foreground="{DynamicResource Muted}"
+                             TextWrapping="Wrap" Margin="0,8,0,0"/>
+                </StackPanel>
+              </Border>
+
+              <ContentPresenter ContentTemplate="{StaticResource NextRowTemplate}" Content="{Binding}"/>
+            </StackPanel>
+
+            <!-- actions -->
+            <Border Grid.Row="2" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+              <!-- The design's 1.2fr 0.9fr 1.1fr 0.8fr 1fr row: every button at least as wide as
+                   its label in the theme's label font, the rest shared by weight. Only the copy
+                   button gives way (it trims) when a card is short of room. -->
+              <views:FitRow>
+                <Button views:FitRow.Weight="1.2" Style="{StaticResource CardStart}" Content="&#x25B6; START" Padding="10,0"
+                        Visibility="{Binding StartButton}" Command="{Binding StartCommand}"/>
+                <Button views:FitRow.Weight="1.2" Style="{StaticResource CardStop}" Content="&#x25A0; STOP" Padding="10,0"
+                        Visibility="{Binding StopButton}" Command="{Binding StopCommand}"/>
+                <Button Style="{StaticResource CardRestart}" Content="&#x21BB; RESTART" Padding="10,0"
+                        Visibility="{Binding RestartButton}" Command="{Binding RestartCommand}"
+                        BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0"/>
+                <Button views:FitRow.Weight="0.9" Style="{StaticResource CardAction}" Content="EDIT" Padding="10,0"
+                        Command="{Binding EditCommand}" ToolTip="Name, rotation, rules, bots"
+                        BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0"/>
+                <Button views:FitRow.Weight="1.1" Style="{StaticResource CardAction}" Content="CONSOLE" Padding="10,0"
+                        Command="{Binding ConsoleCommand}" ToolTip="This server's log, as it is written"
+                        BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0"/>
+                <!-- Off the fleet until it is asked for. Only with no process behind the card:
+                     hiding a server is not stopping it. -->
+                <Button views:FitRow.Weight="0.8" Style="{StaticResource CardAction}" Content="HIDE" Padding="10,0"
+                        Visibility="{Binding HideButton}" Command="{Binding HideCommand}"
+                        ToolTip="Off the fleet, out of Start All. The preset and its files stay."
+                        BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0"/>
+                <Button views:FitRow.Weight="0.8" Style="{StaticResource CardAction}" Content="UNHIDE" Padding="10,0"
+                        Visibility="{Binding UnhideButton}" Command="{Binding UnhideCommand}"
+                        Foreground="{DynamicResource Accent}" ToolTip="Put this server back on the fleet"
+                        BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0"/>
+                <!-- The line a player on this box pastes. The one for everybody else is on the
+                     right-click menu, because nothing here knows the public address. -->
+                <Button views:FitRow.Weight="1" views:FitRow.Shrink="True" MinWidth="34" Style="{StaticResource CardCopy}"
+                        Command="{Binding CopyCommand}" BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0"
+                        ToolTip="Copy the connect line. Right-click for the address off this machine.">
+                  <Button.ContextMenu>
+                    <ContextMenu>
+                      <MenuItem Header="{Binding ConnectLine}" Command="{Binding CopyCommand}"/>
+                      <MenuItem Header="{Binding LanConnectLine}" Command="{Binding CopyLanCommand}"/>
+                    </ContextMenu>
+                  </Button.ContextMenu>
+                  <TextBlock Text="{Binding PortText, StringFormat=&#x29C9; :{0}}" TextTrimming="CharacterEllipsis"/>
+                </Button>
+              </views:FitRow>
+            </Border>
+          </Grid>
+        </Border>
+      </Grid>
+    </DataTemplate>
+
+    <!-- ── roster row ────────────────────────────────────────────────────── -->
+    <DataTemplate x:Key="RosterRowTemplate">
+      <Button Style="{StaticResource RosterRow}" Command="{Binding SelectCommand}" Opacity="{Binding CardOpacity}"
+              Background="{Binding RowBackground}" BorderBrush="{Binding RowMarker}" BorderThickness="2,0,0,0">
+        <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="12,12">
+          <StackPanel>
+            <DockPanel>
+              <Rectangle Style="{StaticResource StateDot}" Fill="{Binding DotBrush}" Margin="0,0,8,0"/>
+              <TextBlock DockPanel.Dock="Right" Text="{Binding PortText, StringFormat=:{0}}"
+                         Style="{StaticResource Mono}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+              <TextBlock Text="{Binding PlainName}" FontSize="{DynamicResource SizeBodyS}" FontWeight="SemiBold"
+                         Foreground="{Binding RowForeground}" TextTrimming="CharacterEllipsis"/>
+            </DockPanel>
+            <ItemsControl ItemsSource="{Binding Slots}" Margin="0,7,0,0">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Rectangle Height="4" Fill="{Binding Fill}" Stroke="{Binding Stroke}" StrokeThickness="1" Margin="0,0,2,0"/>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <DockPanel Margin="0,7,0,0">
+              <TextBlock views:TextEffects.Tracked="{Binding StateCaps}" Style="{StaticResource CapsL}"
+                         Foreground="{Binding StateBrush}" Margin="0,0,8,0"/>
+              <TextBlock DockPanel.Dock="Right" Text="{Binding UptimeLine}" Style="{StaticResource Mono}"
+                         FontSize="{DynamicResource SizeMonoS}" VerticalAlignment="Center"/>
+              <Grid/>
+            </DockPanel>
+            <!-- The live line gets the row to itself: the four things on it do not fit beside
+                 the state, and a trimmed one says the least about the busiest server. -->
+            <TextBlock Text="{Binding RosterLine}" FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Dim}"
+                       TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/>
+          </StackPanel>
+        </Border>
+      </Button>
+    </DataTemplate>
+
+    <!-- ── starter preset ────────────────────────────────────────────────── -->
+    <DataTemplate x:Key="StarterTemplate">
+      <Button Style="{StaticResource Starter}" Width="200" MinHeight="150" Margin="6"
+              Command="{Binding AddCommand}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+        <Grid Margin="16">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
+          <TextBlock Grid.Row="0" Text="{Binding Index}" Style="{StaticResource Mono}" Foreground="{DynamicResource Accent}"/>
+          <TextBlock Grid.Row="1" Text="{Binding Title}" FontSize="{DynamicResource SizeBodyL}" FontWeight="SemiBold"
+                     Foreground="{DynamicResource Ink}" Margin="0,8,0,0" TextWrapping="Wrap"/>
+          <TextBlock Grid.Row="2" Text="{Binding Description}" FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Muted}"
+                     Margin="0,8,0,8" TextWrapping="Wrap"/>
+          <TextBlock Grid.Row="3" Text="{Binding Meta}" Style="{StaticResource Mono}" TextWrapping="Wrap"/>
+        </Grid>
+      </Button>
+    </DataTemplate>
+
+  </UserControl.Resources>
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <!-- ── fleet strip ───────────────────────────────────────────────────── -->
+    <!-- Stats on the left, buttons on the right; like the design's strip it wraps, so when a
+         narrow window and a wide theme font leave the stats less than their minimum, the
+         buttons go on a line of their own under them instead of the stats being cut. -->
+    <Border Background="{DynamicResource Bar}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" MinHeight="76">
+      <views:SplitRow Gap="16" Margin="20,10,18,10" VerticalAlignment="Center">
+        <!-- ATTENTION's note is the one part that gives way: it wraps to two lines, then trims. -->
+        <views:FitRow VerticalAlignment="Center">
+          <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0" Padding="0,0,18,0">
+            <StackPanel>
+              <TextBlock views:TextEffects.Tracked="FLEET" Style="{StaticResource Caps}" Foreground="{DynamicResource Muted}"/>
+              <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                <TextBlock Text="{Binding FleetUp}" Style="{StaticResource Stat}" Foreground="{Binding FleetUpBrush}"/>
+                <TextBlock Text="{Binding FleetTotal, StringFormat=/ {0} up}" Style="{StaticResource Mono}" FontSize="{DynamicResource SizeMonoL}"
+                           Foreground="{DynamicResource Muted}" VerticalAlignment="Bottom" Margin="6,0,0,3"/>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+          <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0" Padding="18,0">
+            <StackPanel>
+              <TextBlock views:TextEffects.Tracked="HUMANS" Style="{StaticResource Caps}" Foreground="{DynamicResource Muted}"/>
+              <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                <TextBlock Text="{Binding FleetHumans}" Style="{StaticResource Stat}"/>
+                <TextBlock Text="{Binding FleetCap, StringFormat=/ {0}}" Style="{StaticResource Mono}" FontSize="{DynamicResource SizeMonoL}"
+                           Foreground="{DynamicResource Muted}" VerticalAlignment="Bottom" Margin="6,0,0,3"/>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+          <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0" Padding="18,0">
+            <StackPanel>
+              <TextBlock views:TextEffects.Tracked="BOTS" Style="{StaticResource Caps}" Foreground="{DynamicResource Muted}"/>
+              <TextBlock Text="{Binding FleetBots}" Style="{StaticResource Stat}" Margin="0,3,0,0"/>
+            </StackPanel>
+          </Border>
+          <!-- At least the label and a short note; below that the strip wraps instead. -->
+          <StackPanel views:FitRow.Shrink="True" MinWidth="120" Margin="18,0,0,0">
+            <TextBlock views:TextEffects.Tracked="ATTENTION" Style="{StaticResource Caps}" Foreground="{DynamicResource Muted}"/>
+            <DockPanel Margin="0,3,0,0">
+              <TextBlock DockPanel.Dock="Left" Text="{Binding FleetAttention}" Style="{StaticResource Stat}"
+                         Foreground="{Binding FleetAttentionBrush}"/>
+              <TextBlock Text="{Binding FleetAttentionNote}" Style="{StaticResource Mono}" Foreground="{DynamicResource Muted}"
+                         MaxWidth="200" MaxHeight="40" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8,0,0,3"
+                         TextWrapping="Wrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding FleetAttentionNote}"/>
+            </DockPanel>
+          </StackPanel>
+        </views:FitRow>
+
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <Button Style="{StaticResource Primary}" Content="&#x25B6; START ALL" Command="{Binding StartAllCommand}"
+                  Height="40" Padding="16,0"/>
+          <Button Style="{StaticResource DangerGhost}" Content="&#x25A0; STOP ALL" Command="{Binding StopAllCommand}"
+                  Height="40" Padding="12,0" Margin="6,0,0,0"/>
+          <Button Style="{StaticResource Outline}" Content="+ NEW SERVER" Command="{Binding NewServerCommand}"
+                  Height="40" Padding="12,0" Margin="6,0,0,0"
+                  ToolTip="A bundled rotation or a blank one, on the next free port"/>
+          <Border Style="{StaticResource SegmentGroup}" Height="40" Margin="6,0,0,0">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Segment}" Content="&#x25A6; CARDS" Command="{Binding ShowCardsCommand}"
+                      Padding="12,0" views:ThemeAssist.Active="{Binding IsCardsView}"/>
+              <Button Style="{StaticResource Segment}" Content="&#x2630; ROSTER" Command="{Binding ShowRosterCommand}"
+                      Padding="12,0" views:ThemeAssist.Active="{Binding IsRosterView}"
+                      BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0"/>
+            </StackPanel>
+          </Border>
+          <!-- Only when something is hidden: a toggle for a fleet with nothing behind it says
+               nothing. -->
+          <Border Style="{StaticResource SegmentGroup}" Height="40" Margin="6,0,0,0"
+                  Visibility="{Binding ShowHiddenVisibility}">
+            <Button Style="{StaticResource Segment}" Content="{Binding ShowHiddenLabel}" Padding="12,0"
+                    Command="{Binding ToggleHiddenCommand}" views:ThemeAssist.Active="{Binding ShowHidden}"
+                    ToolTip="Show the servers that are off the fleet"/>
+          </Border>
+        </StackPanel>
+      </views:SplitRow>
+    </Border>
+
+    <Grid Grid.Row="1">
+
+      <!-- ── empty ───────────────────────────────────────────────────────── -->
+      <Grid Visibility="{Binding EmptyVisibility}">
+        <views:ThemeBackdrop/>
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+          <TextBlock views:TextEffects.Tracked="NO SERVERS YET" Style="{StaticResource CapsL}"
+                     Foreground="{DynamicResource Accent}" HorizontalAlignment="Center"/>
+          <TextBlock Text="Pick a starter, or build one from scratch." Style="{StaticResource Display}"
+                     HorizontalAlignment="Center" Margin="0,10,0,0"/>
+          <TextBlock Text="Each server gets its own port. You can edit everything afterwards."
+                     FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Muted}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+          <!-- Five starters fit on one row at the default width and wrap at the minimum. -->
+          <ItemsControl ItemsSource="{Binding Starters}" ItemTemplate="{StaticResource StarterTemplate}"
+                        HorizontalAlignment="Center" Margin="20,20,20,0">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><WrapPanel HorizontalAlignment="Center"/></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+          <TextBlock Text="or build one in the PowerShell launcher and it shows up here"
+                     FontSize="{DynamicResource SizeBodyXS}" Foreground="{DynamicResource Dim}" HorizontalAlignment="Center" Margin="0,26,0,0"/>
+        </StackPanel>
+      </Grid>
+
+      <!-- ── cards ───────────────────────────────────────────────────────── -->
+      <Grid Visibility="{Binding CardsVisibility}">
+        <!-- The desk: the theme's texture behind the cards. -->
+        <views:ThemeBackdrop/>
+        <ScrollViewer Padding="22,22,6,6" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <ItemsControl ItemsSource="{Binding Shown}" ItemTemplate="{StaticResource CardTemplate}"
+                        VerticalAlignment="Top">
+            <ItemsControl.ItemsPanel>
+              <!-- 326 = the design's 310 px card minimum and the card's 16 px margin. -->
+              <ItemsPanelTemplate><views:CardsPanel Columns="3" MinColumnWidth="326"/></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+        </ScrollViewer>
+      </Grid>
+
+      <!-- ── roster ──────────────────────────────────────────────────────── -->
+      <Grid Visibility="{Binding RosterVisibility}">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="220"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Border Background="{DynamicResource Bar}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Top" views:TextEffects.Tracked="ROSTER" Style="{StaticResource Caps}"
+                       Foreground="{DynamicResource Muted}" Margin="16,14,16,8"/>
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <ItemsControl ItemsSource="{Binding Shown}" ItemTemplate="{StaticResource RosterRowTemplate}"/>
+            </ScrollViewer>
+          </DockPanel>
+        </Border>
+
+        <Grid Grid.Column="1" Background="{DynamicResource Panel}" DataContext="{Binding Selected}">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="56"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+          <Border Background="{DynamicResource Bar}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
+            <DockPanel Margin="20,0">
+              <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center" MinWidth="170">
+                <StackPanel>
+                  <views:StatusBadge Foreground="{Binding StateBrush}" Background="{Binding StateTint}" Pulse="{Binding IsRunning}">
+                    <TextBlock views:TextEffects.Tracked="{Binding StateCaps}"/>
+                  </views:StatusBadge>
+                  <TextBlock Text="{Binding StatusSub}" Style="{StaticResource Mono}" Margin="0,4,0,0"/>
+                </StackPanel>
+              </StackPanel>
+              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- Starting and stopping belong to the editor's footer below, so this strip is
+                     only what the server is doing right now. -->
+                <Button Style="{StaticResource Outline}" Content="CONSOLE" Padding="12,7"
+                        Command="{Binding ConsoleCommand}" ToolTip="This server's log, as it is written"/>
+                <Button Style="{StaticResource Outline}" Padding="10,7" Margin="6,0,0,0" FontFamily="{DynamicResource FontMono}"
+                        FontStretch="Normal" FontWeight="Normal" FontSize="{DynamicResource SizeMono}" Command="{Binding CopyCommand}"
+                        ToolTip="Copy the connect line. Right-click for the address off this machine.">
+                  <Button.ContextMenu>
+                    <ContextMenu>
+                      <MenuItem Header="{Binding ConnectLine}" Command="{Binding CopyCommand}"/>
+                      <MenuItem Header="{Binding LanConnectLine}" Command="{Binding CopyLanCommand}"/>
+                    </ContextMenu>
+                  </Button.ContextMenu>
+                  <TextBlock Text="{Binding Address, StringFormat=&#x29C9; {0}}"/>
+                </Button>
+              </StackPanel>
+              <TextBlock VerticalAlignment="Center" Margin="20,0" FontSize="{DynamicResource SizeBodyS}" Foreground="{DynamicResource Label}"
+                         TextTrimming="CharacterEllipsis">
+                <Run Text="{Binding NowLine, Mode=OneWay}" Foreground="{DynamicResource Ink}" FontWeight="SemiBold"/>
+                <Run Text=" &#xB7; " Foreground="{DynamicResource Ghost}"/>
+                <Run Text="{Binding CapText, Mode=OneWay}" FontFamily="{DynamicResource FontMono}"/><Run Text=" humans"/>
+                <Run Text=" &#xB7; " Foreground="{DynamicResource Ghost}"/>
+                <Run Text="{Binding BotsText, Mode=OneWay}" FontFamily="{DynamicResource FontMono}"/><Run Text=" bots"/>
+                <Run Text=" &#xB7; " Foreground="{DynamicResource Ghost}"/>
+                <Run Text="{Binding PingText, Mode=OneWay}" FontFamily="{DynamicResource FontMono}"/><Run Text=" ms"/>
+                <Run Text=" &#xB7; " Foreground="{DynamicResource Ghost}"/>
+                <Run Text="{Binding UptimeText, Mode=OneWay}" FontFamily="{DynamicResource FontMono}"/>
+              </TextBlock>
+            </DockPanel>
+          </Border>
+
+          <!-- The selected row's editor, the same one EDIT opens full screen. -->
+          <views:EditorView Grid.Row="1" Compact="True"
+                            DataContext="{Binding DataContext.RosterEditor,
+                                          RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+        </Grid>
+      </Grid>
+
+      <!-- The console drawer over the fleet. In the roster and the editor the same drawer is
+           the one EditorView holds, under the editor and over its footer. -->
+      <views:ConsoleDrawer DataContext="{Binding Console}" VerticalAlignment="Bottom"
+                           Height="{Binding Height}"
+                           Visibility="{Binding CardsVisibility, FallbackValue=Collapsed}"/>
+
+      <!-- ── toast ───────────────────────────────────────────────────────── -->
+      <Border Visibility="{Binding ToastVisibility}" Background="{DynamicResource Field}"
+              BorderBrush="{DynamicResource EdgeHot}" BorderThickness="1" Padding="14,8" CornerRadius="{DynamicResource Radius}"
+              HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,24">
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Text="&#x2713;" Foreground="{DynamicResource Ok}" Margin="0,0,10,0"/>
+          <TextBlock Text="{Binding ToastText}" FontSize="{DynamicResource SizeBodyS}"/>
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

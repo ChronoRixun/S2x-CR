@@ -252,6 +252,7 @@ namespace game
 	WEAK symbol<const char*(unsigned int index)> Scr_GetConstIString{ 0x690900, 0x497170 };
 	WEAK symbol<void(int parmIndex, const char* token, int tokenLen)> Scr_ValidateLocalizedStringRef{ 0x5A04E0, 0x3B3CB0 };
 	WEAK symbol<uint16_t(int handle, unsigned int paramcount)> Scr_ExecThread{ 0x6901F0, 0x496930 };
+	WEAK symbol<const char*> scr_programBuffer{ 0xB12A070 };
 	WEAK symbol<void(scr_string_t filename, unsigned int threadName, char* codePos)> Scr_EmitFunction{ 0x684DC0, 0x48B5E0 };
 	WEAK symbol<unsigned int(const char* name)> Scr_LoadScript{ 0x685B10, 0x48C310 };
 	WEAK symbol<unsigned int(const char* filename, unsigned int name)> Scr_GetFunctionHandle{ 0x6859A0, 0x48C1A0 };
@@ -363,6 +364,8 @@ namespace game
 		WEAK symbol<void(scr_entref_t entref)> PlayerCmd_Suicide{ 0x549F40 };
 
 		WEAK symbol<mp::gentity_s*(const char* name, int customizationGroup)> SV_AddBot{ 0xF2650 };
+
+		WEAK symbol<const char*()> SV_BotGetRandomName{ 0x6C3600 };
 
 		WEAK symbol<int(mp::gentity_s* entity)> SV_SpawnTestClient{ 0xF6AA0 };
 		WEAK symbol<bool(char clientNum)> SV_HasAssignedTeam_Internal{ 0x6DF9D0 };

@@ -1,0 +1,3 @@
+# The Manager embeds these files and records their SHA-256 when it installs them, so the
+# bytes must not depend on the checkout's line-ending settings.
+*.gsc text eol=lf

@@ -260,9 +260,7 @@ namespace updater
 	{
 		const auto files = get_file_infos();
 		this->run(files);
-		// AppData/data is updater-owned. Only the complete client manifest may
-		// prune it, after every download succeeds (including no-download runs).
-		this->remove_obsolete_data(files);
+		// CR ships additional loose scripts; an upstream manifest cannot prune them.
 	}
 
 	void file_updater::run(const std::vector<file_info>& files) const

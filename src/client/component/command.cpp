@@ -5,6 +5,7 @@
 #include "console/console.hpp"
 
 #include <game/game.hpp>
+#include "gsc/script_extension.hpp"
 
 #include <utils/hook.hpp>
 #include <utils/string.hpp>
@@ -635,6 +636,13 @@ namespace command
 		void client_command_mp_stub(const int client_num)
 		{
 			const params_sv params{};
+			// Own chat before callbacks or native handlers can retokenize commands.
+			const std::string_view verb{params[0]};
+			const auto chat = verb == "say" || verb == "say_team";
+			auto text = chat ? params.join(1) : std::string{};
+			if (!text.empty() && text.front() == '\x1F') text.erase(0, 1);
+			text = text.substr(0, 256);
+			const auto team = verb == "say_team";
 
 			for (const auto& callback : get_client_command_callbacks())
 			{
@@ -645,6 +653,7 @@ namespace command
 			if (!handled)
 			{
 				client_command_mp_hook.invoke<void>(client_num);
+				if (chat) gsc::notify_chat(client_num, text, team);
 			}
 		}
 

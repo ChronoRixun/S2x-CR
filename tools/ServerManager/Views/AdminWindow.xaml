@@ -1,0 +1,23 @@
+<Window x:Class="S2x.ServerManager.Views.AdminWindow"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Title="Local server administration" Width="760" Height="620" MinWidth="650" MinHeight="550"
+ WindowStartupLocation="CenterOwner" Style="{StaticResource ThemedWindow}"
+ UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
+ <Grid Margin="22"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <DockPanel><Button x:Name="refresh" Content="REFRESH PLAYERS" DockPanel.Dock="Right" Style="{StaticResource Outline}"/>
+   <TextBlock x:Name="heading" Style="{StaticResource Display}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/></DockPanel>
+  <TextBlock Grid.Row="1" Margin="0,12,0,12" Foreground="{DynamicResource Label}" TextWrapping="Wrap" FontSize="{DynamicResource SizeBodyS}"
+   Text="Available only for servers started through this Manager. The server needs a compatible native bridge; announcements and warnings also need the notice script. Installing the Manager alone does not update the game."/>
+  <Border Grid.Row="2" Background="{DynamicResource Field}" BorderBrush="{DynamicResource Edge}" BorderThickness="1" CornerRadius="{DynamicResource Radius}">
+  <ListBox x:Name="players" Background="Transparent" Foreground="{DynamicResource Ink}" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+   <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="10"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><Border x:Name="row" Background="Transparent" Padding="{TemplateBinding Padding}"><ContentPresenter/></Border><ControlTemplate.Triggers><Trigger Property="IsSelected" Value="True"><Setter TargetName="row" Property="Background" Value="{DynamicResource TagBg}"/><Setter Property="Foreground" Value="{DynamicResource Accent}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style></ListBox.ItemContainerStyle>
+   <ListBox.ItemTemplate><DataTemplate><DockPanel><TextBlock DockPanel.Dock="Right" Text="{Binding Kind}" Foreground="{DynamicResource Muted}" Margin="12,0,0,0"/><TextBlock DockPanel.Dock="Right" Text="{Binding state}" Foreground="{DynamicResource Muted}" Margin="12,0,0,0"/><TextBlock Text="{Binding name}" TextTrimming="CharacterEllipsis"/></DockPanel></DataTemplate></ListBox.ItemTemplate>
+  </ListBox>
+  </Border>
+  <StackPanel Grid.Row="3" Margin="0,14,0,0"><TextBlock Text="Message / kick reason (single line, up to 160 UTF-8 bytes)" Foreground="{DynamicResource Label}" FontSize="{DynamicResource SizeBodyS}" Margin="0,0,0,6"/>
+   <TextBox x:Name="message" Style="{StaticResource Entry}" MaxLength="160"/>
+   <StackPanel Orientation="Horizontal" Margin="0,12,0,0"><Button x:Name="announce" Content="ANNOUNCE TO EVERYONE" Style="{StaticResource Outline}" Margin="0,0,10,0"/><Button x:Name="warn" Content="WARN SELECTED PLAYER" Style="{StaticResource Outline}" Margin="0,0,10,0"/><Button x:Name="kick" Content="KICK SELECTED PLAYER" Style="{StaticResource DangerGhost}"/></StackPanel>
+  </StackPanel>
+  <TextBlock Grid.Row="4" x:Name="status" TextWrapping="Wrap" Foreground="{DynamicResource Label}" FontSize="{DynamicResource SizeBodyS}" Margin="0,14,0,0"/>
+ </Grid>
+</Window>

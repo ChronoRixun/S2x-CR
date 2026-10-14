@@ -13,6 +13,11 @@
 #include "script_error.hpp"
 #include "script_extension.hpp"
 #include "script_loading.hpp"
+#include "script_storage.hpp"
+#include "../network.hpp"
+#include "../server_admin.hpp"
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 
 #include <utils/hook.hpp>
 #include <utils/string.hpp>
@@ -379,6 +384,108 @@ namespace gsc
 
 			replaced_functions[what] = with;
 		}
+		void scr_file_read()
+		{
+			if (game::Scr_GetNumParam() != 1) throw std::runtime_error("fileread(filename) expects one argument");
+			const auto text = script_storage::read(game::get_appdata_path() / "scriptdata", game::Scr_GetString(0));
+			if (text) game::Scr_AddString(text->c_str()); // Missing files return undefined; empty files return "".
+		}
+
+		void scr_file_write()
+		{
+			if (game::Scr_GetNumParam() != 2) throw std::runtime_error("filewrite(filename, text) expects two arguments");
+			const std::string name{game::Scr_GetString(0)};
+			const std::string text{game::Scr_GetString(1)};
+			script_storage::write(game::get_appdata_path() / "scriptdata", name, text);
+			game::Scr_AddInt(1);
+		}
+
+		void scr_get_ip()
+		{
+			if (game::Scr_GetNumParam() != 1 || game::Scr_GetType(0) != game::VAR_POINTER ||
+				game::Scr_GetPointerType(0) != game::VAR_ENTITY)
+				throw std::runtime_error("getip(player) expects a player entity");
+			const auto ref = game::Scr_GetEntityIdRef(game::Scr_GetObject(0));
+			const auto* clients = *game::mp::svs_clients;
+			if (ref.classnum || !game::SV_Loaded() || !clients || ref.entnum >= *game::sv_maxclients ||
+				clients[ref.entnum].state < 3 || !clients[ref.entnum].gentity || !clients[ref.entnum].gentity->client)
+				throw std::runtime_error("getip(player) requires a connected player");
+			const auto& address = clients[ref.entnum].remoteAddress;
+			if (address.type == game::NA_LOOPBACK) game::Scr_AddString("127.0.0.1");
+			else if (address.type == game::NA_IP)
+				game::Scr_AddString(utils::string::va("%u.%u.%u.%u", address.ip[0], address.ip[1], address.ip[2], address.ip[3]));
+			else game::Scr_AddString(""); // Bots and unavailable addresses have no public IP.
+		}
+
+		// Script VM and these registrations are accessed only on the server thread.
+		struct admin_notice_connection
+		{
+			decltype(std::to_array(game::mp::client_t{}.guid)) guid{};
+			game::netadr_s address{};
+			int qport{}, connected{};
+		};
+		std::unordered_map<int, admin_notice_connection> admin_notice_listeners;
+		bool admin_notice_watcher_ready{};
+
+		void reset_admin_notices()
+		{
+			admin_notice_listeners.clear();
+			admin_notice_watcher_ready = false;
+			server_admin::set_notice_ready(false);
+		}
+
+		void scr_admin_notice_ready()
+		{
+			if (game::Scr_GetNumParam() != 2 || game::Scr_GetType(0) != game::VAR_INTEGER ||
+				game::Scr_GetType(1) != game::VAR_INTEGER)
+				throw std::runtime_error("serveradminnoticeready(slot, ready) expects two integers");
+			if (!server_admin::enabled()) { game::Scr_AddInt(0); return; }
+			const auto slot = game::Scr_GetInt(0);
+			const auto ready = game::Scr_GetInt(1) != 0;
+			if (slot == -1)
+			{
+				if (!ready) reset_admin_notices();
+				else { admin_notice_watcher_ready = true; server_admin::set_notice_ready(true); }
+				game::Scr_AddInt(1);
+				return;
+			}
+			if (slot < 0 || slot >= *game::sv_maxclients) { game::Scr_AddInt(0); return; }
+			if (!ready) { admin_notice_listeners.erase(slot); game::Scr_AddInt(1); return; }
+			const auto* clients = *game::mp::svs_clients;
+			if (!clients || clients[slot].state < 3 || clients[slot].testClient ||
+				clients[slot].remoteAddress.type == game::NA_BOT || !clients[slot].guid[0] ||
+				!clients[slot].gentity || !clients[slot].gentity->client)
+			{ game::Scr_AddInt(0); return; }
+			admin_notice_listeners[slot] = {std::to_array(clients[slot].guid), clients[slot].remoteAddress, clients[slot].qport, clients[slot].lastConnectTime};
+			game::Scr_AddInt(1);
+		}
+
+		void scr_get_player_roster()
+		{
+			if (game::Scr_GetNumParam()) throw std::runtime_error("getplayerroster() expects no arguments");
+			rapidjson::StringBuffer buffer;
+			rapidjson::Writer<rapidjson::StringBuffer> json{buffer};
+			json.StartObject();
+			json.Key("generated_utc"); json.Int64(std::time(nullptr));
+			json.Key("mapname"); json.String(game::Dvar_GetString("mapname"));
+			json.Key("players"); json.StartArray();
+			const auto* clients = *game::mp::svs_clients;
+			if (game::SV_Loaded() && clients)
+			{
+				for (auto index = 0; index < *game::sv_maxclients; ++index)
+				{
+					const auto& client = clients[index];
+					if (client.state < 3 || client.testClient || client.remoteAddress.type == game::NA_BOT || !client.guid[0]) continue;
+					json.StartObject();
+					json.Key("id"); json.String(client.guid, static_cast<rapidjson::SizeType>(strnlen(client.guid, sizeof(client.guid))));
+					json.Key("name"); json.String(client.name, static_cast<rapidjson::SizeType>(strnlen(client.name, sizeof(client.name))));
+					json.EndObject();
+				}
+			}
+			json.EndArray(); json.EndObject();
+			game::Scr_AddString(buffer.GetString());
+		}
+
 	}
 
 	void add_devmap_entry(std::uint8_t* codepos, std::size_t size, const std::string& name, xsk::gsc::buffer devmap_buf)
@@ -431,6 +538,46 @@ namespace gsc
 		gsc_ctx->func_add(name, id);
 	}
 
+	void notify_chat(const int client_num, const std::string& text, const bool team)
+	{
+		if (text.empty() || !game::SV_Loaded() || game::virtual_lobby_loaded() ||
+			client_num < 0 || client_num >= *game::sv_maxclients) return;
+		auto* entities = game::mp::g_entities.get();
+		if (!entities || !entities[client_num].client) return;
+		// Intern only for this notification: map unload may release all script strings.
+		// These MP helpers are SL_GetString and RemoveRefToValue (VAR_STRING).
+		const auto event = utils::hook::invoke<unsigned>(0x6891F0_g, "s2x_chat", 0u);
+		game::Scr_AddInt(team ? 1 : 0);
+		game::Scr_AddString(text.c_str());
+		game::Scr_Notify(&entities[client_num], event, 2);
+		utils::hook::invoke<void>(0x68B4A0_g, static_cast<int>(game::VAR_STRING), static_cast<std::uint64_t>(event));
+	}
+
+	bool notify_admin_notice(const int client_num, const std::string& text, const bool warning)
+	{
+		if (!server_admin::enabled() || !admin_notice_watcher_ready || text.empty() || text.size() > 160 ||
+			text.find('\0') != std::string::npos || !game::SV_Loaded() || game::virtual_lobby_loaded() ||
+			client_num < 0 || client_num >= *game::sv_maxclients) return false;
+		const auto found = admin_notice_listeners.find(client_num);
+		if (found == admin_notice_listeners.end()) return false;
+		auto* entities = game::mp::g_entities.get();
+		const auto* clients = *game::mp::svs_clients;
+		if (!entities || !clients || clients[client_num].state < 3 || clients[client_num].testClient ||
+			clients[client_num].remoteAddress.type == game::NA_BOT || !entities[client_num].client ||
+			found->second.guid != std::to_array(clients[client_num].guid) ||
+			found->second.address != clients[client_num].remoteAddress || found->second.qport != clients[client_num].qport ||
+			found->second.connected != clients[client_num].lastConnectTime) return false;
+		// The script prints this as a quoted server command; a double quote would end the text early.
+		auto message = text;
+		std::replace(message.begin(), message.end(), '"', '\'');
+		const auto event = utils::hook::invoke<unsigned>(0x6891F0_g, "s2x_admin_notice", 0u);
+		game::Scr_AddInt(warning ? 1 : 0);
+		game::Scr_AddString(message.c_str());
+		game::Scr_Notify(&entities[client_num], event, 2);
+		utils::hook::invoke<void>(0x68B4A0_g, static_cast<int>(game::VAR_STRING), static_cast<std::uint64_t>(event));
+		return true;
+	}
+
 	class extension final : public generic_component
 	{
 	public:
@@ -438,6 +585,17 @@ namespace gsc
 		{
 			override_function("print", &scr_print);
 			override_function("println", &scr_print_ln);
+
+			if (game::environment::uses_multiplayer_binary())
+			{
+				add_function("fileread", &scr_file_read);
+				add_function("filewrite", &scr_file_write);
+				add_function("getip", &scr_get_ip);
+				add_function("getplayerroster", &scr_get_player_roster);
+				add_function("serveradminnoticeready", &scr_admin_notice_ready);
+				scripting::on_init([] { reset_admin_notices(); });
+				scripting::on_shutdown([](int) { reset_admin_notices(); });
+			}
 
 			add_function("toupper", []
 			{

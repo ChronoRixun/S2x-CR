@@ -71,12 +71,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName", ""
-            VALUE "FileDescription", "S2x"
+            VALUE "FileDescription", "S2x-CR"
             VALUE "FileVersion", VERSION_FILE
             VALUE "InternalName", "something"
             VALUE "LegalCopyright", "Copyright (C) 2026 S2x. All rights reserved."
             VALUE "OriginalFilename", "S2x.exe"
-            VALUE "ProductName", "S2x"
+            VALUE "ProductName", "S2x-CR"
             VALUE "ProductVersion", VERSION_PRODUCT
         END
     END
@@ -94,6 +94,8 @@ END
 ID_ICON               ICON   "resources/icon.ico"
 IMAGE_SPLASH          BITMAP "resources/splash.bmp"
 IMAGE_LOGO            BITMAP "resources/logo.bmp"
+
+SERVER_ADMIN_NOTICE_SCRIPT RCDATA "resources/server_admin_notice.gsc"
 
 DW_MOTD               RCDATA "resources/dw/motd-english.txt"
 DW_PLAYLISTS          RCDATA "resources/dw/playlists_tu26.aggr"

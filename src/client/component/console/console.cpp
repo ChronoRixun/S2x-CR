@@ -163,8 +163,12 @@ namespace console
 
 		// Logs also originate on the Demonware worker. Never borrow the Dvar's
 		// live string there; its main-thread producer owns this immutable copy.
+		// A Manager launch gives each server an immutable command-line log path.
+		static const auto flag_path = utils::flags::get_set_value("g_consoleLog");
 		const auto path = log_path.load(std::memory_order_acquire);
-		if (path && !path->empty())
+		if (flag_path)
+			utils::io::write_file(*flag_path, out, true);
+		else if (path && !path->empty())
 			utils::io::write_file(*path, out, true);
 
 		if (console::is_enabled())

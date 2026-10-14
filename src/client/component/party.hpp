@@ -47,5 +47,7 @@ namespace party
 	bool server_running();
 
 	int get_connected_client_count();
+	int get_bot_count();
+	int get_match_capacity();
 	int get_available_match_slots();
 }

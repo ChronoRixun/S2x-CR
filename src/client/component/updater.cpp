@@ -119,9 +119,13 @@ namespace updater
 
 			cleanup_previous_binary();
 
-			if (!utils::flags::has_flag("-noupdate"))
+			if (utils::flags::has_flag("-update") && !utils::flags::has_flag("-noupdate"))
 			{
 				perform_update();
+			}
+			else
+			{
+				console::info("[Updater] CR automatic updates are off; releases: https://github.com/ChronoRixun/S2x-CR/releases\n");
 			}
 
 			if (binary_was_replaced)

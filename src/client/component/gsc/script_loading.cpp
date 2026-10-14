@@ -15,6 +15,9 @@
 #include "script_extension.hpp"
 #include "script_loading.hpp"
 #include "script_memory.hpp"
+#include "../server_admin.hpp"
+#include "resource.hpp"
+#include <utils/nt.hpp>
 
 namespace gsc
 {
@@ -53,6 +56,12 @@ namespace gsc
 
 		bool read_raw_script_file(const std::string& name, std::string* data)
 		{
+			if (name == "scripts/mp/s2x_server_admin.gsc")
+			{
+				if (!server_admin::enabled()) return false;
+				*data = utils::nt::load_resource(SERVER_ADMIN_NOTICE_SCRIPT);
+				return !data->empty();
+			}
 			if (filesystem::read_file(name, data))
 			{
 				return true;
@@ -312,6 +321,8 @@ namespace gsc
 				return;
 			}
 
+			if (server_admin::enabled()) load_script("scripts/mp/s2x_server_admin");
+
 			for (const auto& path : filesystem::get_search_paths())
 			{
 				load_scripts(path);
@@ -354,6 +365,7 @@ namespace gsc
 		{
 			if (!game::virtual_lobby_loaded())
 			{
+				if (server_admin::enabled()) load_script("scripts/mp/s2x_server_admin");
 				for (const auto& path : filesystem::get_search_paths())
 				{
 					load_scripts(path);

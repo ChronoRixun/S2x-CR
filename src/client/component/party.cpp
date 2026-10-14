@@ -1211,6 +1211,19 @@ namespace party
 				{
 					info.set("party_match_sequence",
 						std::to_string(party_connect_info.match_sequence));
+					// The gametype script registers scr_<gametype>_{score,win,round}limit at
+					// map start (Gun Game computes its own). Hosted clients mirror them into
+					// their HUD, which otherwise reads a stock playlist recipe.
+					for (const auto* limit : {"scorelimit", "winlimit", "roundlimit"})
+					{
+						const auto name = "scr_" + party_connect_info.gametype + "_" + limit;
+						if (game::Dvar_FindMalleableVar(name.data()))
+						{
+							info.set(std::string{"s2x_"} + limit,
+								std::to_string(game::Dvar_GetInt(name.data())));
+						}
+					}
+
 				}
 			}
 
@@ -1402,10 +1415,46 @@ namespace party
 		return count;
 	}
 
+	int get_bot_count()
+	{
+		int count = 0;
+		auto* clients = *game::mp::svs_clients;
+
+		if (!clients)
+		{
+			return 0;
+		}
+
+		for (int i = 0; i < *game::sv_maxclients; ++i)
+		{
+			const auto& client = clients[i];
+			if (client.state != 0 && (client.remoteAddress.type == game::NA_BOT || client.testClient != 0))
+			{
+				++count;
+			}
+		}
+
+		return count;
+	}
+
+	// The slots this server actually owns: sv_maxclients (a dedicated server sets
+	// it to sv_maxplayers) bounded by the mode's maximum, so a four-slot
+	// server is not treated as an eighteen-slot one.
+	int get_match_capacity()
+	{
+		const auto maximum = game::environment::get_online_mode_info().max_players;
+		const auto* configured = game::sv_maxclients.get();
+		if (!configured || *configured <= 0)
+		{
+			return maximum;
+		}
+
+		return std::clamp(*configured, 0, maximum);
+	}
+
 	int get_available_match_slots()
 	{
-		return std::max(0,
-			game::environment::get_online_mode_info().max_players - get_connected_client_count());
+		return std::max(0, get_match_capacity() - get_connected_client_count());
 	}
 
 	class component final : public multiplayer_component

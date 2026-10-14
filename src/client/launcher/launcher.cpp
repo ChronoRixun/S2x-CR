@@ -20,7 +20,7 @@ namespace
 
 launcher::launcher() :
 	launch_options_(load_launch_options()),
-	main_window_("S2x Launcher", 880, 420)
+	main_window_("S2x-CR Launcher", 880, 420)
 {
 	player_profile::name();
 	this->create_main_menu();
@@ -322,7 +322,7 @@ void launcher::process_event(Rml::Event& event)
 	else if (action == "github" || action == "discord")
 	{
 		// Only these explicit links can leave the embedded interface.
-		const auto* url = action == "github" ? "https://github.com/Brentdevent/S2x" : "https://discord.gg/wdC8Jpc2cC";
+		const auto* url = action == "github" ? "https://github.com/ChronoRixun/S2x-CR" : "https://discord.gg/wdC8Jpc2cC";
 		ShellExecuteA(nullptr, "open", url, nullptr, nullptr, SW_SHOWNORMAL);
 	}
 }
