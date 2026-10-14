@@ -66,9 +66,8 @@ $TaskName = 'S2x Server Status'
 $ManagedFields = @('Status', 'Now playing', 'Players', 'Server browser')
 # A field whose name starts with one of these is a server entry this script wrote.
 $StatusLights = @('🟢', '🔴', '🟡')
-# Discord drops trailing whitespace but keeps a zero-width space, so this closing line
-# puts a blank line between one server entry and the next.
-$EntrySpacer = "`n" + [char]0x200B
+# Native field spacing is sufficient; no artificial blank-row spacer.
+$EntrySpacer = ''
 
 function Write-Log([string]$Text) {
     $line = '{0:yyyy-MM-dd HH:mm:ss} {1}' -f (Get-Date), $Text
@@ -301,8 +300,8 @@ $MapNames = @{
     mp_stalingrad = 'Stalingrad'; mp_market_garden = 'Market Garden'; mp_monte_cassino_v2 = 'Monte Cassino'
     mp_tank_graveyard_2 = 'Excavation'; mp_airship = 'Airship'; mp_fuhrerbunker = 'Chancellery'
     mp_zombie_house = 'Groesten Haus'; mp_zombie_nest_01 = 'The Final Reich'; mp_zombie_island = 'The Darkest Shore'
-    mp_zombie_berlin = 'The Shadowed Throne'; mp_zombie_windmill = 'The Tortured Path: Into the Storm'
-    mp_zombie_dnk = 'The Tortured Path: Across the Depths'; mp_zombie_dig_02 = 'The Tortured Path: Beyond the Veil'
+    mp_zombie_berlin = 'The Shadowed Throne'; mp_zombie_windmill = 'Bodega Cervantes'
+    mp_zombie_dnk = 'USS Mount Olympus'; mp_zombie_dig_02 = 'Altar of Blood'
     mp_zombie_descent = 'The Frozen Dawn'
 }
 
@@ -337,32 +336,41 @@ function New-ServerField($Server, $Info, $Listed, [long]$Now) {
     $name = Format-ServerName $hostname
     if ($null -eq $Info) {
         $why = 'Not responding'
-        return @{ name = "🔴 $name"; value = "$why · last checked <t:${Now}:R>$EntrySpacer"; inline = $false }
+        return @{ name = "🔴 $name"; value = "$why · last checked <t:${Now}:R>"; inline = $false }
     }
     $lines = @()
     $mode = Format-Gametype $Info['gametype']
     $map = Format-Map $Info['mapname']
     $playing = if ($Info['sv_running'] -eq '1') { "$mode on $map" } else { "Lobby, next: $mode on $map" }
-    $slots = [int]$Info['sv_maxclients']
-    # Upstream clients includes bots; older CR party replies counted party humans.
-    $bots = if ($Info.ContainsKey('s2x_bots')) { [int]$Info['s2x_bots'] } else { [int]$Info['bots'] }
+    $slots = [math]::Max(0, [int]$Info['sv_maxclients'])
+    # New upstream replies count bots within clients; legacy CR party replies report humans.
+    $reportedBots = if ($Info.ContainsKey('s2x_bots')) { [int]$Info['s2x_bots'] } else { [int]$Info['bots'] }
+    $bots = [math]::Max(0, [math]::Min($slots, $reportedBots))
     $humans = [math]::Max(0, [int]$Info['clients'] - $bots)
-    if ($Info['_legacy'] -and $Info['party_session'] -eq '1') { $humans = [int]$Info['clients'] }
+    if ($Info['_legacy'] -and $Info['party_session'] -eq '1') { $humans = [math]::Max(0, [int]$Info['clients']) }
+    $humans = [math]::Min($slots, $humans)
     $people = if ($humans -eq 1) { '1 player online' } else { "$humans players online" }
-    # Zombies bots wait for a player and never fill the slots; the server name gives their count.
-    $lines += if ($Info['gametype'] -eq 'zombies') { "$playing · $people" } else { "$playing · $people, bots fill the rest of $slots" }
+    $botText = if ($bots -eq 1) { '1 bot active' } else { "$bots bots active" }
+    $lines += $playing
+    $lines += "$people · $botText · $slots total slots"
+    if ($Info['gametype'] -eq 'zombies' -and $bots -eq 0 -and $humans -eq 0) {
+        $lines += 'Companions join when you do'
+    }
     if ($Server -and $Server.rotation.Count -gt 0) {
         $modes = @($Server.rotation | ForEach-Object { Format-Gametype $_.gametype } | Select-Object -Unique)
         $maps = @($Server.rotation | ForEach-Object { Format-Map $_.map } | Select-Object -Unique)
-        $lines += 'Rotation: {0} on {1}' -f (Join-Names $modes), (Join-Names $maps)
+        $mapSummary = if ($maps.Count -le 3) { Join-Names $maps } else { "$($maps.Count) maps" }
+        $lines += 'Rotation: {0} · {1}' -f (Join-Names $modes), $mapSummary
     }
     if ($null -ne $Listed) {
-        $lines += if ($Listed) { '🟢 In the server browser' } else { '🟡 Not in the browser list right now, hit Refresh again in a minute' }
+        $lines += if ($Listed) { 'Browser: listed' } else { 'Browser: not listed — try Refresh shortly' }
+    } else {
+        $lines += 'Browser: listing not verified'
     }
     $value = $lines -join "`n"
     $room = 1024 - $EntrySpacer.Length
     if ($value.Length -gt $room) { $value = $value.Substring(0, $room - 3) + '...' }
-    return @{ name = "🟢 $name"; value = $value + $EntrySpacer; inline = $false }
+    return @{ name = "🟢 $name"; value = $value; inline = $false }
 }
 
 function New-StatusField([int]$Online, [int]$Down, [long]$Now) {

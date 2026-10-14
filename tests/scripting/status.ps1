@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $tokens = $null
 $errors = $null
@@ -124,6 +124,19 @@ $GameDir = ''
 Check ((Format-Map 'mp_london_srv') -eq 'London Docks' -and (Format-Map 'mp_zombie_dig_02_srv') -eq 'Zombie Dig 02') 'A _srv map variant must be named like its base map'
 $countField = New-ServerField $null $info $true ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())
 Check ($countField.value.Contains('1 player')) 'Card must show clients minus bots as humans'
+Check ($countField.value.Contains('7 bots active') -and $countField.value.Contains('8 total slots')) 'Card must distinguish active bots and total slots'
+Check (!$countField.value.Contains('bots fill the rest')) 'Card must not invent configured bot fill'
+$zinfo=@{};foreach($key in $info.Keys){$zinfo[$key]=$info[$key]};$zinfo.gametype='zombies';$zinfo.clients='0';$zinfo.bots='0';$zinfo.sv_maxclients='4'
+$zcard=New-ServerField $null $zinfo $true 1
+Check ($zcard.value.Contains('Companions join when you do') -and $zcard.value.Contains('0 players online')) 'Empty Zombies must explain human-triggered companions'
+$zinfo.clients='4';$zinfo.bots='3';$zcard=New-ServerField $null $zinfo $false 1
+Check ($zcard.value.Contains('1 player online') -and $zcard.value.Contains('3 bots active')) 'Zombies must show one human and three bots'
+Check (!$zcard.value.Contains([char]0x200B)) 'Card must not add artificial blank-row spacers'
+$legacy=@{};foreach($key in $info.Keys){$legacy[$key]=$info[$key]};$legacy._legacy=$true;$legacy.party_session='1';$legacy.clients='2';$legacy.bots='1'
+Check ((New-ServerField $null $legacy $true 1).value.Contains('2 players online')) 'Legacy party humans must not be subtracted twice'
+$rotation=@{rotation=@(1..12|ForEach-Object {@{map=('mp_map_'+$_);gametype='gun'}})}
+$compact=New-ServerField $rotation $info $true 1
+Check ($compact.value.Length -lt 260 -and $compact.value.Contains('12 maps')) 'Large rotations must remain compact'
 $before = [IO.File]::ReadAllText($PresenceStateFile)
 $ChannelId = ''; $MessageId = ''; $TokenFile = ''; $DryRun = $true
 $script:discordCalls = 0
@@ -150,7 +163,7 @@ Check ([IO.File]::ReadAllText($PresenceStateFile) -ne $before) 'Successful publi
 $fields = @($script:published.fields)
 Check ($fields[0].name -eq 'Status' -and $fields[0].value.StartsWith($StatusLights[0] + ' 1 server online')) 'Status must count the answering server'
 $entries = @($fields | Where-Object { $_.name.StartsWith($StatusLights[0]) })
-Check ($entries.Count -eq 1 -and $entries[0].name -eq ($StatusLights[0] + ' Test Server') -and $entries[0].value.Contains('Gun Game on London Docks') -and $entries[0].value.Contains('In the server browser')) 'The server must get one green entry named after it'
+Check ($entries.Count -eq 1 -and $entries[0].name -eq ($StatusLights[0] + ' Test Server') -and $entries[0].value.Contains('Gun Game on London Docks') -and $entries[0].value.Contains('Browser: listed')) 'The server must get one green entry named after it'
 Check (@($fields | Where-Object name -eq 'Recent arrivals / departures').Count -eq 1) 'The roster must add the presence field'
 # A launch-profile server (pid file, no cfg) that is alive but not answering has no name to
 # filter on; it must show red under a name filter instead of leaving the card.
