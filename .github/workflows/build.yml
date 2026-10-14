@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "*"
+      - "codex/s2x-cr-upstream-rebuild"
   pull_request:
     branches:
       - "*"
