@@ -82,7 +82,3 @@ try {
  # Only the exact GUID test directory created above is removed.
  if([IO.Path]::GetFullPath($testRoot).StartsWith([IO.Path]::GetFullPath([IO.Path]::GetTempPath())) -and [IO.Path]::GetFileName($testRoot).StartsWith('s2x-card-order-')) { Remove-Item -LiteralPath $testRoot -Recurse -Force }
 }
-
-
-
-

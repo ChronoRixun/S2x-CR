@@ -12,6 +12,7 @@ namespace S2x.ServerManager.Services
         public readonly Dictionary<string, string> Fields = new Dictionary<string, string>(StringComparer.Ordinal);
         public int Port;
         public int RttMs;
+        public int Humans;
 
         public string Get(string key)
         {
@@ -26,123 +27,61 @@ namespace S2x.ServerManager.Services
         }
     }
 
-    /// <summary>
-    /// The fork's own server query, the packet the game client sends: four 0xFF bytes,
-    /// "s2x_getInfo &lt;challenge&gt;", then the S2 trailer (checksum and socket byte). Ported from
-    /// tools/server-status.ps1. Without the trailer the server ignores the probe.
-    /// </summary>
+    /// <summary>Challenge-bound raw upstream probes with a validated legacy CR fallback.</summary>
     internal static class ServerQuery
     {
-        private const int SioUdpConnReset = -1744830452;
-
-        /// <summary>Sends one probe per port on one socket and collects what answers in time.</summary>
         public static Dictionary<int, ServerInfo> Query(string host, IList<int> ports, int timeoutMs)
         {
             var results = new Dictionary<int, ServerInfo>();
             if (ports == null || ports.Count == 0) return results;
-
+            var addresses = Dns.GetHostAddresses(host);
+            var address = Array.Find(addresses, a => a.AddressFamily == AddressFamily.InterNetwork);
+            if (address == null) return results;
             using (var udp = new UdpClient(AddressFamily.InterNetwork))
             {
-                // A port nobody listens on answers with ICMP "port unreachable", which Windows
-                // raises as a ConnectionReset on the next Receive of this shared socket.
-                try { udp.Client.IOControl(SioUdpConnReset, new byte[4], null); } catch { }
-
-                var challenges = new Dictionary<int, string>();
-                var sent = new Dictionary<int, Stopwatch>();
-                foreach (var port in ports)
+                try { udp.Client.IOControl(-1744830452, new byte[4], null); } catch { }
+                for (int attempt = 0; attempt < 4; attempt++)
                 {
-                    if (challenges.ContainsKey(port)) continue;
-                    var challenge = NewChallenge();
-                    var packet = Probe(challenge);
-                    challenges[port] = challenge;
-                    sent[port] = Stopwatch.StartNew();
-                    try { udp.Send(packet, packet.Length, host, port); }
-                    catch { sent.Remove(port); challenges.Remove(port); }
-                }
-
-                var deadline = Stopwatch.StartNew();
-                var remote = new IPEndPoint(IPAddress.Any, 0);
-                while (results.Count < challenges.Count)
-                {
-                    var left = timeoutMs - (int)deadline.ElapsedMilliseconds;
-                    if (left <= 0) break;
-                    udp.Client.ReceiveTimeout = left;
-
-                    byte[] data;
-                    try { data = udp.Receive(ref remote); }
-                    catch (SocketException ex)
+                    var challenges = new Dictionary<int, string>();
+                    var command = attempt < 2 ? "s2x_getInfo" : "getinfo";
+                    var watch = Stopwatch.StartNew();
+                    foreach (var port in ports)
                     {
-                        if (ex.SocketErrorCode == SocketError.ConnectionReset) continue;
-                        break;
+                        if (results.ContainsKey(port) || challenges.ContainsKey(port)) continue;
+                        var challenge = Guid.NewGuid().ToString("N");
+                        var packet = attempt % 2 == 0 ? MasterBrowserClient.RawPacket(command + " " + challenge)
+                            : MasterBrowserClient.Packet(command + " " + challenge);
+                        try { udp.Send(packet, packet.Length, new IPEndPoint(address, port)); challenges[port] = challenge; }
+                        catch (SocketException) { }
                     }
-
-                    var info = Parse(data);
-                    if (info == null) continue;
-
-                    var port = remote.Port;
-                    string challenge;
-                    if (!challenges.TryGetValue(port, out challenge)) continue;
-                    if (info.Get("challenge") != challenge) continue;
-                    if (results.ContainsKey(port)) continue;
-
-                    info.Port = port;
-                    info.RttMs = (int)sent[port].ElapsedMilliseconds;
-                    results[port] = info;
+                    var remaining = challenges.Count;
+                    while (remaining > 0)
+                    {
+                        var left = Math.Max(1, timeoutMs / 4) - (int)watch.ElapsedMilliseconds;
+                        if (left <= 0) break;
+                        udp.Client.ReceiveTimeout = left;
+                        var remote = new IPEndPoint(IPAddress.Any, 0);
+                        byte[] bytes;
+                        try { bytes = udp.Receive(ref remote); }
+                        catch (SocketException ex) { if (ex.SocketErrorCode == SocketError.ConnectionReset) continue; break; }
+                        string challenge;
+                        if (!address.Equals(remote.Address) || results.ContainsKey(remote.Port)
+                            || !challenges.TryGetValue(remote.Port, out challenge)) continue;
+                        Dictionary<string, string> fields;
+                        if (!MasterBrowserClient.TryInfo(bytes, command == "getinfo" ? "infoResponse" : "s2x_infoResponse", challenge, out fields)) continue;
+                        var info = new ServerInfo { Port = remote.Port, RttMs = (int)watch.ElapsedMilliseconds };
+                        foreach (var pair in fields) info.Fields.Add(pair.Key, pair.Value);
+                        // Response framing determines count semantics for older CR party replies.
+                        bool legacy = bytes.Length >= 7 && (bytes[bytes.Length - 1] == 0x02 || bytes[bytes.Length - 1] == 0x20)
+                            && MasterBrowserClient.Checksum(bytes, bytes.Length - 3) == ((bytes[bytes.Length - 3] << 8) | bytes[bytes.Length - 2]);
+                        info.Humans = MasterBrowserClient.HumanCount(fields, command == "s2x_getInfo", legacy) ?? 0;
+                        results[remote.Port] = info;
+                        remaining--;
+                    }
+                    if (results.Count == ports.Count) break;
                 }
             }
             return results;
-        }
-
-        private static byte[] Probe(string challenge)
-        {
-            var payload = new List<byte> { 0xFF, 0xFF, 0xFF, 0xFF };
-            payload.AddRange(Encoding.ASCII.GetBytes("s2x_getInfo " + challenge));
-            return WithTrailer(payload.ToArray());
-        }
-
-        // Sys_ChecksumCopy: 16-bit ones'-complement sum of big-endian words, carry folded, inverted.
-        private static ushort Checksum(byte[] data)
-        {
-            uint total = 0;
-            int i = 0;
-            for (; i + 1 < data.Length; i += 2) total += (uint)((data[i] << 8) | data[i + 1]);
-            if (data.Length % 2 != 0) total += data[data.Length - 1];
-            while ((total >> 16) != 0) total = (total & 0xFFFF) + (total >> 16);
-            return (ushort)(~total & 0xFFFF);
-        }
-
-        private static byte[] WithTrailer(byte[] payload)
-        {
-            var sum = Checksum(payload);
-            var packet = new byte[payload.Length + 3];
-            Buffer.BlockCopy(payload, 0, packet, 0, payload.Length);
-            packet[payload.Length] = (byte)(sum >> 8);
-            packet[payload.Length + 1] = (byte)(sum & 0xFF);
-            // Third byte: (sock NS_CLIENT1 = 0) | (to.localNetID NS_SERVER = 2) << 4
-            packet[payload.Length + 2] = 0x20;
-            return packet;
-        }
-
-        private static ServerInfo Parse(byte[] data)
-        {
-            if (data == null || data.Length < 8) return null;
-            const string head = "s2x_infoResponse\n";
-            var text = Encoding.UTF8.GetString(data, 4, data.Length - 4 - 3);
-            if (!text.StartsWith(head, StringComparison.Ordinal)) return null;
-
-            var parts = text.Substring(head.Length).Split('\\');
-            var info = new ServerInfo();
-            for (int i = 1; i + 1 < parts.Length; i += 2) info.Fields[parts[i]] = parts[i + 1];
-            return info;
-        }
-
-        private static readonly Random Rng = new Random();
-
-        private static string NewChallenge()
-        {
-            var sb = new StringBuilder(8);
-            lock (Rng) for (int i = 0; i < 8; i++) sb.Append("0123456789abcdef"[Rng.Next(16)]);
-            return sb.ToString();
         }
     }
 }

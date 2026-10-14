@@ -5,7 +5,7 @@
 .DESCRIPTION
     Works out which servers to report: every port passed in, plus every server the launcher or
     the Server Manager started from the game folder (its s2x\server-<port>.cfg or .pid file). Queries each one the way the game client does (OOB
-    "s2x_getInfo" with the S2 packet trailer), asks the master server which of them it lists,
+    raw "s2x_getInfo" with a validated older CR trailer fallback), asks the master server which of them it lists,
     and edits an existing bot embed: a "Status" field with the count, then one field per
     server, named after it with the colour codes stripped, carrying map and mode, players, the
     rotation from the launcher's config and whether the server browser has it.
@@ -66,9 +66,8 @@ $TaskName = 'S2x Server Status'
 $ManagedFields = @('Status', 'Now playing', 'Players', 'Server browser')
 # A field whose name starts with one of these is a server entry this script wrote.
 $StatusLights = @('🟢', '🔴', '🟡')
-# Discord drops trailing whitespace but keeps a zero-width space, so this closing line
-# puts a blank line between one server entry and the next.
-$EntrySpacer = "`n" + [char]0x200B
+# Native field spacing is sufficient; no artificial blank-row spacer.
+$EntrySpacer = ''
 
 function Write-Log([string]$Text) {
     $line = '{0:yyyy-MM-dd HH:mm:ss} {1}' -f (Get-Date), $Text
@@ -138,56 +137,77 @@ function Send-Udp([string]$TargetHost, [int]$TargetPort, [byte[]]$Packet, [int]$
 }
 
 function ConvertFrom-InfoResponse([byte[]]$Data) {
-    if ($Data.Length -lt 8) { return $null }
-    $text = [System.Text.Encoding]::UTF8.GetString($Data, 4, $Data.Length - 4 - 3)
-    $head = "s2x_infoResponse`n"
+    if (-not $Data -or $Data.Length -lt 8 -or $Data.Length -gt 8192) { return $null }
+    for ($i = 0; $i -lt 4; $i++) { if ($Data[$i] -ne 255) { return $null } }
+    $length = $Data.Length
+    $legacy = $false
+    if ($Data.Length -ge 7 -and $Data[-1] -in @(0x02, 0x20)) {
+        [byte[]]$payload = $Data[0..($Data.Length - 4)]
+        if ((Get-S2Checksum $payload) -eq (([int]$Data[-3] -shl 8) -bor $Data[-2])) {
+            $length -= 3; $legacy = $true
+        }
+    }
+    try { $text = [Text.UTF8Encoding]::new($false, $true).GetString($Data, 4, $length - 4) } catch { return $null }
+    $head = if ($text.StartsWith("s2x_infoResponse`n")) { "s2x_infoResponse`n" } else { "infoResponse`n" }
     if (-not $text.StartsWith($head)) { return $null }
-    $parts = $text.Substring($head.Length).Split('\')
+    $text = $text.Substring($head.Length).TrimEnd([char]0)
+    if (-not $text.StartsWith('\') -or $text -match '[\x00-\x1f\x7f]') { return $null }
+    $parts = $text.Split('\')
+    if ($parts.Length % 2 -ne 1 -or $parts.Length -gt 257) { return $null }
     $info = @{}
-    for ($i = 1; $i + 1 -lt $parts.Length; $i += 2) { $info[$parts[$i]] = $parts[$i + 1] }
+    for ($i = 1; $i -lt $parts.Length; $i += 2) {
+        if (-not $parts[$i] -or $info.ContainsKey($parts[$i])) { return $null }
+        $info[$parts[$i]] = $parts[$i + 1]
+    }
+    if ($info['gamename'] -ne 'S2' -or $info['protocol'] -ne '1') { return $null }
+    $info['_legacy'] = $legacy
     return $info
 }
 
-# One socket, one challenge per port, every request out at once, then replies are collected
-# until each port has answered or the deadline passes. Returns port -> info.
+# Probe upstream raw OOB first, then older CR framing. Every round gets new challenges.
 function Get-ServerInfos([int[]]$PortList, [int]$TimeoutMs = 2000) {
     $results = @{}
-    if (-not $PortList -or $PortList.Count -eq 0) { return $results }
-    $udp = New-Object System.Net.Sockets.UdpClient
-    # A port nobody listens on answers with ICMP "port unreachable", which Windows raises
-    # as a ConnectionReset on the next Receive of this shared socket. SIO_UDP_CONNRESET off
-    # stops that, and the catch below skips one if it still arrives.
+    if (-not $PortList) { return $results }
+    $address = [Net.Dns]::GetHostAddresses($ServerHost) | Where-Object AddressFamily -eq InterNetwork | Select-Object -First 1
+    if (-not $address) { return $results }
+    $udp = New-Object Net.Sockets.UdpClient
     try { [void]$udp.Client.IOControl(-1744830452, [byte[]](0, 0, 0, 0), $null) } catch { }
     try {
-        $challenges = @{}
-        $started = @{}
-        foreach ($p in $PortList) {
-            $challenge = -join ((1..8) | ForEach-Object { '{0:x}' -f (Get-Random -Maximum 16) })
-            $payload = [byte[]](0xFF, 0xFF, 0xFF, 0xFF) + [System.Text.Encoding]::ASCII.GetBytes("s2x_getInfo $challenge")
-            $packet = Add-S2Trailer $payload
-            $challenges[$p] = $challenge
-            $started[$p] = Get-Date
-            [void]$udp.Send($packet, $packet.Length, $ServerHost, $p)
-        }
-        $deadline = (Get-Date).AddMilliseconds($TimeoutMs)
-        $remote = New-Object System.Net.IPEndPoint ([System.Net.IPAddress]::Any, 0)
-        while ($results.Count -lt $PortList.Count) {
-            $left = [int](($deadline - (Get-Date)).TotalMilliseconds)
-            if ($left -le 0) { break }
-            $udp.Client.ReceiveTimeout = $left
-            try { [byte[]]$data = $udp.Receive([ref]$remote) }
-            catch {
-                $ex = $_.Exception
-                while ($ex -and -not ($ex -is [System.Net.Sockets.SocketException])) { $ex = $ex.InnerException }
-                if ($ex -and $ex.SocketErrorCode -eq [System.Net.Sockets.SocketError]::ConnectionReset) { continue }
-                break
+        for ($attempt = 0; $attempt -lt 4; $attempt++) {
+            $challenges = @{}; $started = Get-Date
+            $command = if ($attempt -lt 2) { 's2x_getInfo' } else { 'getinfo' }
+            foreach ($p in ($PortList | Sort-Object -Unique)) {
+                if ($results.ContainsKey($p)) { continue }
+                $challenge = [Guid]::NewGuid().ToString('N')
+                $packet = [byte[]](255,255,255,255) + [Text.Encoding]::ASCII.GetBytes("$command $challenge")
+                if ($attempt % 2) { $packet = Add-S2Trailer $packet }
+                $challenges[$p] = $challenge
+                [void]$udp.Send($packet, $packet.Length, [Net.IPEndPoint]::new($address, $p))
             }
-            $info = ConvertFrom-InfoResponse $data
-            $p = $remote.Port
-            if ($null -eq $info -or -not $challenges.ContainsKey($p) -or $info['challenge'] -ne $challenges[$p]) { continue }
-            $info['_port'] = $p
-            $info['_rtt_ms'] = [math]::Round(((Get-Date) - $started[$p]).TotalMilliseconds)
-            $results[$p] = $info
+            $deadline = $started.AddMilliseconds([math]::Max(1, $TimeoutMs / 4))
+            $remote = New-Object Net.IPEndPoint ([Net.IPAddress]::Any, 0)
+            while ($challenges.Count -gt 0) {
+                $left = [int](($deadline - (Get-Date)).TotalMilliseconds)
+                if ($left -le 0) { break }
+                $udp.Client.ReceiveTimeout = $left
+                try { [byte[]]$data = $udp.Receive([ref]$remote) }
+                catch {
+                    $ex = $_.Exception
+                    while ($ex -and -not ($ex -is [Net.Sockets.SocketException])) { $ex = $ex.InnerException }
+                    if ($ex -and $ex.SocketErrorCode -eq [Net.Sockets.SocketError]::ConnectionReset) { continue }
+                    break
+                }
+                if (-not $remote.Address.Equals($address)) { continue }
+                $info = ConvertFrom-InfoResponse $data
+                $p = $remote.Port
+                if ($null -eq $info -or -not $challenges.ContainsKey($p) -or $info['challenge'] -cne $challenges[$p]) { continue }
+                $expected = if ($command -eq 'getinfo') { "infoResponse`n" } else { "s2x_infoResponse`n" }
+                if (-not [Text.Encoding]::ASCII.GetString($data, 4, $expected.Length).StartsWith($expected)) { continue }
+                $info['_port'] = $p
+                $info['_rtt_ms'] = [math]::Round(((Get-Date) - $started).TotalMilliseconds)
+                $results[$p] = $info
+                $challenges.Remove($p)
+            }
         }
     } finally { $udp.Close() }
     return $results
@@ -280,8 +300,8 @@ $MapNames = @{
     mp_stalingrad = 'Stalingrad'; mp_market_garden = 'Market Garden'; mp_monte_cassino_v2 = 'Monte Cassino'
     mp_tank_graveyard_2 = 'Excavation'; mp_airship = 'Airship'; mp_fuhrerbunker = 'Chancellery'
     mp_zombie_house = 'Groesten Haus'; mp_zombie_nest_01 = 'The Final Reich'; mp_zombie_island = 'The Darkest Shore'
-    mp_zombie_berlin = 'The Shadowed Throne'; mp_zombie_windmill = 'The Tortured Path: Into the Storm'
-    mp_zombie_dnk = 'The Tortured Path: Across the Depths'; mp_zombie_dig_02 = 'The Tortured Path: Beyond the Veil'
+    mp_zombie_berlin = 'The Shadowed Throne'; mp_zombie_windmill = 'Bodega Cervantes'
+    mp_zombie_dnk = 'USS Mount Olympus'; mp_zombie_dig_02 = 'Altar of Blood'
     mp_zombie_descent = 'The Frozen Dawn'
 }
 
@@ -316,31 +336,41 @@ function New-ServerField($Server, $Info, $Listed, [long]$Now) {
     $name = Format-ServerName $hostname
     if ($null -eq $Info) {
         $why = 'Not responding'
-        return @{ name = "🔴 $name"; value = "$why · last checked <t:${Now}:R>$EntrySpacer"; inline = $false }
+        return @{ name = "🔴 $name"; value = "$why · last checked <t:${Now}:R>"; inline = $false }
     }
     $lines = @()
     $mode = Format-Gametype $Info['gametype']
     $map = Format-Map $Info['mapname']
     $playing = if ($Info['sv_running'] -eq '1') { "$mode on $map" } else { "Lobby, next: $mode on $map" }
-    $slots = [int]$Info['sv_maxclients']
-    # The reply's clients value is the human count (bots are reported separately and
-    # clamped to it), so it is used as is; subtracting bots would zero it.
-    $humans = [int]$Info['clients']
+    $slots = [math]::Max(0, [int]$Info['sv_maxclients'])
+    # New upstream replies count bots within clients; legacy CR party replies report humans.
+    $reportedBots = if ($Info.ContainsKey('s2x_bots')) { [int]$Info['s2x_bots'] } else { [int]$Info['bots'] }
+    $bots = [math]::Max(0, [math]::Min($slots, $reportedBots))
+    $humans = [math]::Max(0, [int]$Info['clients'] - $bots)
+    if ($Info['_legacy'] -and $Info['party_session'] -eq '1') { $humans = [math]::Max(0, [int]$Info['clients']) }
+    $humans = [math]::Min($slots, $humans)
     $people = if ($humans -eq 1) { '1 player online' } else { "$humans players online" }
-    # Zombies bots wait for a player and never fill the slots; the server name gives their count.
-    $lines += if ($Info['gametype'] -eq 'zombies') { "$playing · $people" } else { "$playing · $people, bots fill the rest of $slots" }
+    $botText = if ($bots -eq 1) { '1 bot active' } else { "$bots bots active" }
+    $lines += $playing
+    $lines += "$people · $botText · $slots total slots"
+    if ($Info['gametype'] -eq 'zombies' -and $bots -eq 0 -and $humans -eq 0 -and $name -match '(?i)\bzombie bots\b') {
+        $lines += 'Companions join when you do'
+    }
     if ($Server -and $Server.rotation.Count -gt 0) {
         $modes = @($Server.rotation | ForEach-Object { Format-Gametype $_.gametype } | Select-Object -Unique)
         $maps = @($Server.rotation | ForEach-Object { Format-Map $_.map } | Select-Object -Unique)
-        $lines += 'Rotation: {0} on {1}' -f (Join-Names $modes), (Join-Names $maps)
+        $mapSummary = if ($maps.Count -le 3) { Join-Names $maps } else { "$($maps.Count) maps" }
+        $lines += 'Rotation: {0} · {1}' -f (Join-Names $modes), $mapSummary
     }
     if ($null -ne $Listed) {
-        $lines += if ($Listed) { '🟢 In the server browser' } else { '🟡 Not in the browser list right now, hit Refresh again in a minute' }
+        $lines += if ($Listed) { 'Browser: listed' } else { 'Browser: not listed — try Refresh shortly' }
+    } else {
+        $lines += 'Browser: listing not verified'
     }
     $value = $lines -join "`n"
     $room = 1024 - $EntrySpacer.Length
     if ($value.Length -gt $room) { $value = $value.Substring(0, $room - 3) + '...' }
-    return @{ name = "🟢 $name"; value = $value + $EntrySpacer; inline = $false }
+    return @{ name = "🟢 $name"; value = $value; inline = $false }
 }
 
 function New-StatusField([int]$Online, [int]$Down, [long]$Now) {

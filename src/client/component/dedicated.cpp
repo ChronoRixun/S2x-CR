@@ -472,10 +472,9 @@ namespace dedicated
 			gscr_set_slow_motion_hook.invoke<void>();
 
 			// setslowmotion only publishes configstring 9. On a listen host the local
-			// client reads it and slows the whole process for the killcam, server
-			// included. A dedicated server has no such client, so its archive walk ran
-			// at full speed while clients ran slowed. Apply the same ramp here, on the
-			// main thread where a client would, with the builtin's own defaults.
+			// client applies it to the whole process, server included. A dedicated
+			// server has no local client, so apply the same ramp on the main thread,
+			// as a client would, with the builtin's defaults.
 			const auto params = game::Scr_GetNumParam();
 			const auto start = game::Scr_GetFloat(0);
 			const auto end = params > 1 ? game::Scr_GetFloat(1) : 1.0f;

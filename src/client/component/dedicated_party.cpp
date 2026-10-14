@@ -3,6 +3,7 @@
 
 #include "dedicated_party.hpp"
 #include "dedicated_party_client.hpp"
+#include "network.hpp"
 #include "party.hpp"
 #include "command.hpp"
 #include "scheduler.hpp"
@@ -57,14 +58,10 @@ namespace dedicated_party
 
 		dedicated_party_state_t dedicated_party_state{};
 		game::dvar_t* party_match_start_delay{};
-		// The configured player limits. These were party_maxplayers and
-		// party_minplayers, names the stock game keeps for itself: a console or cfg
-		// set on them is swallowed by the engine before any dvar registered under
-		// them sees it, so every server ran at the mode maximum whatever its cfg
-		// said (#39). The limits therefore use names the stock game does not know.
 		game::dvar_t* sv_maxplayers{};
 		game::dvar_t* sv_minplayers{};
 		game::dvar_t* sv_maprotation{};
+		game::dvar_t* sv_maprotation_current{};
 		game::dvar_t* s2x_nextmap{};
 		game::dvar_t* s2x_nextmap_preview{};
 		bool map_rotate_requested{};
@@ -161,11 +158,17 @@ namespace dedicated_party
 		void sv_register_max_clients_stub(const int minimum)
 		{
 			utils::hook::invoke<void>(0x6DA7A0_g, minimum);
+
 			if (is_active())
 			{
-				// SV_Startup re-registers the dvar before reading it for allocations.
-				// Reapply the human limit after that registration as well as at handoff.
+				// SV_Startup will allocate using this player limit. Clear the modified flag
+				// so the first round restart does not reload the map and reset the match.
 				game::Dvar_SetIntByName("sv_maxclients", dedicated_party_state.player_capacity);
+
+				if (auto* max_clients = game::Dvar_FindMalleableVar("sv_maxclients"))
+				{
+					game::Dvar_ClearModified(max_clients);
+				}
 			}
 		}
 
@@ -413,6 +416,45 @@ namespace dedicated_party
 			return false;
 		}
 
+		game::PartyData* get_hosted_game_lobby()
+		{
+			return dedicated_party_state.game_lobby
+				? dedicated_party_state.game_lobby
+				: game::Lobby_GetPartyData(0);
+		}
+
+		bool is_remote_lobby_member(game::PartyData* party_data, const int index)
+		{
+			return party_data->members[index].state >= 2
+				&& !game::Party_IsHost(party_data, index)
+				&& !game::Party_IsMemberLocalPlayer(party_data, index);
+		}
+
+		game::PartyData* get_waiting_game_lobby()
+		{
+			if (!game::environment::is_dedicated() || !is_active() || game::is_server_running())
+			{
+				return nullptr;
+			}
+
+			return get_hosted_game_lobby();
+		}
+
+		std::string lobby_kick_reason{};
+
+		void send_lobby_kick_stub(const game::netadr_s* to, const char* data, const int sock, void* relay)
+		{
+			// Stock clients match only the first token, so the quoted reason is ignored by them.
+			if (lobby_kick_reason.empty())
+			{
+				utils::hook::invoke<void>(0x76E200_g, to, data, sock, relay);
+				return;
+			}
+
+			const auto message = std::format("{} \"{}\"", data, lobby_kick_reason);
+			utils::hook::invoke<void>(0x76E200_g, to, message.data(), sock, relay);
+		}
+
 		bool has_local_gameplay_client()
 		{
 			auto* clients = *game::mp::svs_clients;
@@ -451,6 +493,8 @@ namespace dedicated_party
 			return true;
 		}
 
+		bool parse_map_rotation(const std::string& value, std::vector<dedicated_match_t>& rotation);
+
 		bool same_match(const dedicated_match_t& a, const dedicated_match_t& b)
 		{
 			return a.map_name == b.map_name && a.gametype == b.gametype;
@@ -472,12 +516,21 @@ namespace dedicated_party
 				text = state.requested_next_match->map_name + " "
 					+ state.requested_next_match->gametype + " fixed";
 			}
-			else if (state.requested_rotation_match.has_value())
+			else if (sv_maprotation_current && sv_maprotation_current->current.string
+				&& sv_maprotation_current->current.string[0])
+			{
+				std::vector<dedicated_match_t> rotation{};
+				if (parse_map_rotation(sv_maprotation_current->current.string, rotation) && !rotation.empty())
+				{
+					text = rotation.front().map_name + " " + rotation.front().gametype + " fixed";
+				}
+			}
+			if (text.empty() && state.requested_rotation_match.has_value())
 			{
 				text = state.requested_rotation_match->map_name + " "
 					+ state.requested_rotation_match->gametype;
 			}
-			else if (!state.rotation.empty())
+			if (text.empty() && !state.rotation.empty())
 			{
 				const auto& match = state.rotation[state.next_rotation_index % state.rotation.size()];
 				text = match.map_name + " " + match.gametype;
@@ -486,17 +539,10 @@ namespace dedicated_party
 			game::Dvar_SetStringByName("s2x_nextmap_preview", text.data());
 		}
 
-		bool parse_multiplayer_map_rotation(std::vector<dedicated_match_t>& rotation)
+		bool parse_multiplayer_map_rotation(const std::string& value, std::vector<dedicated_match_t>& rotation)
 		{
 			rotation.clear();
-			if (!sv_maprotation || !sv_maprotation->current.string
-				|| !sv_maprotation->current.string[0])
-			{
-				console::error("Dedicated map rotation: sv_maprotation is empty.\n");
-				return false;
-			}
-
-			std::istringstream stream{ sv_maprotation->current.string };
+			std::istringstream stream{ value };
 			std::string token{};
 			auto gametype = utils::string::to_lower(party::loaded_gametype());
 			bool gametype_needs_map = false;
@@ -571,17 +617,10 @@ namespace dedicated_party
 			return true;
 		}
 
-		bool parse_zombies_map_rotation(std::vector<dedicated_match_t>& rotation)
+		bool parse_zombies_map_rotation(const std::string& value, std::vector<dedicated_match_t>& rotation)
 		{
 			rotation.clear();
-			if (!sv_maprotation || !sv_maprotation->current.string
-				|| !sv_maprotation->current.string[0])
-			{
-				console::error("Dedicated map rotation: sv_maprotation is empty.\n");
-				return false;
-			}
-
-			std::istringstream stream{ sv_maprotation->current.string };
+			std::istringstream stream{ value };
 			std::string token{};
 			const auto gametype = std::string{
 				game::environment::get_online_mode_info().default_gametype };
@@ -663,18 +702,85 @@ namespace dedicated_party
 			return true;
 		}
 
-		bool parse_map_rotation(std::vector<dedicated_match_t>& rotation)
+		bool parse_map_rotation(const std::string& value, std::vector<dedicated_match_t>& rotation)
 		{
 			switch (game::environment::get_mode())
 			{
 			case game::environment::mode::multiplayer:
-				return parse_multiplayer_map_rotation(rotation);
+				return parse_multiplayer_map_rotation(value, rotation);
 
 			case game::environment::mode::zombies:
-				return parse_zombies_map_rotation(rotation);
+				return parse_zombies_map_rotation(value, rotation);
 			}
 
 			return false;
+		}
+
+		bool parse_map_rotation(std::vector<dedicated_match_t>& rotation)
+		{
+			rotation.clear();
+			if (!sv_maprotation || !sv_maprotation->current.string
+				|| !sv_maprotation->current.string[0])
+			{
+				console::error("Dedicated map rotation: sv_maprotation is empty.\n");
+				return false;
+			}
+
+			return parse_map_rotation(sv_maprotation->current.string, rotation);
+		}
+
+		std::string build_map_rotation(const std::vector<dedicated_match_t>& rotation, const std::size_t start)
+		{
+			std::string result{};
+
+			for (auto i = start; i < rotation.size(); ++i)
+			{
+				if (!result.empty())
+				{
+					result.push_back(' ');
+				}
+
+				if (!game::environment::is_zombies())
+				{
+					result.append("gametype ");
+					result.append(rotation[i].gametype);
+					result.push_back(' ');
+				}
+
+				result.append("map ");
+				result.append(rotation[i].map_name);
+			}
+
+			return result;
+		}
+
+		std::optional<dedicated_match_t> take_map_rotation_current()
+		{
+			if (!sv_maprotation_current || !sv_maprotation_current->current.string
+				|| !sv_maprotation_current->current.string[0])
+			{
+				return {};
+			}
+
+			const std::string value = sv_maprotation_current->current.string;
+
+			std::vector<dedicated_match_t> rotation{};
+			const auto parsed = parse_map_rotation(value, rotation);
+
+			const auto remaining = parsed ? build_map_rotation(rotation, 1) : std::string{};
+			game::Dvar_SetString(sv_maprotation_current, remaining.data());
+
+			if (!parsed || rotation.empty())
+			{
+				console::error("Dedicated map rotation: ignoring invalid sv_mapRotationCurrent '%s'.\n",
+					value.data());
+				return {};
+			}
+
+			console::info("Dedicated map rotation: next match from sv_mapRotationCurrent is %s %s.\n",
+				rotation.front().map_name.data(), rotation.front().gametype.data());
+
+			return rotation.front();
 		}
 
 		void handle_map_rotate()
@@ -919,6 +1025,16 @@ namespace dedicated_party
 				auto match = std::move(*dedicated_party_state.requested_next_match);
 				dedicated_party_state.requested_next_match.reset();
 				return match;
+			}
+
+			if (auto match = take_map_rotation_current())
+			{
+				if (scripted.has_value())
+				{
+					console::info("Dedicated party: sv_mapRotationCurrent replaces the vote result %s %s.\n",
+						scripted->map_name.data(), scripted->gametype.data());
+				}
+				return std::move(*match);
 			}
 
 			if (scripted.has_value())
@@ -1253,6 +1369,72 @@ namespace dedicated_party
 		return dedicated_party_state.stage != dedicated_party_stage::inactive;
 	}
 
+	std::optional<lobby_status> get_lobby_status()
+	{
+		auto* party_data = get_waiting_game_lobby();
+		if (!party_data)
+		{
+			return {};
+		}
+
+		lobby_status status{};
+		status.map_name = dedicated_party_state.current_match.map_name;
+		status.gametype = dedicated_party_state.current_match.gametype;
+
+		for (auto index = 0; index < party_member_limit; ++index)
+		{
+			if (!is_remote_lobby_member(party_data, index))
+			{
+				continue;
+			}
+
+			const auto& member = party_data->members[index];
+			if (!member.xuid || !party_data->session)
+			{
+				continue;
+			}
+
+			// The game matches party and session members by xuid.
+			const auto& session_members = party_data->session->members;
+			const auto session_member = std::ranges::find_if(session_members, [&](const game::SessionMember& candidate)
+			{
+				return candidate.active && candidate.xuid == member.xuid;
+			});
+
+			// Rcon tools need a real IP to use the xuid as guid; S2x stores raw peers as NA_IP or NA_BROADCAST.
+			if (session_member == std::end(session_members)
+				|| (session_member->address.type != game::NA_IP && session_member->address.type != game::NA_BROADCAST))
+			{
+				continue;
+			}
+
+			status.members.push_back({
+				index,
+				static_cast<int>(session_member - std::begin(session_members)),
+				member.xuid,
+				std::string{member.name, strnlen(member.name, sizeof(member.name))},
+				network::net_adr_to_string(session_member->address),
+				member.state < 5,
+			});
+		}
+
+		return status;
+	}
+
+	bool kick_lobby_member(const int index, const std::string& reason)
+	{
+		auto* party_data = get_waiting_game_lobby();
+		if (!party_data || index < 0 || index >= party_member_limit || !is_remote_lobby_member(party_data, index))
+		{
+			return false;
+		}
+
+		lobby_kick_reason = reason;
+		game::PartyHost_KickMember(party_data, static_cast<std::uint8_t>(index), 1, "EXE_PLAYERKICKED");
+		lobby_kick_reason.clear();
+		return true;
+	}
+
 	std::string get_current_gametype()
 	{
 		if (!is_active())
@@ -1401,6 +1583,7 @@ namespace dedicated_party
 
 			party_host_start_party_hook.create(0x491DE0_g, party_host_start_party_stub);
 			utils::hook::call(0x4924A9_g, party_host_initialize_stub);
+			utils::hook::call(0x48CF62_g, send_lobby_kick_stub);
 
 			// Native counts include the owner. Check the configured human limit plus
 			// that member for join probes, individual joins, and atomic party joins.
@@ -1425,7 +1608,8 @@ namespace dedicated_party
 
 			// Only relax the score/time-limit checks for our persistent hosted lobby.
 			// Stock emits pa_joinfailed 46/47 here (XBOXLIVE_CANTJOINSESSION_GAMELIMIT).
-			// Capacity, migration, paused-game and Zombies-wave checks remain native.
+			// Capacity, migration and paused-game checks remain native; party.cpp
+			// separately bypasses the Zombies-wave restriction for all hosts.
 			utils::hook::call(0x486A7F_g, party_join_is_blocked_by_match_limit_stub);
 			utils::hook::call(0x486A9C_g, party_join_is_blocked_by_match_limit_stub);
 
@@ -1433,7 +1617,8 @@ namespace dedicated_party
 			{
 				sv_maprotation = game::Dvar_RegisterString(
 					"sv_maprotation", "", game::DVAR_FLAG_NONE);
-
+				sv_maprotation_current = game::Dvar_RegisterString(
+					"sv_mapRotationCurrent", "", game::DVAR_FLAG_NONE);
 				// A game script (for example a map vote) sets s2x_nextmap to "<map> <gametype>";
 				// the next return to the lobby consumes it. s2x_nextmap_api tells scripts that
 				// this build reads it; older builds read 0.
@@ -1443,6 +1628,7 @@ namespace dedicated_party
 					"s2x_nextmap_preview", "", game::DVAR_FLAG_NONE);
 				game::Dvar_RegisterInt("s2x_nextmap_api", 1, 1, 1, game::DVAR_FLAG_READ);
 				publish_next_preview();
+
 			}, scheduler::pipeline::main);
 
 			if (game::environment::is_multiplayer())

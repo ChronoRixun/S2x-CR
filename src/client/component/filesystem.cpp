@@ -149,73 +149,6 @@ namespace filesystem
 				startup();
 			}
 		}
-
-		// The normal startup line names the roots symbolically: the resolved
-		// AppData root carries the Windows user name and the game root can too,
-		// and this line ends up in shared console captures.
-		// A root matches only at a directory boundary (equal, or followed by '/'),
-		// and the longest matching root wins, so a game folder nested under the
-		// AppData root - or one that merely shares a textual prefix with it - is
-		// still shown as <game> rather than leaking its real name.
-		std::string describe_search_path(const std::filesystem::path& path)
-		{
-			const auto text = path.generic_string();
-			// A root is compared without its trailing separator (a game installed at
-			// a drive root reports "D:/"), so the boundary test below sees the '/'.
-			const auto trimmed = [](std::string root)
-			{
-				while (root.size() > 1 && root.back() == '/')
-				{
-					root.pop_back();
-				}
-
-				return root;
-			};
-
-			const std::pair<std::string, const char*> roots[] = {
-				{trimmed(game::get_appdata_path().generic_string()), "%LOCALAPPDATA%/s2x"},
-				{trimmed(utils::nt::library{}.get_folder().generic_string()), "<game>"},
-			};
-
-			const std::pair<std::string, const char*>* best = nullptr;
-			for (const auto& root : roots)
-			{
-				const auto& prefix = root.first;
-				if (prefix.empty() || !text.starts_with(prefix))
-				{
-					continue;
-				}
-
-				if (text.size() != prefix.size() && text[prefix.size()] != '/')
-				{
-					continue;
-				}
-
-				if (!best || prefix.size() > best->first.size())
-				{
-					best = &root;
-				}
-			}
-
-			return best ? best->second + text.substr(best->first.size()) : text;
-		}
-
-		void log_search_paths()
-		{
-			std::string joined{};
-			for (const auto& path : get_search_paths_internal())
-			{
-				if (!joined.empty())
-				{
-					joined += "; ";
-				}
-
-				joined += describe_search_path(path);
-			}
-
-			console::info("[FS] Loose file search paths (highest priority first): %s\n", joined.data());
-			console::debug("[FS] AppData root resolves to %s\n", game::get_appdata_path().generic_string().data());
-		}
 	}
 
 	std::string read_file(const std::string& path)
@@ -347,7 +280,6 @@ namespace filesystem
 		void post_unpack() override
 		{
 			startup();
-			log_search_paths();
 
 			// Register the custom directories in the engine search path on every FS startup.
 			fs_startup_hook.create(game::FS_Startup, fs_startup_stub);

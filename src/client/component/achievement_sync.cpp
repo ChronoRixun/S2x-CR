@@ -1,39 +1,68 @@
 #include <std_include.hpp>
 #include "loader/component_loader.hpp"
+
 #include "achievement_sync.hpp"
 #include "component/scheduler.hpp"
 #include "game/game.hpp"
+#include "steam/steam.hpp"
 
 namespace achievement_sync
 {
 	namespace
 	{
 		std::atomic_bool accepting_refresh_requests{};
-		std::atomic_bool refresh_pending{};
-		bool lobby_was_loaded{};
+		std::atomic_uint64_t local_user{};
+		unsigned int refresh_attempts_remaining{};
 
-		void refresh_when_ready()
+		bool refresh_user_achievements()
 		{
-			if (!accepting_refresh_requests.load()) return;
-			const auto lobby = game::virtual_lobby_loaded();
-			if (lobby && !lobby_was_loaded) refresh_pending = true;
-			lobby_was_loaded = lobby;
-			if (!lobby || !refresh_pending.load() || !game::AE_GetUserContext(0)) return;
-			// The synchronous injection hook owns all replies, including the legacy
-			// hidden achievements. Never overwrite its merged response with a second
-			// legacy-only response after the native fetch has returned.
-			const auto* active = reinterpret_cast<const unsigned*>(game::AE_UserAchievementTaskData.get() + 0xC0);
-			if (*active) return;
-			if (!refresh_pending.exchange(false)) return;
-			char transaction[32]{};
-			game::AE_GenerateTransactionId(transaction);
-			if (!game::AE_FetchUserAchievementsByPage(0, "", transaction, 0)) refresh_pending = true;
+			if (!accepting_refresh_requests.load())
+			{
+				refresh_attempts_remaining = 0;
+				return scheduler::cond_end;
+			}
+
+			std::array<char, 32> transaction{};
+			game::AE_GenerateTransactionId(transaction.data());
+			if (game::AE_FetchUserAchievements(0, transaction.data()))
+			{
+				refresh_attempts_remaining = 0;
+				return scheduler::cond_end;
+			}
+
+			return --refresh_attempts_remaining == 0;
 		}
+	}
+
+	std::uint64_t local_user_id()
+	{
+		return local_user.load();
 	}
 
 	void request_refresh()
 	{
-		if (accepting_refresh_requests.load()) refresh_pending = true;
+		if (!accepting_refresh_requests.load())
+		{
+			return;
+		}
+
+		scheduler::once([]
+		{
+			if (!accepting_refresh_requests.load())
+			{
+				return;
+			}
+
+			const auto already_pending = refresh_attempts_remaining != 0;
+			refresh_attempts_remaining = 31;
+			if (!already_pending)
+			{
+				// The stock entry point rejects an active fetch or task backoff.
+				// Retry only while a local save is waiting to be fetched. Responses
+				// arrive through bdReward and the game's normal Demonware pump.
+				scheduler::schedule(refresh_user_achievements, scheduler::pipeline::main, 1s);
+			}
+		}, scheduler::pipeline::main);
 	}
 
 	class component final : public multiplayer_component
@@ -41,15 +70,17 @@ namespace achievement_sync
 	public:
 		void post_unpack() override
 		{
-			if (game::environment::is_dedicated() || !game::environment::is_zombies()) return;
-			accepting_refresh_requests = true;
-			scheduler::loop(refresh_when_ready, scheduler::pipeline::main, 100ms);
+			accepting_refresh_requests = !game::environment::is_dedicated();
+			if (accepting_refresh_requests)
+			{
+				scheduler::once([] { local_user = steam::SteamUser()->GetSteamID().bits; }, scheduler::pipeline::main);
+			}
 		}
 
 		void pre_destroy() override
 		{
 			accepting_refresh_requests = false;
-			refresh_pending = false;
+			local_user = 0;
 		}
 	};
 }

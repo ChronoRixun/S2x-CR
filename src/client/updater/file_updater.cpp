@@ -3,6 +3,7 @@
 #include "file_updater.hpp"
 #include "updater.hpp"
 #include "update_source.hpp"
+#include "game/player_profile.hpp"
 
 #include <utils/concurrency.hpp>
 #include <utils/cryptography.hpp>
@@ -94,6 +95,19 @@ namespace updater
 				(normalized == name && normalized.starts_with("data/") && normalized.size() > 5);
 		}
 
+		const file_info* find_host_file_info(const std::vector<file_info>& outdated_files)
+		{
+			for (const auto& file : outdated_files)
+			{
+				if (file.name == UPDATE_HOST_BINARY)
+				{
+					return &file;
+				}
+			}
+
+			return nullptr;
+		}
+
 		std::vector<file_info> parse_file_infos(const std::string& json)
 		{
 			rapidjson::Document document{};
@@ -144,31 +158,31 @@ namespace updater
 				files.emplace_back(std::move(info));
 			}
 
+			if (!find_host_file_info(files) || std::ranges::none_of(files, [](const file_info& file)
+			{
+				return file.name.starts_with("data/");
+			}))
+			{
+				throw std::runtime_error("The update manifest is incomplete.");
+			}
+
 			return files;
 		}
 
 		std::vector<file_info> get_file_infos()
 		{
-			const auto json = utils::http::get_data(std::string{update_source::manifest} + get_cache_buster());
+			std::vector<file_info> files{};
+			const auto json = utils::http::get_data(std::string{update_source::manifest} + get_cache_buster(),
+				{}, {}, 2, update_source::fallback_connect_to, [&files](const std::string& body)
+				{
+					files = parse_file_infos(body);
+				});
 			if (!json)
 			{
 				throw std::runtime_error("Unable to download the update manifest.");
 			}
 
-			return parse_file_infos(*json);
-		}
-
-		const file_info* find_host_file_info(const std::vector<file_info>& outdated_files)
-		{
-			for (const auto& file : outdated_files)
-			{
-				if (file.name == UPDATE_HOST_BINARY)
-				{
-					return &file;
-				}
-			}
-
-			return nullptr;
+			return files;
 		}
 
 		std::size_t get_optimal_concurrent_download_count(const std::size_t file_count)
@@ -244,7 +258,9 @@ namespace updater
 
 	void file_updater::run() const
 	{
-		this->run(get_file_infos());
+		const auto files = get_file_infos();
+		this->run(files);
+		// CR ships additional loose scripts; an upstream manifest cannot prune them.
 	}
 
 	void file_updater::run(const std::vector<file_info>& files) const
@@ -276,9 +292,15 @@ namespace updater
 		const auto data = utils::http::get_data(url, {}, [this, &file](const std::size_t progress)
 		{
 			this->listener_.file_progress(file, progress);
+		}, 2, update_source::fallback_connect_to, [this, &file](const std::string& body)
+		{
+			if (body.size() != file.size || this->get_hash(body) != file.hash)
+			{
+				throw std::runtime_error("Failed to download or verify: " + file.name);
+			}
 		});
 
-		if (!data || data->size() != file.size || this->get_hash(*data) != file.hash)
+		if (!data)
 		{
 			throw std::runtime_error("Failed to download or verify: " + file.name);
 		}
@@ -353,7 +375,7 @@ namespace updater
 			std::rethrow_exception(update_error);
 		}
 
-		if (!utils::flags::has_flag("-norelaunch") && !utils::nt::relaunch_self())
+		if (!utils::flags::has_flag("-norelaunch") && !utils::nt::relaunch_self(player_profile::relaunch_arguments()))
 		{
 			throw std::runtime_error("The update was installed, but S2x could not be relaunched.");
 		}
@@ -505,6 +527,47 @@ namespace updater
 			if (attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
 			{
 				throw std::runtime_error("The update path contains a reparse point: " + file.name);
+			}
+		}
+	}
+
+	void file_updater::remove_obsolete_data(const std::vector<file_info>& files) const
+	{
+		file_info local_file{};
+		local_file.name = "data";
+		this->validate_file_path(local_file);
+		const auto data_path = this->base_ / "data";
+		if (!std::filesystem::exists(data_path))
+		{
+			return;
+		}
+
+		std::unordered_set<std::string> current_files{};
+		for (const auto& file : files)
+		{
+			current_files.emplace(utils::string::to_lower(file.name));
+		}
+
+		std::vector<std::filesystem::path> entries{};
+		for (const auto& entry : std::filesystem::recursive_directory_iterator(data_path))
+		{
+			local_file.name = entry.path().lexically_relative(this->base_).generic_string();
+			// Check before descending into directories. Never follow junctions or
+			// symlinks out of the managed tree, and validate it all before deleting.
+			this->validate_file_path(local_file);
+			entries.push_back(entry.path());
+		}
+
+		// Children precede their parents so obsolete folders become removable.
+		for (auto entry = entries.rbegin(); entry != entries.rend(); ++entry)
+		{
+			local_file.name = entry->lexically_relative(this->base_).generic_string();
+			this->validate_file_path(local_file);
+			if (std::filesystem::is_directory(*entry)
+				? std::filesystem::is_empty(*entry)
+				: !current_files.contains(utils::string::to_lower(local_file.name)))
+			{
+				std::filesystem::remove(*entry);
 			}
 		}
 	}

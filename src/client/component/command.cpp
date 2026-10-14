@@ -40,6 +40,12 @@ namespace command
 			return map;
 		}
 
+		std::vector<sv_command_param_function>& get_client_command_callbacks()
+		{
+			static std::vector<sv_command_param_function> callbacks{};
+			return callbacks;
+		}
+
 		struct mp_player_context
 		{
 			game::mp::client_t* session{};
@@ -394,163 +400,105 @@ namespace command
 			}
 		}
 
-		// Lua assets are Havok Script bytecode blobs; the menu scripts that gate the HQ
-		// vendor live in this pool, so the dump is the only way to read what the UI expects.
-		struct lua_file_entry
+		std::string escape_csv(const char* value)
 		{
-			std::string name{};
-			const char* buffer{};
-			int len{};
-			int stripping_type{};
-		};
-
-		struct lua_file_context
-		{
-			std::string filter{};
-			std::size_t limit{};
-			std::size_t matched{};
-			std::vector<lua_file_entry> entries{};
-		};
-
-		std::string sanitise_asset_name(const std::string& name)
-		{
-			std::string result{};
-			result.reserve(name.size());
-
-			for (const auto character : name)
+			const std::string_view text = value ? value : "";
+			if (text.find_first_of(",\"\r\n") == std::string_view::npos)
 			{
-				const auto value = static_cast<unsigned char>(character);
-				if (std::isalnum(value) || character == '.' || character == '-' || character == '_')
-				{
-					result.push_back(character);
-				}
-				else
-				{
-					result.push_back('_');
-				}
+				return std::string(text);
 			}
 
-			if (result.empty())
+			std::string result = "\"";
+			for (const auto c : text)
 			{
-				result = "unnamed";
+				if (c == '"')
+				{
+					result.push_back('"');
+				}
+
+				result.push_back(c);
 			}
 
+			result.push_back('"');
 			return result;
 		}
 
-		bool write_lua_file(const std::string& name, const char* buffer, const int len,
-			const int stripping_type, const std::string& path)
+		void dump_string_tables(const params& arguments)
 		{
-			if (!buffer || len <= 0)
+			struct dump_context
 			{
-				console::error("dumpluafile: '%s' has no buffer (len %d)\n", name.data(), len);
-				return false;
-			}
+				std::string filter;
+				std::vector<std::pair<std::string, std::string>> tables;
+			};
 
-			const std::string bytes{buffer, static_cast<std::size_t>(len)};
-			if (!utils::io::write_file(path, bytes))
+			dump_context context{arguments.size() >= 2 ? arguments[1] : ""};
+			// Copy asset contents while enumeration holds the database read lock.
+			game::DB_EnumXAssets_FastFile(game::ASSET_TYPE_STRINGTABLE, [](const game::XAssetHeader header, void* data)
 			{
-				console::error("dumpluafile: cannot write %s\n", path.data());
-				return false;
-			}
-
-			console::info("dumpluafile: %s -> %s (%d bytes, stripping %d)\n",
-				name.data(), path.data(), len, stripping_type);
-			return true;
-		}
-
-		void dump_lua_file(const params& arguments)
-		{
-			if (arguments.size() < 2)
-			{
-				console::info("dumpluafile <asset name> [outfile]: dump a LUAFILE asset to s2x/dump/lua\n");
-				return;
-			}
-
-			const std::string name = arguments[1];
-			const auto* lua_file = game::DB_FindXAssetHeader(
-				game::ASSET_TYPE_LUAFILE, name.data(), false).luaFile;
-
-			if (!lua_file)
-			{
-				console::error("dumpluafile: no LUAFILE asset named '%s'\n", name.data());
-				return;
-			}
-
-			std::string path{};
-			if (arguments.size() > 2)
-			{
-				path = "s2x/dump/lua/";
-				path.append(sanitise_asset_name(arguments[2]));
-			}
-			else
-			{
-				path = "s2x/dump/lua/" + sanitise_asset_name(name) + ".luac";
-			}
-
-			write_lua_file(name, lua_file->buffer, lua_file->len, lua_file->strippingType, path);
-		}
-
-		void collect_lua_file(const game::XAssetHeader header, void* data)
-		{
-			auto& context = *static_cast<lua_file_context*>(data);
-			const game::XAsset asset{game::ASSET_TYPE_LUAFILE, header};
-			const auto* asset_name = game::DB_GetXAssetName(&asset);
-
-			if (!asset_name || !header.luaFile)
-			{
-				return;
-			}
-
-			if (!context.filter.empty()
-				&& utils::string::to_lower(asset_name).find(context.filter) == std::string::npos)
-			{
-				return;
-			}
-
-			++context.matched;
-			if (context.entries.size() >= context.limit)
-			{
-				return;
-			}
-
-			// Writing inside the enumeration would hold the database lock for the whole dump.
-			context.entries.emplace_back(lua_file_entry{
-				asset_name, header.luaFile->buffer, header.luaFile->len, header.luaFile->strippingType});
-		}
-
-		void dump_lua_files(const params& arguments)
-		{
-			constexpr std::size_t limit = 200;
-
-			lua_file_context context{};
-			context.limit = limit;
-			if (arguments.size() > 1)
-			{
-				context.filter = utils::string::to_lower(arguments[1]);
-			}
-
-			game::DB_EnumXAssets_FastFile(game::ASSET_TYPE_LUAFILE, collect_lua_file, &context, true);
-
-			console::info("dumpluafiles: '%s' matched %zu asset(s), dumping %zu\n",
-				context.filter.empty() ? "*" : context.filter.data(), context.matched, context.entries.size());
-
-			std::size_t written = 0;
-			for (const auto& entry : context.entries)
-			{
-				const auto path = "s2x/dump/lua/" + sanitise_asset_name(entry.name) + ".luac";
-				if (write_lua_file(entry.name, entry.buffer, entry.len, entry.stripping_type, path))
+				auto& context = *static_cast<dump_context*>(data);
+				const auto* table = header.stringTable;
+				if (!table || !table->name || (!context.filter.empty()
+					&& !utils::string::match_compare(context.filter, table->name, false)))
 				{
-					++written;
+					return;
 				}
-			}
 
-			if (context.matched > context.entries.size())
+				std::string buffer{};
+				for (auto row = 0; row < table->rowCount; ++row)
+				{
+					for (auto column = 0; column < table->columnCount; ++column)
+					{
+						if (column)
+						{
+							buffer.push_back(',');
+						}
+
+						buffer.append(escape_csv(table->values[row * table->columnCount + column].string));
+					}
+
+					buffer.append("\r\n");
+				}
+
+				context.tables.emplace_back(table->name, std::move(buffer));
+			}, &context, true);
+
+			for (const auto& [name, contents] : context.tables)
 			{
-				console::info("dumpluafiles: capped at %zu of %zu matches\n", limit, context.matched);
+				utils::io::write_file(std::format("s2x/dump/stringtables/{}", name), contents);
 			}
 
-			console::info("dumpluafiles: wrote %zu file(s)\n", written);
+			console::info("Dumped %zu stringtables to s2x/dump/stringtables\n", context.tables.size());
+		}
+
+		void dump_localization(const params& arguments)
+		{
+			struct dump_context
+			{
+				std::string filter;
+				std::string buffer;
+				int count{};
+			};
+
+			dump_context context{arguments.size() >= 2 ? arguments[1] : ""};
+			game::DB_EnumXAssets_FastFile(game::ASSET_TYPE_LOCALIZE, [](const game::XAssetHeader header, void* data)
+			{
+				auto& context = *static_cast<dump_context*>(data);
+				const auto* entry = header.localize;
+				if (!entry || !entry->name || (!context.filter.empty()
+					&& !utils::string::match_compare(context.filter, entry->name, false)))
+				{
+					return;
+				}
+
+				context.buffer.append(escape_csv(entry->name));
+				context.buffer.push_back(',');
+				context.buffer.append(escape_csv(entry->value));
+				context.buffer.append("\r\n");
+				++context.count;
+			}, &context, true);
+
+			utils::io::write_file("s2x/dump/localization.csv", context.buffer);
+			console::info("Dumped %i localized strings to s2x/dump/localization.csv\n", context.count);
 		}
 
 		void dump_commands(const params& arguments)
@@ -596,9 +544,9 @@ namespace command
 		void add_utility_commands()
 		{
 			command::add("listassetpool", list_asset_pool);
-			command::add("dumpluafile", dump_lua_file);
-			command::add("dumpluafiles", dump_lua_files);
 			command::add("commandDump", dump_commands);
+			command::add("dumpStringtables", dump_string_tables);
+			command::add("dumpLocalization", dump_localization);
 		}
 
 		void add_sp_developer_commands()
@@ -688,16 +636,18 @@ namespace command
 		void client_command_mp_stub(const int client_num)
 		{
 			const params_sv params{};
+			// Own chat before callbacks or native handlers can retokenize commands.
 			const std::string_view verb{params[0]};
 			const auto chat = verb == "say" || verb == "say_team";
-			// Own the payload before native handlers or script callbacks can tokenize
-			// another command. Notifications observe chat and do not suppress delivery.
-			// The chat prompt prefixes its text with 0x1F so the HUD can tell chat from
-			// prints; a console `say` carries none. Scripts get what the player typed.
 			auto text = chat ? params.join(1) : std::string{};
 			if (!text.empty() && text.front() == '\x1F') text.erase(0, 1);
 			text = text.substr(0, 256);
 			const auto team = verb == "say_team";
+
+			for (const auto& callback : get_client_command_callbacks())
+			{
+				callback(client_num, params);
+			}
 
 			const auto handled = execute_custom_sv_command_internal(client_num, params);
 			if (!handled)
@@ -919,6 +869,11 @@ namespace command
 		}
 
 		add_server_raw(command.data());
+	}
+
+	void on_client_command(sv_command_param_function callback)
+	{
+		get_client_command_callbacks().push_back(std::move(callback));
 	}
 
 	struct component final : generic_component

@@ -12,7 +12,7 @@ try {
  if($LASTEXITCODE){throw 'Application build failed'}
  $out=Join-Path $root 'build/server-manager-tests'
  New-Item -ItemType Directory -Force $out | Out-Null
- $backend=@('tools/ServerManager/Services/MasterBrowserClient.cs','tools/ServerManager/Models/MasterServerRow.cs','tests/server-manager/MasterBrowserTests.cs')|ForEach-Object {(Resolve-Path $_).Path}
+ $backend=@('tools/ServerManager/Services/ServerQuery.cs','tools/ServerManager/Services/MasterBrowserClient.cs','tools/ServerManager/Models/MasterServerRow.cs','tests/server-manager/MasterBrowserTests.cs')|ForEach-Object {(Resolve-Path $_).Path}
  & $RoslynCsc /nologo "/out:$out/master-tests.exe" @backend
  if($LASTEXITCODE){throw 'Backend test compile failed'}
  & "$out/master-tests.exe"

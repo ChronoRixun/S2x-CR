@@ -4,7 +4,6 @@
 #include "scheduler.hpp"
 
 #include "game/game.hpp"
-#include "component/console/console.hpp"
 
 #include <cassert>
 #include <utils/hook.hpp>
@@ -18,28 +17,11 @@ namespace scheduler
 		struct task
 		{
 			std::function<bool()> handler{};
-			std::source_location location{};
 			std::chrono::milliseconds interval{};
 			std::chrono::high_resolution_clock::time_point last_call{};
 		};
 
 		using task_list = std::vector<task>;
-
-		// The diagnostic must not throw from inside the catch handlers below: a
-		// logging failure (a console log path that cannot be created, an allocation
-		// failure) would escape the sibling handler and take the process with it,
-		// which is what those handlers exist to prevent. Best effort only.
-		void report_dropped_task(const std::source_location& location, const char* what) noexcept
-		{
-			try
-			{
-				console::error("[scheduler] dropped task %s (%s:%u): %s\n",
-					location.function_name(), location.file_name(), location.line(), what);
-			}
-			catch (...)
-			{
-			}
-		}
 
 		class task_pipeline
 		{
@@ -71,23 +53,7 @@ namespace scheduler
 
 						i->last_call = now;
 
-						// Scheduler callbacks run inside game frames. An escaping exception
-						// would unwind through native frames and terminate the process, so
-						// drop a failing task rather than replaying partially completed work.
-						auto res = cond_end;
-						try
-						{
-							res = i->handler();
-						}
-						catch (const std::exception& error)
-						{
-							report_dropped_task(i->location, error.what());
-						}
-						catch (...)
-						{
-							report_dropped_task(i->location, "unknown exception");
-						}
-
+						const auto res = i->handler();
 						if (res == cond_end)
 						{
 							i = tasks.erase(i);
@@ -152,13 +118,12 @@ namespace scheduler
 	}
 
 	void schedule(const std::function<bool()>& callback, const pipeline type,
-	              const std::chrono::milliseconds delay, const std::source_location location)
+	              const std::chrono::milliseconds delay)
 	{
 		assert(type >= 0 && type < pipeline::count);
 
 		task task;
 		task.handler = callback;
-		task.location = location;
 		task.interval = delay;
 		task.last_call = std::chrono::high_resolution_clock::now();
 
@@ -166,23 +131,23 @@ namespace scheduler
 	}
 
 	void loop(const std::function<void()>& callback, const pipeline type,
-	          const std::chrono::milliseconds delay, const std::source_location location)
+	          const std::chrono::milliseconds delay)
 	{
 		schedule([callback]()
 		{
 			callback();
 			return cond_continue;
-		}, type, delay, location);
+		}, type, delay);
 	}
 
 	void once(const std::function<void()>& callback, const pipeline type,
-	          const std::chrono::milliseconds delay, const std::source_location location)
+	          const std::chrono::milliseconds delay)
 	{
 		schedule([callback]()
 		{
 			callback();
 			return cond_end;
-		}, type, delay, location);
+		}, type, delay);
 	}
 
 	class component final : public generic_component

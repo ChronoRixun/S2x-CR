@@ -79,9 +79,8 @@ namespace S2x.ServerManager.Services
             var result = new Discovery();
             using (var udp = Socket())
             {
-                // The master speaks standard OOB (no S2 trailer); game-server queries require it.
-                var masterPacket = Packet("getservers S2 1");
-                Send(udp, masterPacket.Take(masterPacket.Length - 3).ToArray(), master);
+                // Upstream sends raw OOB datagrams.
+                Send(udp, RawPacket("getservers S2 1"), master);
                 var watch = Stopwatch.StartNew();
                 int packets = 0;
                 while (watch.ElapsedMilliseconds < masterTimeout && packets < 256)
@@ -113,11 +112,12 @@ namespace S2x.ServerManager.Services
                 using (var udp = Socket())
                 {
                     // Brent's stock S2x understands getinfo; the fork also offers richer s2x_getInfo.
-                    foreach (var command in new[] { "s2x_getInfo", "getinfo" })
+                    for (int attempt = 0; attempt < 4; attempt++)
                     {
                         token.ThrowIfCancellationRequested();
+                        var command = attempt < 2 ? "s2x_getInfo" : "getinfo";
                         var challenge = Guid.NewGuid().ToString("N");
-                        Send(udp, Packet(command + " " + challenge), endpoint);
+                        Send(udp, attempt % 2 == 0 ? RawPacket(command + " " + challenge) : Packet(command + " " + challenge), endpoint);
                         var watch = Stopwatch.StartNew();
                         int packets = 0;
                         while (watch.ElapsedMilliseconds < queryTimeout && packets < 128)
@@ -138,7 +138,7 @@ namespace S2x.ServerManager.Services
                             row.Clients = Number(fields, "clients");
                             row.Bots = Number(fields, "s2x_bots") ?? Number(fields, "bots");
                             row.MaxClients = Number(fields, "sv_maxclients") ?? Number(fields, "maxclients");
-                            row.Humans = HumanCount(fields, command == "s2x_getInfo");
+                            row.Humans = HumanCount(fields, command == "s2x_getInfo", PayloadLength(bytes) == bytes.Length - 3);
                             row.PingMs = (int)watch.ElapsedMilliseconds;
                             row.Status = Get(fields, "sv_running") == "0" ? "Responding (lobby)" : "Responding";
                             return row;
@@ -173,6 +173,11 @@ namespace S2x.ServerManager.Services
             while ((sum >> 16) != 0) sum = (sum & 65535) + (sum >> 16);
             return (ushort)~sum;
         }
+        internal static byte[] RawPacket(string text)
+        {
+            return new byte[] { 255, 255, 255, 255 }.Concat(Encoding.UTF8.GetBytes(text)).ToArray();
+        }
+        // Older CR builds use the stock checksum/socket trailer.
         internal static byte[] Packet(string text)
         {
             var body = Encoding.UTF8.GetBytes(text);
@@ -189,7 +194,7 @@ namespace S2x.ServerManager.Services
         {
             if (bytes == null || bytes.Length < 5 || bytes.Length > 16384) return 0;
             for (int i = 0; i < 4; i++) if (bytes[i] != 255) return 0;
-            if (bytes.Length >= 7 && Checksum(bytes, bytes.Length - 3) == ((bytes[bytes.Length - 3] << 8) | bytes[bytes.Length - 2])) return bytes.Length - 3;
+            if (bytes.Length >= 7 && (bytes[bytes.Length - 1] == 0x02 || bytes[bytes.Length - 1] == 0x20) && Checksum(bytes, bytes.Length - 3) == ((bytes[bytes.Length - 3] << 8) | bytes[bytes.Length - 2])) return bytes.Length - 3;
             return bytes.Length; // Masters use standard untrailed OOB packets.
         }
         internal static bool TryMaster(byte[] bytes, out List<IPEndPoint> endpoints, out bool end)
@@ -224,8 +229,8 @@ namespace S2x.ServerManager.Services
         {
             fields = new Dictionary<string, string>(StringComparer.Ordinal);
             int length = PayloadLength(bytes);
-            // Both supported S2x query commands reply through NET_SendPacket with this trailer.
-            if (length < 5 || length > 8192 || length != bytes.Length - 3) return false;
+            // Strip only a verified legacy trailer; raw final fields stay intact.
+            if (length < 5 || length > 8192) return false;
             string text;
             try { text = new UTF8Encoding(false, true).GetString(bytes, 4, length - 4); }
             catch (DecoderFallbackException) { return false; }
@@ -241,23 +246,13 @@ namespace S2x.ServerManager.Services
             }
             return Get(fields, "challenge") == challenge && Get(fields, "gamename") == "S2" && Get(fields, "protocol") == "1";
         }
-        internal static int? HumanCount(Dictionary<string, string> fields, bool customResponse)
+        internal static int? HumanCount(Dictionary<string, string> fields, bool customResponse, bool legacy = false)
         {
             var clients = Number(fields, "clients");
             var bots = Number(fields, "s2x_bots") ?? Number(fields, "bots");
             if (!clients.HasValue) return null;
-            if (customResponse)
-            {
-                if (Get(fields, "party_session") == "1") return clients;
-                // Unknown session semantics must not become an invented human count.
-                if (fields.ContainsKey("party_session")) return null;
-            }
-            else if (fields.ContainsKey("s2x_bots"))
-            {
-                // getinfo omits party_session even when clients means party humans.
-                // With bots present, total-client and party-human interpretations differ.
-                return bots == 0 ? clients : (int?)null;
-            }
+            // Older CR party replies explicitly counted party members (humans).
+            if (legacy && customResponse && Get(fields, "party_session") == "1") return clients;
             return bots.HasValue && bots.Value <= clients.Value ? clients.Value - bots.Value : (int?)null;
         }
         private static string Get(Dictionary<string, string> fields, string key) { string value; return fields.TryGetValue(key, out value) ? value : null; }

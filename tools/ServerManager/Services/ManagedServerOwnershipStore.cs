@@ -112,7 +112,9 @@ namespace S2x.ServerManager.Services
             }
             using (var search = new ManagementObjectSearcher("SELECT CommandLine FROM Win32_Process WHERE ProcessId = " + record.Pid))
             {
-            search.Options.Timeout = TimeSpan.FromMilliseconds(500);
+            // Cold Windows process queries exceeded 500 ms in the rebuild regressions.
+            // Keep verification bounded while allowing normal WMI startup latency; failure stays closed.
+            search.Options.Timeout = TimeSpan.FromMilliseconds(2000);
             using (var rows = search.Get())
             {
                 foreach (ManagementObject row in rows)

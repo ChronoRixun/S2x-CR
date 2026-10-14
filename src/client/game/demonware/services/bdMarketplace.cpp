@@ -1,51 +1,107 @@
 #include <std_include.hpp>
 #include "../dw_include.hpp"
-#include "game/demonware/request_trace.hpp"
-#include "../hq_marketplace.hpp"
-#include "../hq_protocol.hpp"
-#include "../hq_vendor.hpp"
-#include "../hq_item_data.hpp"
-#include "../hq_inventory_cache.hpp"
-#include "../hq_products.hpp"
-#include "steam/steam.hpp"
+
+#include "game/demonware/marketplace/catalog.hpp"
+#include "game/demonware/marketplace/collection.hpp"
+#include "game/demonware/marketplace/inventory.hpp"
+#include "game/demonware/marketplace/pawn.hpp"
+#include "game/demonware/marketplace/purchase.hpp"
+#include "game/demonware/marketplace/queries.hpp"
+#include "game/demonware/marketplace/promotional_vouchers.hpp"
+#include "game/demonware/runtime_context.hpp"
+
 #include "game/game.hpp"
 
 namespace demonware
 {
 	namespace
 	{
-		void add_inventory(service_reply& reply, const hq_economy::item& item)
+		void send_pushes(service_server* server, const std::vector<std::string>& messages)
 		{
-			auto result = std::make_unique<bdMarketplaceInventory>();
-			hq_inventory_cache::fill_result(*result, item, steam::SteamUser()->GetSteamID().bits, time(nullptr));
-			reply.add(result);
+			for (const auto& message : messages)
+			{
+				byte_buffer push{message};
+				server->create_message(BD_LOBBY_SERVICE_PUSH_MESSAGE).send(&push, true);
+			}
 		}
 
-		// structured: the handler answers with send_struct(), so its failure reply must too.
-		template <typename F>
-		void guarded(service_server* server, const std::uint8_t task, F callback, const bool structured = false)
+		void send_query(service_server* server, const std::uint8_t task, marketplace_queries::result response)
 		{
-			// The reply is always sent; only the console line is rate limited, per task and
-			// per message, so a damaged store restates "invalid economy schema; original
-			// preserved" once a minute instead of on every poll while a different failure
-			// on the same task still reports the moment it first happens.
-			try { callback(); }
-			catch (const std::exception& error)
+			auto reply = server->create_reply(task, response.error);
+			if (!response.error)
 			{
-				if (hq_protocol::report_due("marketplace/" + std::to_string(task) + "/" + error.what()))
-					console::error("[HQ marketplace] task %u failed: %s\n", task, error.what());
-				auto reply = server->create_reply(task, BD_HANDLE_TASK_FAILED);
-				if (structured) reply.send_struct();
-				else reply.send();
+				for (auto& record : response.records)
+				{
+					reply.add(record);
+				}
 			}
-			catch (...)
+
+			reply.send();
+		}
+
+		template <typename Result>
+		void send_catalog(service_server* server, const std::uint8_t task, const Result& response)
+		{
+			const auto error = marketplace_catalog::task_error(response.status);
+
+			auto reply = server->create_reply(task, error);
+			if (!error)
 			{
-				if (hq_protocol::report_due("marketplace/" + std::to_string(task) + "/unknown"))
-					console::error("[HQ marketplace] task %u failed with an unknown exception\n", task);
-				auto reply = server->create_reply(task, BD_HANDLE_TASK_FAILED);
-				if (structured) reply.send_struct();
-				else reply.send();
+				for (const auto& raw : response.records)
+				{
+					auto record = std::make_unique<marketplace_catalog::raw_task_result>(raw);
+					reply.add(record);
+				}
 			}
+
+			reply.send();
+		}
+
+		template <typename Result>
+		void send_struct_result(service_server* server, const std::uint8_t task, Result result)
+		{
+			auto response = std::make_unique<Result>(std::move(result));
+
+			auto reply = server->create_reply(task, response->error);
+			if (!response->error)
+			{
+				reply.add(response);
+			}
+
+			reply.send_struct();
+		}
+
+		bool is_purchasable_sku_type(const std::uint8_t type)
+		{
+			return type == marketplace_sku::quartermaster_sku_type || type == marketplace_sku::collection_sku_type;
+		}
+
+		const marketplace_sku::result* find_purchasable_sku(const marketplace_catalog::catalog& catalog,
+			const std::uint32_t sku_id)
+		{
+			for (const auto& entry : catalog.skus())
+			{
+				if (entry.fields.sku_id == sku_id && is_purchasable_sku_type(entry.fields.sku_type))
+				{
+					return &entry.fields;
+				}
+			}
+
+			return nullptr;
+		}
+
+		bool is_pawn_conversion(const marketplace_collection::request& input,
+			const std::shared_ptr<const pawn_catalog::catalog>& pawns)
+		{
+			if (const auto receipt = marketplace_store::find_transaction("marketplace:242:" + input.client_tx))
+			{
+				return receipt->request_fingerprint.starts_with("pawn:");
+			}
+
+			return pawns && std::ranges::any_of(pawns->items, [&](const auto& entry)
+			{
+				return !entry.second.rule.empty() && entry.second.rule == input.rule;
+			});
 		}
 	}
 
@@ -55,13 +111,15 @@ namespace demonware
 		this->register_task(43, &bdMarketplace::purchaseOnSteamInitialize);
 		this->register_task(44, &bdMarketplace::purchaseOnSteamFinalize);
 		this->register_task(49, &bdMarketplace::getExpiredInventoryItems);
+		this->register_task(50, &bdMarketplace::deleteInventoryItems);
 		this->register_task(58, &bdMarketplace::validateInventoryItemsToken);
 		this->register_task(60, &bdMarketplace::steamProcessDurable);
 		this->register_task(85, &bdMarketplace::steamProcessDurableV2);
 		this->register_task(96, &bdMarketplace::consumeInventoryItems);
-		this->register_task(hq_products::task, &bdMarketplace::getProducts);
+		this->register_task(99, &bdMarketplace::getProducts);
 		this->register_task(106, &bdMarketplace::purchaseSkus);
 		this->register_task(111, &bdMarketplace::getSkusPaginated);
+		this->register_task(123, &bdMarketplace::purchaseSkusV3);
 		this->register_task(130, &bdMarketplace::getBalance);
 		this->register_task(132, &bdMarketplace::getBalanceV2);
 		this->register_task(165, &bdMarketplace::getInventoryPaginated);
@@ -69,342 +127,183 @@ namespace demonware
 		this->register_task(193, &bdMarketplace::putPlayersInventoryItems);
 		this->register_task(199, &bdMarketplace::pawnItems);
 		this->register_task(232, &bdMarketplace::getEntitlements);
-		this->register_task(242, &bdMarketplace::unknown242);
+		this->register_task(242, &bdMarketplace::applyConversionRule);
 	}
 
-	void bdMarketplace::startExchangeTransaction(service_server* server, byte_buffer* buffer) const
+	void bdMarketplace::startExchangeTransaction(service_server* server, byte_buffer* /*buffer*/) const
 	{
-
-		hq_protocol::trace("marketplace_42", buffer->get_remaining());		// TODO:
-		auto reply = server->create_reply(this->task_id());
-		reply.send();
+		server->create_reply(this->task_id(), BD_SERVICE_NOT_AVAILABLE).send();
 	}
 
 	void bdMarketplace::purchaseOnSteamInitialize(service_server* server, byte_buffer* /*buffer*/) const
 	{
-		// TODO:
-		auto reply = server->create_reply(this->task_id());
-		reply.send();
+		server->create_reply(this->task_id(), BD_SERVICE_NOT_AVAILABLE).send();
 	}
 
 	void bdMarketplace::purchaseOnSteamFinalize(service_server* server, byte_buffer* /*buffer*/) const
 	{
-		// TODO:
-		auto reply = server->create_reply(this->task_id());
-		reply.send();
+		server->create_reply(this->task_id(), BD_SERVICE_NOT_AVAILABLE).send();
 	}
 
-	void bdMarketplace::getExpiredInventoryItems(service_server* server, byte_buffer* buffer) const
+	void bdMarketplace::getExpiredInventoryItems(service_server* server, byte_buffer* /*buffer*/) const
 	{
-		guarded(server, this->task_id(), [&]
-		{
-			hq_protocol::trace("expired_request", buffer->get_remaining());
-			if (!hq_marketplace::context(buffer) || !hq_protocol::padding(buffer))
-			{
-				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send();
-				return;
-			}
-			const auto data = hq_economy::snapshot();
-			auto reply = server->create_reply(this->task_id());
-			for (const auto& [key, item] : data.inventory)
-				if (item.quantity && item.expires && item.expires <= time(nullptr)) add_inventory(reply, item);
-			reply.send();
-		});
+		server->create_reply(this->task_id()).send();
+	}
+
+	void bdMarketplace::deleteInventoryItems(service_server* server, byte_buffer* /*buffer*/) const
+	{
+		// Success makes 0x27A8F0 drop native records, but nothing is deleted from storage yet
+		server->create_reply(this->task_id(), BD_SERVICE_NOT_AVAILABLE).send();
 	}
 
 	void bdMarketplace::validateInventoryItemsToken(service_server* server, byte_buffer* /*buffer*/) const
 	{
-		// TODO:
-		auto reply = server->create_reply(this->task_id());
-		reply.send();
+		server->create_reply(this->task_id()).send();
 	}
 
-	void bdMarketplace::steamProcessDurable(service_server* server, byte_buffer* buffer) const
+	void bdMarketplace::steamProcessDurable(service_server* server, byte_buffer* /*buffer*/) const
 	{
-
-		hq_protocol::trace("marketplace_60", buffer->get_remaining());		// TODO:
-		auto reply = server->create_reply(this->task_id());
-		reply.send();
+		server->create_reply(this->task_id(), BD_SERVICE_NOT_AVAILABLE).send();
 	}
 
 	void bdMarketplace::steamProcessDurableV2(service_server* server, byte_buffer* /*buffer*/) const
 	{
-		// TODO:
-		auto reply = server->create_reply(this->task_id());
-		reply.send();
-	}
-
-	void bdMarketplace::purchaseSkus(service_server* server, byte_buffer* buffer) const
-	{
-		hq_protocol::trace("marketplace_106_rejected", buffer->get_remaining());
-		server->create_reply(this->task_id(), BD_HANDLE_TASK_FAILED).send();
-	}
-
-	void bdMarketplace::getBalance(service_server* server, byte_buffer* buffer) const
-	{
-
-		// Both SDK balance variants use the same currency reader (A49900).
-		getBalanceV2(server, buffer);
-	}
-
-	void bdMarketplace::getBalanceV2(service_server* server, byte_buffer* buffer) const
-	{
-
-		hq_protocol::trace(this->task_id() == 130 ? "marketplace_130" : "marketplace_132", buffer->get_remaining());		guarded(server, this->task_id(), [&]
-		{
-			std::uint32_t limit{};
-			if (!hq_marketplace::context(buffer) || !buffer->read_uint32(&limit) || !limit || limit > 256 || !hq_protocol::padding(buffer))
-			{
-				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send();
-				return;
-			}
-			const auto data = hq_economy::snapshot();
-			auto reply = server->create_reply(this->task_id());
-			std::uint32_t count{};
-			for (const auto& [id, amount] : data.currencies)
-			{
-				// Currency zero is the native empty-slot sentinel; MP has 13 slots.
-				if (!id) continue;
-				if (count == limit || count == hq_economy::native_wallet_slots) break;
-				++count;
-				auto result = std::make_unique<bdMarketplaceCurrency>();
-				result->m_currencyId = id;
-				result->m_value = amount;
-				{
-					byte_buffer encoded; result->serialize(&encoded);
-					hq_protocol::trace(this->task_id() == 130 ? "marketplace_130_currency" : "marketplace_132_currency", encoded.get_buffer());
-				}
-				reply.add(result);
-			}
-			reply.send();
-		});
-	}
-
-	void bdMarketplace::getInventoryPaginated(service_server* server, byte_buffer* buffer) const
-	{
-
-		hq_protocol::trace("marketplace_165", buffer->get_remaining());		guarded(server, this->task_id(), [&]
-		{
-			hq_marketplace::inventory_request request{};
-			if (!hq_marketplace::parse_inventory(buffer, request))
-			{
-				hq_protocol::trace("inventory_invalid", buffer->get_buffer());
-				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send();
-				return;
-			}
-			const auto data = hq_economy::snapshot();
-			auto reply = server->create_reply(this->task_id());
-			for (const auto& item : hq_marketplace::inventory_page(data, request, time(nullptr))) add_inventory(reply, item);
-			reply.send();
-		});
-	}
-
-	void bdMarketplace::putPlayersInventoryItems(service_server* server, byte_buffer* buffer) const
-	{
-
-		hq_protocol::trace("marketplace_193", buffer->get_remaining());		guarded(server, this->task_id(), [&]
-		{
-			hq_protocol::trace("put_assumed_request", buffer->get_remaining());
-			std::vector<hq_economy::item> items{};
-			const auto parsed = hq_marketplace::parse_put(buffer, steam::SteamUser()->GetSteamID().bits, items);
-			const auto error = !parsed ? BD_PARAM_PARSE_ERROR : hq_marketplace::put(items) ? BD_NO_ERROR : BD_HANDLE_TASK_FAILED;
-			server->create_reply(this->task_id(), error).send();
-		});
-	}
-
-	void bdMarketplace::pawnItems(service_server* server, byte_buffer* buffer) const
-	{
-
-		hq_protocol::trace("marketplace_199", buffer->get_remaining());		guarded(server, this->task_id(), [&]
-		{
-			hq_protocol::trace("pawn_assumed_request", buffer->get_remaining());
-			std::string transaction{};
-			std::vector<hq_economy::item> items{};
-			const auto parsed = hq_marketplace::parse_pawn(buffer, transaction, items);
-			const auto error = parsed ? hq_marketplace::pawn(transaction, items) : BD_PARAM_PARSE_ERROR;
-			server->create_reply(this->task_id(), error).send();
-		});
+		server->create_reply(this->task_id(), BD_SERVICE_NOT_AVAILABLE).send();
 	}
 
 	void bdMarketplace::consumeInventoryItems(service_server* server, byte_buffer* buffer) const
 	{
-		hq_protocol::trace("marketplace_96", buffer->get_remaining());
-		guarded(server, this->task_id(), [&]
+		std::vector<std::string> updates{};
+		const auto error = marketplace_inventory::consume(buffer, runtime_context::get_local_user_id(), updates);
+
+		server->create_reply(this->task_id(), error).send();
+
+		if (!error)
 		{
-			std::string transaction{};
-			std::vector<hq_economy::item> items{};
-			if (!hq_marketplace::parse_consume(buffer, transaction, items))
-			{
-				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send();
-				return;
-			}
-			// cg_unlimited_zm_consumables shows these as 999 (unlimited_zombies_consumables.cpp), so it must not use them up either.
-			const auto* unlimited = game::Dvar_FindMalleableVar("cg_unlimited_zm_consumables");
-			if (unlimited && unlimited->current.enabled)
-				std::erase_if(items, [](const auto& item) { return game::Inventory_IsItemGuidAZMConsumable(item.guid); });
-			// The native caller (278480) passes no result object, so the reply carries none.
-			server->create_reply(this->task_id(), items.empty() ? BD_NO_ERROR : hq_marketplace::consume(transaction, items)).send();
-		});
+			send_pushes(server, updates);
+		}
 	}
 
-	void bdMarketplace::getEntitlements(service_server* server, byte_buffer* buffer) const
+	void bdMarketplace::getProducts(service_server* server, byte_buffer* buffer) const
 	{
+		send_catalog(server, this->task_id(), marketplace_catalog::handle_task99(buffer, marketplace_catalog::get_embedded()));
+	}
 
-		hq_protocol::trace("marketplace_232", buffer->get_remaining());		guarded(server, this->task_id(), [&]
-		{
-			hq_protocol::trace("entitlements_assumed_request", buffer->get_remaining());
-			if (!hq_marketplace::context(buffer) || !hq_protocol::padding(buffer))
-			{
-				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send();
-				return;
-			}
-			// Inventory ownership is not a Steam entitlement. This local store grants none.
-			(void)hq_economy::snapshot();
-			server->create_reply(this->task_id()).send();
-		});
+	void bdMarketplace::purchaseSkus(service_server* server, byte_buffer* /*buffer*/) const
+	{
+		server->create_reply(this->task_id(), BD_SERVICE_NOT_AVAILABLE).send();
 	}
 
 	void bdMarketplace::getSkusPaginated(service_server* server, byte_buffer* buffer) const
 	{
-		guarded(server, this->task_id(), [&]
+		send_catalog(server, this->task_id(), marketplace_catalog::handle_task111(buffer, marketplace_catalog::get_embedded()));
+	}
+
+	void bdMarketplace::purchaseSkusV3(service_server* server, byte_buffer* buffer) const
+	{
+		marketplace_purchase::request input{};
+		if (!marketplace_purchase::parse_request(buffer, input))
 		{
-			if (buffer->size() > 65536)
-			{
-				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send();
-				return;
-			}
-			hq_protocol::trace("marketplace_111", buffer->get_remaining());
-			hq_marketplace::sku_request request{};
-			if (!hq_marketplace::parse_skus(buffer, request))
-			{
-				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send();
-				return;
-			}
-			auto reply = server->create_reply(this->task_id());
-			const auto page = hq_marketplace::sku_page(request);
-			for (const auto& entry : page)
-			{
-				auto result = std::make_unique<hq_vendor::catalog_result>();
-				result->entry = entry;
-				byte_buffer encoded; result->serialize(&encoded);
-				hq_protocol::trace_row("marketplace_111_sku", encoded.get_buffer());
-				reply.add(result);
-			}
-			// 27B700 continues on count==limit; short/empty page terminates.
-			// Task111 has no NextPageToken result field; do not append JSON/string bytes.
-			// One line per catalog page (nine per multiplayer launch) traces the walk while
-			// the pagination is being worked on; `hqvendor` reports the resulting counts on
-			// demand, so keep the per-page trail out of Release.
-			console::debug("[HQ marketplace] SKU page %u limit %u count %u (collection catalog)\n",
-				request.page, request.limit, unsigned(page.size()));
-			reply.send();
-		});
+			server->create_reply(this->task_id(), BD_MARKETPLACE_INVALID_PARAMETER).send();
+			return;
+		}
+
+		const marketplace_sku::result* sku{};
+		const marketplace_product::result* product{};
+
+		if (const auto& catalog = marketplace_catalog::get_embedded().value)
+		{
+			sku = find_purchasable_sku(*catalog, input.sku_id);
+
+			const auto found = sku ? catalog->find_product(sku->field_36) : nullptr;
+			product = found ? &found->fields : nullptr;
+		}
+
+		const auto collections = collection_catalog::get_snapshot();
+		auto response = std::make_unique<marketplace_purchase::result>(marketplace_purchase::purchase(input,
+			runtime_context::get_local_user_id(), sku, product, collections.get()));
+
+		auto reply = server->create_reply(this->task_id(), response->error);
+		if (!response->error)
+		{
+			reply.add(response);
+		}
+
+		reply.send();
+	}
+
+	void bdMarketplace::getBalance(service_server* server, byte_buffer* /*buffer*/) const
+	{
+		server->create_reply(this->task_id(), BD_SERVICE_NOT_AVAILABLE).send();
+	}
+
+	void bdMarketplace::getBalanceV2(service_server* server, byte_buffer* buffer) const
+	{
+		send_query(server, this->task_id(), marketplace_queries::balance(buffer));
+	}
+
+	void bdMarketplace::getInventoryPaginated(service_server* server, byte_buffer* buffer) const
+	{
+		send_query(server, this->task_id(), marketplace_queries::inventory(buffer, runtime_context::get_local_user_id(),
+			game::environment::is_dedicated()));
 	}
 
 	void bdMarketplace::putInventoryItemsData(service_server* server, byte_buffer* buffer) const
 	{
-		guarded(server, this->task_id(), [&]
-		{
-			hq_protocol::trace("marketplace_168", buffer->get_remaining());
-			std::string transaction;
-			std::vector<hq_item_data::update> updates;
-			if (!hq_item_data::parse(buffer, steam::SteamUser()->GetSteamID().bits, transaction, updates))
-			{
-				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send();
-				return;
-			}
-			if (!hq_item_data::apply(transaction, updates))
-			{
-				server->create_reply(this->task_id(), BD_HANDLE_TASK_FAILED).send();
-				return;
-			}
-			auto result = std::make_unique<hq_item_data::audit_result>();
-			result->transaction = transaction;
-			byte_buffer encoded; result->serialize(&encoded);
-			hq_protocol::trace("marketplace_168_response", encoded.get_buffer());
-			auto reply = server->create_reply(this->task_id());
-			reply.add(result);
-			reply.send();
-		});
+		const auto error = marketplace_inventory::put_item_data(buffer, runtime_context::get_local_user_id());
+		server->create_reply(this->task_id(), error).send();
 	}
 
-	// Task 99: the product query the per-frame marketplace pump (0x27D160) issues for
-	// every cached SKU that has no product record yet. See hq_products.hpp for the
-	// recovered request/result layout; the success callback 0x27B4D0 copies each record
-	// into its SKU slot and the pump stops once all 400 slots are filled. (Slice 5 had
-	// attributed this task to the reward commit 0x2AF560, which is a client message
-	// writer, not a Demonware issuer.)
-	void bdMarketplace::getProducts(service_server* server, byte_buffer* buffer) const
+	void bdMarketplace::putPlayersInventoryItems(service_server* server, byte_buffer* /*buffer*/) const
 	{
-		guarded(server, this->task_id(), [&]
-		{
-			hq_products::request request{};
-			if (!hq_products::parse(buffer, request))
-			{
-				if (!hq_products::rejected++)
-				{
-					hq_protocol::trace("marketplace_99_invalid", buffer->get_buffer());
-					console::warn("[HQ marketplace] task 99: unrecognised request shape\n");
-				}
-				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send();
-				return;
-			}
-			const auto verbose = hq_products::observe(request);
-			++hq_products::requests;
-			if (verbose)
-			{
-				hq_protocol::trace("marketplace_99", buffer->get_buffer());
-				console::info("[HQ marketplace] task 99 product query page %u count %u limit %u [%s]\n",
-					request.page, request.count, request.limit, hq_products::describe(request).c_str());
-			}
-			auto reply = server->create_reply(this->task_id());
-			auto page = hq_products::answer(request);
-			for (auto& product : page)
-			{
-				auto result = std::make_unique<hq_products::product_result>(std::move(product));
-				byte_buffer encoded; result->serialize(&encoded);
-				hq_protocol::trace_row("marketplace_99_product", encoded.get_buffer());
-				reply.add(result);
-			}
-			hq_products::products += static_cast<std::uint32_t>(page.size());
-			reply.send();
-		});
+		server->create_reply(this->task_id(), BD_SERVICE_NOT_AVAILABLE).send();
 	}
 
-	void bdMarketplace::unknown242(service_server* server, byte_buffer* buffer) const
+	void bdMarketplace::pawnItems(service_server* server, byte_buffer* buffer) const
 	{
-		guarded(server, this->task_id(), [&]
+		const auto catalog = pawn_catalog::get_snapshot();
+
+		std::vector<std::string> updates{};
+		const auto error = marketplace_pawn::pawn(buffer, runtime_context::get_local_user_id(), catalog.get(), updates);
+
+		server->create_reply(this->task_id(), error).send();
+
+		if (!error)
 		{
-			if (buffer->size() > 65536)
-			{
-				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send_struct();
-				return;
-			}
-			hq_protocol::trace("marketplace_242", buffer->get_remaining());
-			std::string request{};
-			if (!buffer->read_struct(&request, 65536) || !hq_protocol::padding(buffer))
-			{
-				server->create_reply(this->task_id(), BD_PARAM_PARSE_ERROR).send_struct();
-				return;
-			}
-			++hq_vendor::requests;
-			auto result = std::make_unique<hq_vendor::result>();
-			std::uint32_t error{};
-			if (!hq_vendor::reply_body(request, result->body, error))
-			{
-				++hq_vendor::rejected;
-				server->create_reply(this->task_id(), error).send_struct();
-				return;
-			}
-			byte_buffer encoded;
-			result->serialize(&encoded);
-			hq_protocol::trace("marketplace_242_response", encoded.get_buffer());
-			++hq_vendor::replies;
-			auto reply = server->create_reply(this->task_id());
-			reply.add(result);
-			reply.send_struct();
-			hq_vendor::last_reply_ms = hq_vendor::now_ms();
-		}, true);
+			send_pushes(server, updates);
+		}
 	}
 
+	void bdMarketplace::getEntitlements(service_server* server, byte_buffer* /*buffer*/) const
+	{
+		server->create_reply(this->task_id()).send();
+	}
+
+	void bdMarketplace::applyConversionRule(service_server* server, byte_buffer* buffer) const
+	{
+		marketplace_collection::request input{};
+		if (!marketplace_collection::parse_request(buffer, input))
+		{
+			server->create_reply(this->task_id(), BD_MARKETPLACE_INVALID_PARAMETER).send();
+			return;
+		}
+
+		const auto user_id = runtime_context::get_local_user_id();
+
+		if (auto voucher = promotional_vouchers::redeem(input, user_id))
+		{
+			send_struct_result(server, this->task_id(), std::move(*voucher));
+			return;
+		}
+
+		const auto pawns = pawn_catalog::get_snapshot();
+		if (is_pawn_conversion(input, pawns))
+		{
+			send_struct_result(server, this->task_id(), marketplace_pawn::convert(input, user_id, pawns.get()));
+			return;
+		}
+
+		const auto collections = collection_catalog::get_snapshot();
+		send_struct_result(server, this->task_id(), marketplace_collection::redeem(input, user_id, collections.get()));
+	}
 }

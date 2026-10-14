@@ -3,6 +3,7 @@
 
 #include "dedicated_party_client.hpp"
 #include "dedicated_party.hpp"
+#include "command.hpp"
 #include "party.hpp"
 #include "network.hpp"
 #include "scheduler.hpp"
@@ -35,6 +36,7 @@ namespace dedicated_party_client
 		struct hosted_party_join_state_t
 		{
 			bool active{};
+			party::session::kind kind{ party::session::kind::none };
 			std::uint64_t attempt_id{};
 			std::uint64_t match_sequence{};
 			game::netadr_s target{};
@@ -65,13 +67,15 @@ namespace dedicated_party_client
 
 		hosted_party_join_state_t hosted_party_join_state{};
 		hosted_dedicated_party_state_t hosted_dedicated_party_state{};
+		unsigned hosted_limits_generation{};
+		std::string joined_custom_session_id{};
 		utils::hook::detour session_modify_hook;
 		bool hosted_dedicated_go_in_progress{};
 
-		bool has_hosted_dedicated_session(game::PartyData* party_data)
+		bool has_joined_session(game::PartyData* party_data, const std::string& joined_session_id)
 		{
 			if (!party_data || party_data != game::Lobby_GetPartyData(0)
-				|| hosted_dedicated_party_state.session_id.empty()
+				|| joined_session_id.empty()
 				|| game::Party_AreWeHost(party_data))
 			{
 				return false;
@@ -87,25 +91,63 @@ namespace dedicated_party_client
 
 			std::array<char, 17> session_id{};
 			game::Session_IdToString(session->sessionId, session_id.data());
-			return hosted_dedicated_party_state.session_id == session_id.data();
+			return joined_session_id == session_id.data();
+		}
+
+		bool has_hosted_dedicated_session(game::PartyData* party_data)
+		{
+			return has_joined_session(party_data, hosted_dedicated_party_state.session_id);
 		}
 
 		void party_atomic_activate_lobby_stub(game::PartyData* party_data,
 			const unsigned int controller_index, const int joining)
 		{
-			const auto hosted_join = has_hosted_dedicated_session(party_data);
+			const auto hosted_join = has_hosted_dedicated_session(party_data)
+				|| has_joined_session(party_data, joined_custom_session_id);
 			
 			if (hosted_join)
 			{
 				// PartyAtomic_RequestJoin clears the frontend mode for non-system-link
 				// joins. Stock matchmaking starts the lobby again afterward, but our
-				// hosted dedicated join activates the received party directly. Restore
-				// hub mode before PartyAtomic opens public_lobby; its LUI predicates,
+				// IP-based join activates the received party directly. Restore
+				// hub mode before PartyAtomic opens the stock lobby; its LUI predicates,
 				// Soldier screen, and virtual-lobby character scene all consume it.
 				utils::hook::invoke<void>(0x857A10_g, 1);
 			}
 
 			utils::hook::invoke<void>(0x47A720_g, party_data, controller_index, joining);
+		}
+
+		utils::hook::detour party_client_kicked_from_lobby_hook;
+		std::string lobby_kick_reason{};
+
+		void party_client_kicked_from_lobby_stub(game::PartyData* party_data, void* command_data,
+			game::netadr_s* from, game::msg_t* message)
+		{
+			// S2x hosts send the kick reason as a quoted token after kickedFromLobby.
+			const command::params params{};
+			lobby_kick_reason = params.size() > 1 ? params[1] : "";
+			std::erase_if(lobby_kick_reason, [](const unsigned char c) { return c < ' ' || c == 0x7F; });
+			if (lobby_kick_reason.size() > 128)
+			{
+				lobby_kick_reason.resize(128);
+			}
+
+			party_client_kicked_from_lobby_hook.invoke<void>(party_data, command_data, from, message);
+			lobby_kick_reason.clear();
+		}
+
+		void show_lobby_kick_message_stub(const char* message)
+		{
+			if (lobby_kick_reason.empty())
+			{
+				utils::hook::invoke<void>(0x49F120_g, message);
+				return;
+			}
+
+			// Same text as an in-game kick; 0x1F makes the localizer keep the reason literal.
+			const auto text = "EXE_PLAYERKICKED\x1F - " + lobby_kick_reason;
+			utils::hook::invoke<void>(0x49F120_g, text.data());
 		}
 
 		bool is_hosted_dedicated_game_lobby(game::PartyData* party_data)
@@ -304,15 +346,6 @@ namespace dedicated_party_client
 			game::Dvar_SetInt(dvar, max_players > 0 ? max_players : value);
 		}
 
-		bool is_session_hex_string(const std::string& value, const std::size_t expected_size)
-		{
-			return value.size() == expected_size
-				&& std::all_of(value.begin(), value.end(), [](const unsigned char character)
-				{
-					return std::isxdigit(character) != 0;
-				});
-		}
-
 		bool validate_map_and_gametype(const std::string& map_name, const std::string& gametype)
 		{
 			if (map_name.empty())
@@ -474,7 +507,7 @@ namespace dedicated_party_client
 			auto& state = hosted_dedicated_party_state;
 			state.limits_known = false;
 			state.limits_challenge = utils::cryptography::random::get_challenge();
-			const auto generation = ++state.limits_generation;
+			const auto generation = state.limits_generation = ++hosted_limits_generation;
 
 			// The values are final once the host's map has loaded; poll until then.
 			scheduler::schedule([generation, attempts = 0]() mutable
@@ -499,8 +532,18 @@ namespace dedicated_party_client
 				return false;
 			}
 
+			int protocol{};
+			if (!parse_integer(info.get("protocol"), 0, std::numeric_limits<int>::max(), protocol)
+				|| protocol != PROTOCOL || info.get("gamename") != "S2"
+				|| info.get("mode") != game::environment::get_online_mode_info().token
+				|| party::session::classify(info.get("party_session")) != party::session::kind::dedicated)
+			{
+				return true;
+			}
+
 			// Not this match yet: the host is between maps or still loading. Keep polling.
 			if (info.get("sv_running") != "1" || info.get("session_id") != state.session_id
+				|| utils::string::to_lower(info.get("mapname")) != utils::string::to_lower(state.map_name)
 				|| utils::string::to_lower(info.get("gametype")) != utils::string::to_lower(state.gametype))
 			{
 				return true;
@@ -595,6 +638,7 @@ namespace dedicated_party_client
 				// Stock Zombies ready-up otherwise consumes the go command without
 				// entering its native preload path. A dedicated go is the server's
 				// readiness decision, so confirm it through the stock setter.
+				// Listen lobbies keep the normal Ready Up/loadout-selection flow.
 				const auto controller_index =
 					game::CL_ControllerIndexFromClientNum(0);
 				game::PartyClient_SetLocalReadyUpFlag(controller_index);
@@ -605,16 +649,23 @@ namespace dedicated_party_client
 			hosted_dedicated_go_in_progress = false;
 
 			// HandleGo can ignore or defer a message while the virtual lobby loads.
-			// Writing mapname here can make lobby startup request the next map's BSP;
-			// the engine's handleGo command passes the accepted map to the preload itself.
+			// Only CL_ConnectAndPreloadMap may commit the accepted match's settings;
+			// writing mapname here can make lobby startup request the next map's BSP.
 			return result;
 		}
 
 		void cl_connect_and_preload_map_stub(const int local_client_num, void* session_info,
 			game::netadr_s* target, const char* map_name, const char* gametype)
 		{
-			// HandleGo returns before it preloads the accepted match, so the go flag is
-			// already clear by now; the hosted server's address identifies the match.
+			if (game::environment::is_multiplayer()
+				&& hosted_dedicated_go_in_progress && map_name && gametype)
+			{
+				// Public PartyClient_HandleGo runs Playlist_RunRules before this call.
+				// Restore the map/gametype carried by the go command at the last native
+				// boundary before client gameplay memory and UI state are selected.
+				update_hosted_dedicated_party_match(map_name, gametype, true);
+			}
+
 			if (game::environment::is_multiplayer() && is_hosted_dedicated_party_address(target))
 			{
 				request_hosted_limits();
@@ -630,7 +681,9 @@ namespace dedicated_party_client
 		{
 			const auto is_hosted_party_join = pending_hosted_party_join_matches(session_info);
 			const auto pending_join = hosted_party_join_state;
-			const auto setup_member_capacity = is_hosted_party_join
+			const auto dedicated_join = is_hosted_party_join
+				&& pending_join.kind == party::session::kind::dedicated;
+			const auto setup_member_capacity = dedicated_join
 				? dedicated_party::get_session_capacity()
 				: max_players;
 
@@ -693,6 +746,16 @@ namespace dedicated_party_client
 			join_info->address = target;
 			join_info->addressValid = 1;
 			hosted_dedicated_party_state = {};
+			joined_custom_session_id.clear();
+			if (!dedicated_join)
+			{
+				// A listen host is a real player. No owner filtering, extra session
+				// slot, public-playlist overrides, or dedicated rotation sync here.
+				joined_custom_session_id = session_id;
+				console::info("Custom match lobby: joining through %s.\n",
+					network::net_adr_to_string(target));
+				return true;
+			}
 			hosted_dedicated_party_state.target = target;
 			hosted_dedicated_party_state.session_id = session_id;
 			hosted_dedicated_party_state.match_sequence = match_sequence;
@@ -751,9 +814,16 @@ namespace dedicated_party_client
 	bool try_handle_join(const game::netadr_s& from, const utils::info_string& info,
 		const int max_players, const std::uint64_t attempt_id)
 	{
-		if (info.get("party_session") != "1")
+		const auto kind = party::session::classify(info.get("party_session"));
+		if (kind == party::session::kind::none)
 		{
 			return false;
+		}
+		if (kind == party::session::kind::invalid
+			|| (kind == party::session::kind::custom && !game::environment::uses_multiplayer_binary()))
+		{
+			console::error("Connection failed: invalid hosted-party type.\n");
+			return true;
 		}
 
 		const auto host_address = info.get("session_host");
@@ -763,12 +833,11 @@ namespace dedicated_party_client
 		const auto gametype = info.get("party_gametype");
 		std::uint64_t match_sequence{};
 
-		if (!is_session_hex_string(host_address, 80)
-			|| !is_session_hex_string(key, 32)
-			|| !is_session_hex_string(session_id, 16)
+		if (!party::session::valid_descriptor(host_address, key, session_id)
 			|| max_players < 1
 			|| max_players > game::environment::get_online_mode_info().max_players
-			|| !parse_match_sequence(info.get("party_match_sequence"), match_sequence)
+			|| (kind == party::session::kind::dedicated
+				&& !parse_match_sequence(info.get("party_match_sequence"), match_sequence))
 			|| !validate_map_and_gametype(map_name, gametype)
 			|| !party::validate_gametype(gametype))
 		{
@@ -776,7 +845,8 @@ namespace dedicated_party_client
 			return true;
 		}
 
-		console::info("Joining hosted dedicated lobby on map '%s' gametype '%s'.\n",
+		console::info("Joining %s lobby on map '%s' gametype '%s'.\n",
+			kind == party::session::kind::custom ? "custom match" : "hosted dedicated",
 			map_name.data(), gametype.data());
 
 		if (!party::is_connection_attempt_current(attempt_id))
@@ -790,7 +860,7 @@ namespace dedicated_party_client
 		target.localNetID = game::NS_SERVER;
 
 		scheduler::once([target, host_address, key, session_id, map_name, gametype, max_players,
-			attempt_id, match_sequence]()
+			attempt_id, match_sequence, kind]()
 		{
 			if (!party::is_connection_attempt_current(attempt_id))
 			{
@@ -800,7 +870,7 @@ namespace dedicated_party_client
 			// This is the seven-argument command emitted by S2's stock JoinServer menu.
 			// CL_Connect parses the session descriptor and calls PartyAtomic_RequestJoin.
 			hosted_party_join_state = {
-				true, attempt_id, match_sequence, target, session_id, map_name, gametype, max_players
+				true, kind, attempt_id, match_sequence, target, session_id, map_name, gametype, max_players
 			};
 			party::execute_internal_connect({
 				attempt_id, host_address, key, session_id, map_name, gametype
@@ -885,14 +955,14 @@ namespace dedicated_party_client
 		}
 
 		hosted_dedicated_party_state.sync_challenge.clear();
-		if (info.get("party_session") == "1"
+		if (party::session::classify(info.get("party_session")) == party::session::kind::dedicated
 			&& info.get("session_id") == hosted_dedicated_party_state.session_id
 			&& is_hosted_dedicated_game_lobby(game::Lobby_GetPartyData(0)))
 		{
 			hosted_dedicated_party_state.max_players = max_players;
 			apply_hosted_party_capacity(hosted_dedicated_party_state.game_lobby);
 			// Keep the next rotation entry out of live map dvars while the current map
-			// is unloading. The server's go carries it to the preload.
+			// is unloading. CL_ConnectAndPreloadMap commits it when the server sends go.
 			if (match_sequence > hosted_dedicated_party_state.match_sequence
 				&& update_hosted_dedicated_party_match(
 					info.get("party_mapname"), info.get("party_gametype"), false))
@@ -971,6 +1041,7 @@ namespace dedicated_party_client
 	{
 		cancel_pending_connection();
 		hosted_dedicated_party_state = {};
+		joined_custom_session_id.clear();
 	}
 
 	class component final : public multiplayer_component
@@ -1011,6 +1082,12 @@ namespace dedicated_party_client
 				0x497EF0_g, party_atomic_setup_potential_host_stub);
 
 			utils::hook::call(0x497767_g, party_atomic_activate_lobby_stub);
+
+			// The kickedFromLobby handler hardcodes the VAC-ban text; show the stock party-kick text instead.
+			utils::hook::inject(0x47223E_g + 3, 0xB72C68_g);
+			utils::hook::inject(0x472287_g + 3, 0xB72C68_g);
+			party_client_kicked_from_lobby_hook.create(0x4721C0_g, party_client_kicked_from_lobby_stub);
+			utils::hook::call(0x47228E_g, show_lobby_kick_message_stub);
 
 			party_client_handle_go_hook.create(
 				game::PartyClient_HandleGo, party_client_handle_go_stub);

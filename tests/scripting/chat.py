@@ -24,6 +24,7 @@ code = r'''
 #include <string_view>
 #include <vector>
 #include <iostream>
+#include <functional>
 #ifdef NDEBUG
 #error Tests require assertions
 #endif
@@ -57,6 +58,8 @@ struct params_sv {
  const char* operator[](int i) const { return i < static_cast<int>(tokens.size()) ? tokens[i].c_str() : ""; }
  std::string join(int first) const { std::string s; for (int i = first; i < static_cast<int>(tokens.size()); ++i) { if (i > first) s += ' '; s += tokens[i]; } return s; }
 };
+std::vector<std::function<void(int, const params_sv&)>> callbacks;
+auto& get_client_command_callbacks() { return callbacks; }
 bool execute_custom_sv_command_internal(int, const params_sv&) { return handled; }
 struct native_hook {
  template<class T> void invoke(int) { ++native_calls; if (mutate) tokens = {"changed", "different payload"}; }
@@ -79,6 +82,10 @@ int main() {
  lobby = true; client_command_mp_stub(1); lobby = false;
  game::entities[1].client = false; client_command_mp_stub(1);
  assert(notifications == 3 && references == 0 && stack.empty());
+ game::entities[1].client = true;
+ callbacks.push_back([](int, const params_sv&) { tokens = {"changed", "callback payload"}; });
+ tokens = {"say_team", "owned before callback"}; client_command_mp_stub(1);
+ assert(notifications == 4 && text_seen == "owned before callback" && team_seen == 1 && references == 0);
  std::cout << "PASS: production chat routing, payload ownership, team flag, bounds, context guards and string references\n";
 }
 '''.replace('NOTIFY', notify).replace('ROUTE', route)

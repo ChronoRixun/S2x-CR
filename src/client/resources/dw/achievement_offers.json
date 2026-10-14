@@ -1,0 +1,7490 @@
+{
+  "offers": {
+    "daily_ch_karloot2_1": {
+      "kind": 1,
+      "progressTarget": 3,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16868097,
+            "items": [
+              {
+                "id": 16868097,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_payback_kills": {
+      "kind": 1,
+      "progressTarget": 15,
+      "successRewards": [
+        {
+          "currency": {
+            "amount": 300,
+            "id": 6
+          },
+          "type": "grant_currency"
+        }
+      ]
+    },
+    "daily_ch_theater_watch": {
+      "kind": 1,
+      "progressTarget": 1,
+      "successRewards": [
+        {
+          "currency": {
+            "amount": 250,
+            "id": 7
+          },
+          "type": "grant_currency"
+        }
+      ]
+    },
+    "contract_3_multikills": {
+      "kind": 4,
+      "progressTarget": 3,
+      "successRewards": [
+        {
+          "product": {
+            "items": [
+              {
+                "override_usage_duration": 0,
+                "id": 1,
+                "usage_duration": null,
+                "quantity": 1
+              }
+            ],
+            "currencies": [],
+            "id": 1
+          },
+          "type": "grant_product"
+        }
+      ],
+      "costItemID": 83886149,
+      "usageTimeTarget": 3600
+    },
+    "contract_10_kills_shovel": {
+      "kind": 4,
+      "progressTarget": 10,
+      "successRewards": [
+        {
+          "product": {
+            "items": [
+              {
+                "override_usage_duration": 0,
+                "id": 1,
+                "usage_duration": null,
+                "quantity": 1
+              }
+            ],
+            "currencies": [],
+            "id": 1
+          },
+          "type": "grant_product"
+        }
+      ],
+      "costItemID": 83886150,
+      "usageTimeTarget": 600
+    },
+    "contract_10_kills_dive": {
+      "kind": 4,
+      "progressTarget": 10,
+      "successRewards": [
+        {
+          "product": {
+            "items": [
+              {
+                "override_usage_duration": 0,
+                "id": 1,
+                "usage_duration": null,
+                "quantity": 1
+              }
+            ],
+            "currencies": [],
+            "id": 1
+          },
+          "type": "grant_product"
+        }
+      ],
+      "costItemID": 83886151,
+      "usageTimeTarget": 1200
+    },
+    "contract_6_headshots_tdm": {
+      "kind": 4,
+      "progressTarget": 6,
+      "successRewards": [
+        {
+          "product": {
+            "items": [
+              {
+                "override_usage_duration": 0,
+                "id": 2,
+                "usage_duration": null,
+                "quantity": 1
+              }
+            ],
+            "currencies": [],
+            "id": 2
+          },
+          "type": "grant_product"
+        }
+      ],
+      "costItemID": 83886106,
+      "usageTimeTarget": 1200
+    },
+    "contract_65_kills_tdm": {
+      "kind": 4,
+      "progressTarget": 65,
+      "successRewards": [
+        {
+          "product": {
+            "items": [
+              {
+                "override_usage_duration": 0,
+                "id": 2,
+                "usage_duration": null,
+                "quantity": 1
+              }
+            ],
+            "currencies": [],
+            "id": 2
+          },
+          "type": "grant_product"
+        }
+      ],
+      "costItemID": 83886090,
+      "usageTimeTarget": 1200
+    },
+    "contract_5_headshots": {
+      "kind": 4,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "currency": {
+            "amount": 1500,
+            "id": 1
+          },
+          "type": "grant_currency"
+        }
+      ],
+      "costItemID": 83886109,
+      "usageTimeTarget": 1200
+    },
+    "contract_100_kills": {
+      "kind": 4,
+      "progressTarget": 100,
+      "successRewards": [
+        {
+          "currency": {
+            "amount": 3000,
+            "id": 1
+          },
+          "type": "grant_currency"
+        }
+      ],
+      "costItemID": 83886093,
+      "usageTimeTarget": 2400
+    },
+    "weekly_ch_cav_assists": {
+      "kind": 2,
+      "progressTarget": 50,
+      "successRewards": [
+        {
+          "product": {
+            "items": [
+              {
+                "override_usage_duration": 0,
+                "id": 2,
+                "usage_duration": null,
+                "quantity": 1
+              }
+            ],
+            "currencies": [],
+            "id": 2
+          },
+          "type": "grant_product"
+        }
+      ]
+    },
+    "weekly_ch_ab_warwins": {
+      "kind": 2,
+      "progressTarget": 15,
+      "successRewards": [
+        {
+          "product": {
+            "items": [
+              {
+                "override_usage_duration": 0,
+                "id": 2,
+                "usage_duration": null,
+                "quantity": 1
+              }
+            ],
+            "currencies": [],
+            "id": 2
+          },
+          "type": "grant_product"
+        }
+      ]
+    },
+    "weekly_ch_explosive_kills": {
+      "kind": 2,
+      "progressTarget": 50,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 2,
+            "items": [
+              {
+                "id": 2,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_wave_challenge_dmg_1": {
+      "kind": 8,
+      "progressTarget": 1,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_wave_challenge_shotgun_1": {
+      "kind": 8,
+      "progressTarget": 1,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 122,
+            "items": [
+              {
+                "id": 122,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "weekly_zm_ch_objective_2": {
+      "kind": 9,
+      "progressTarget": 1,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 6,
+            "items": [
+              {
+                "id": 6,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_zm_wave_location_2": {
+      "kind": 11,
+      "progressTarget": 1,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 5,
+            "items": [
+              {
+                "id": 5,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ],
+      "costItemID": 83886181,
+      "usageTimeTarget": 2400
+    },
+    "contract_zm_wave_time_trial_1": {
+      "kind": 11,
+      "progressTarget": 1,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 6,
+            "items": [
+              {
+                "id": 6,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ],
+      "costItemID": 83886243,
+      "usageTimeTarget": 1800
+    },
+    "daily_zm_ch_pistols_1": {
+      "kind": 8,
+      "progressTarget": 50,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_traps": {
+      "kind": 8,
+      "progressTarget": 8,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_revives_1": {
+      "kind": 8,
+      "progressTarget": 20,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 5,
+            "items": [
+              {
+                "id": 5,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_purchase_weapons_1": {
+      "kind": 8,
+      "progressTarget": 40,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 5,
+            "items": [
+              {
+                "id": 5,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "weekly_zm_ch_purchase_doors_1": {
+      "kind": 9,
+      "progressTarget": 75,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 6,
+            "items": [
+              {
+                "id": 6,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "weekly_zm_ch_headshots_1": {
+      "kind": 9,
+      "progressTarget": 200,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 6,
+            "items": [
+              {
+                "id": 6,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_zm_treasure_1": {
+      "kind": 11,
+      "progressTarget": 1,
+      "usageTimeTarget": 10800,
+      "costItemID": 83886178,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 6,
+            "items": [
+              {
+                "id": 6,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_zm_kills_freefire_1": {
+      "kind": 11,
+      "progressTarget": 175,
+      "usageTimeTarget": 1800,
+      "costItemID": 83886174,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 6,
+            "items": [
+              {
+                "id": 6,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_zm_ch_kills_1": {
+      "kind": 11,
+      "progressTarget": 250,
+      "usageTimeTarget": 3000,
+      "costItemID": 83886164,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 6,
+            "items": [
+              {
+                "id": 6,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_zm_ch_kills_3": {
+      "kind": 11,
+      "progressTarget": 750,
+      "usageTimeTarget": 7200,
+      "costItemID": 83886170,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 6,
+            "items": [
+              {
+                "id": 6,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_zm_shellshock_1": {
+      "kind": 11,
+      "progressTarget": 200,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 122,
+            "items": [
+              {
+                "id": 122,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ],
+      "costItemID": 83886176,
+      "usageTimeTarget": 2400
+    },
+    "contract_zm_open_all_doors_1": {
+      "kind": 11,
+      "progressTarget": 1,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 6,
+            "items": [
+              {
+                "id": 6,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ],
+      "costItemID": 83886241,
+      "usageTimeTarget": 1500
+    },
+    "contract_zm_ch_kills_2": {
+      "kind": 11,
+      "progressTarget": 400,
+      "usageTimeTarget": 3600,
+      "costItemID": 83886165,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 6,
+            "items": [
+              {
+                "id": 6,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_karloot0_1": {
+      "kind": 1,
+      "progressTarget": 100,
+      "successRewards": [
+        {
+          "product": {
+            "items": [
+              {
+                "override_usage_duration": 0,
+                "id": 16867584,
+                "usage_duration": null,
+                "quantity": 1
+              }
+            ],
+            "currencies": [],
+            "id": 16867584
+          },
+          "type": "grant_product"
+        }
+      ]
+    },
+    "daily_ch_winchesterloot3_2": {
+      "kind": 1,
+      "progressTarget": 100,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16872450,
+            "items": [
+              {
+                "id": 16872450,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_brenloot1_1": {
+      "kind": 1,
+      "progressTarget": 75,
+      "successRewards": [
+        {
+          "product": {
+            "items": [
+              {
+                "override_usage_duration": 0,
+                "id": 16933376,
+                "usage_duration": null,
+                "quantity": 1
+              }
+            ],
+            "currencies": [],
+            "id": 16933376
+          },
+          "type": "grant_product"
+        }
+      ]
+    },
+    "daily_ch_no_sniper_mountain": {
+      "kind": 1,
+      "progressTarget": 25,
+      "successRewards": [
+        {
+          "currency": {
+            "amount": 300,
+            "id": 6
+          },
+          "type": "grant_currency"
+        }
+      ]
+    },
+    "weekly_ch_airborne_kills": {
+      "kind": 2,
+      "progressTarget": 100,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 2,
+            "items": [
+              {
+                "id": 2,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_35_kills_dom": {
+      "kind": 4,
+      "progressTarget": 35,
+      "successRewards": [
+        {
+          "product": {
+            "items": [
+              {
+                "override_usage_duration": 0,
+                "id": 2,
+                "usage_duration": null,
+                "quantity": 1
+              }
+            ],
+            "currencies": [],
+            "id": 2
+          },
+          "type": "grant_product"
+        }
+      ],
+      "costItemID": 83886125,
+      "usageTimeTarget": 1200
+    },
+    "contract_25_kills_rifle": {
+      "kind": 4,
+      "progressTarget": 25,
+      "successRewards": [
+        {
+          "product": {
+            "items": [
+              {
+                "override_usage_duration": 0,
+                "id": 2,
+                "usage_duration": null,
+                "quantity": 1
+              }
+            ],
+            "currencies": [],
+            "id": 2
+          },
+          "type": "grant_product"
+        }
+      ],
+      "costItemID": 83886145,
+      "usageTimeTarget": 1200
+    },
+    "contract_65_kills_hc": {
+      "kind": 4,
+      "progressTarget": 65,
+      "successRewards": [
+        {
+          "product": {
+            "items": [
+              {
+                "override_usage_duration": 0,
+                "id": 1,
+                "usage_duration": null,
+                "quantity": 1
+              }
+            ],
+            "currencies": [],
+            "id": 1
+          },
+          "type": "grant_product"
+        }
+      ],
+      "costItemID": 83886227,
+      "usageTimeTarget": 4200
+    },
+    "contract_55_kills_tdm_dlc2": {
+      "kind": 4,
+      "progressTarget": 55,
+      "successRewards": [
+        {
+          "product": {
+            "items": [
+              {
+                "override_usage_duration": 0,
+                "id": 1,
+                "usage_duration": null,
+                "quantity": 1
+              }
+            ],
+            "currencies": [],
+            "id": 1
+          },
+          "type": "grant_product"
+        }
+      ],
+      "costItemID": 83886210,
+      "usageTimeTarget": 3000
+    },
+    "daily_zm_ch_headshots_1": {
+      "kind": 8,
+      "progressTarget": 25,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_bomber_with_bomb": {
+      "kind": 8,
+      "progressTarget": 1,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_pest_melee": {
+      "kind": 8,
+      "progressTarget": 15,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_kills_upgraded_1": {
+      "kind": 8,
+      "progressTarget": 100,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_sniper_headshots_1": {
+      "kind": 8,
+      "progressTarget": 20,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_explosives_1": {
+      "kind": 8,
+      "progressTarget": 40,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "weekly_zm_ch_kills_electrical_1": {
+      "kind": 9,
+      "progressTarget": 200,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 6,
+            "items": [
+              {
+                "id": 6,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "weekly_zm_ch_kills_benners_1": {
+      "kind": 9,
+      "progressTarget": 10,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 6,
+            "items": [
+              {
+                "id": 6,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "weekly_zm_ch_kills_equipment": {
+      "kind": 9,
+      "progressTarget": 150,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 6,
+            "items": [
+              {
+                "id": 6,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "weekly_zm_ch_traps_1": {
+      "kind": 9,
+      "progressTarget": 150,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 6,
+            "items": [
+              {
+                "id": 6,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_zm_ch_jumping_knifes_1": {
+      "kind": 11,
+      "progressTarget": 15,
+      "usageTimeTarget": 900,
+      "costItemID": 83886167,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 6,
+            "items": [
+              {
+                "id": 6,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_zm_ch_unique_kills_fr_1": {
+      "kind": 11,
+      "progressTarget": 1,
+      "usageTimeTarget": 1800,
+      "costItemID": 83886171,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 6,
+            "items": [
+              {
+                "id": 6,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_zm_ch_beheadings_1": {
+      "kind": 11,
+      "progressTarget": 50,
+      "usageTimeTarget": 3600,
+      "costItemID": 83886172,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 6,
+            "items": [
+              {
+                "id": 6,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_kills": {
+      "kind": 1,
+      "progressTarget": 25,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 1,
+            "items": [
+              {
+                "id": 1,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_assault_kills": {
+      "kind": 1,
+      "progressTarget": 35,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 1,
+            "items": [
+              {
+                "id": 1,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_headshots": {
+      "kind": 1,
+      "progressTarget": 3,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 1,
+            "items": [
+              {
+                "id": 1,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_shovel_kills": {
+      "kind": 1,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 1,
+            "amount": 500
+          }
+        }
+      ]
+    },
+    "daily_ch_tactical_kills": {
+      "kind": 1,
+      "progressTarget": 5,
+      "rewardPolicy": "local_200_armory_credits",
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "daily_ch_assault_headshots": {
+      "kind": 1,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 1,
+            "items": [
+              {
+                "id": 1,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_sten": {
+      "kind": 3,
+      "progressTarget": 50,
+      "rewardPolicy": "local_base_weapon",
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16883968,
+            "items": [
+              {
+                "id": 16883968,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_gewehr43": {
+      "kind": 3,
+      "progressTarget": 50,
+      "rewardPolicy": "local_base_weapon",
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16908544,
+            "items": [
+              {
+                "id": 16908544,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_gpmg": {
+      "kind": 3,
+      "progressTarget": 50,
+      "rewardPolicy": "local_base_weapon",
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17129728,
+            "items": [
+              {
+                "id": 17129728,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_icepick": {
+      "kind": 3,
+      "progressTarget": 35,
+      "rewardPolicy": "local_base_weapon",
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17117440,
+            "items": [
+              {
+                "id": 17117440,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_trenchknife": {
+      "kind": 3,
+      "progressTarget": 35,
+      "rewardPolicy": "local_base_weapon",
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17232128,
+            "items": [
+              {
+                "id": 17232128,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_volk": {
+      "kind": 3,
+      "progressTarget": 50,
+      "rewardPolicy": "local_base_weapon",
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16900096,
+            "items": [
+              {
+                "id": 16900096,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_orso": {
+      "kind": 3,
+      "progressTarget": 50,
+      "rewardPolicy": "local_base_weapon",
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16896000,
+            "items": [
+              {
+                "id": 16896000,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_combatknife": {
+      "kind": 3,
+      "progressTarget": 35,
+      "rewardPolicy": "local_base_weapon",
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17100800,
+            "items": [
+              {
+                "id": 17100800,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_enfield": {
+      "kind": 3,
+      "progressTarget": 50,
+      "rewardPolicy": "local_base_weapon",
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16965632,
+            "items": [
+              {
+                "id": 16965632,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_revolver": {
+      "kind": 3,
+      "progressTarget": 50,
+      "rewardPolicy": "local_base_weapon",
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16969728,
+            "items": [
+              {
+                "id": 16969728,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_resist_bribe": {
+      "kind": 3,
+      "progressTarget": 30,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 78,
+            "items": [
+              {
+                "id": 78,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_uprising_triple_play": {
+      "kind": 3,
+      "progressTarget": 80,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 80,
+            "items": [
+              {
+                "id": 80,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        },
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 85,
+            "items": [
+              {
+                "id": 85,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_heroic_weapon_bribe": {
+      "kind": 3,
+      "progressTarget": 100,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 84,
+            "items": [
+              {
+                "id": 84,
+                "quantity": 2,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_epic_weapon_x2": {
+      "kind": 3,
+      "progressTarget": 85,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 86,
+            "items": [
+              {
+                "id": 86,
+                "quantity": 2,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_heroic_uniform": {
+      "kind": 3,
+      "progressTarget": 40,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 83,
+            "items": [
+              {
+                "id": 83,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_epic_weapon": {
+      "kind": 3,
+      "progressTarget": 40,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 86,
+            "items": [
+              {
+                "id": 86,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_mtx4_bribe": {
+      "kind": 3,
+      "progressTarget": 30,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 95,
+            "items": [
+              {
+                "id": 95,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_weap_uniform_bribe": {
+      "kind": 3,
+      "progressTarget": 65,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 72,
+            "items": [
+              {
+                "id": 72,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        },
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 81,
+            "items": [
+              {
+                "id": 81,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_blitzkrieg_bribe": {
+      "kind": 3,
+      "progressTarget": 150,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 95,
+            "items": [
+              {
+                "id": 95,
+                "quantity": 5,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_weapon_bribe_mtx5": {
+      "kind": 3,
+      "progressTarget": 35,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 72,
+            "items": [
+              {
+                "id": 72,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_undead_bribe": {
+      "kind": 3,
+      "progressTarget": 35,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 105,
+            "items": [
+              {
+                "id": 105,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_undead_5bribes": {
+      "kind": 3,
+      "progressTarget": 150,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 105,
+            "items": [
+              {
+                "id": 105,
+                "quantity": 5,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_airborne_bribe": {
+      "kind": 3,
+      "progressTarget": 35,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 114,
+            "items": [
+              {
+                "id": 114,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_epic_uniform_bribe": {
+      "kind": 3,
+      "progressTarget": 35,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 101,
+            "items": [
+              {
+                "id": 101,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_sniper_bribe": {
+      "kind": 3,
+      "progressTarget": 35,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 111,
+            "items": [
+              {
+                "id": 111,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_rifle_bribe": {
+      "kind": 3,
+      "progressTarget": 35,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 108,
+            "items": [
+              {
+                "id": 108,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_shotgun_mtx7": {
+      "kind": 3,
+      "progressTarget": 35,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 112,
+            "items": [
+              {
+                "id": 112,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_snipe_uniform_mtx7": {
+      "kind": 3,
+      "progressTarget": 70,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 111,
+            "items": [
+              {
+                "id": 111,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        },
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 81,
+            "items": [
+              {
+                "id": 81,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_cavalry_mtx7": {
+      "kind": 3,
+      "progressTarget": 35,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 131,
+            "items": [
+              {
+                "id": 131,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_lmg_mtx7": {
+      "kind": 3,
+      "progressTarget": 35,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 110,
+            "items": [
+              {
+                "id": 110,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_summer_uniform_mtx7": {
+      "kind": 3,
+      "progressTarget": 35,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 129,
+            "items": [
+              {
+                "id": 129,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_smg_uni_mtx7": {
+      "kind": 3,
+      "progressTarget": 85,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 109,
+            "items": [
+              {
+                "id": 109,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        },
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 83,
+            "items": [
+              {
+                "id": 83,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_aruniform_mtx8": {
+      "kind": 3,
+      "progressTarget": 85,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 108,
+            "items": [
+              {
+                "id": 108,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        },
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 83,
+            "items": [
+              {
+                "id": 83,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_weapsmg_mtx8": {
+      "kind": 3,
+      "progressTarget": 35,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 109,
+            "items": [
+              {
+                "id": 109,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        },
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 84,
+            "items": [
+              {
+                "id": 84,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_mountain1_mtx8": {
+      "kind": 3,
+      "progressTarget": 35,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 116,
+            "items": [
+              {
+                "id": 116,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_weapsniper_mtx8": {
+      "kind": 3,
+      "progressTarget": 75,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 111,
+            "items": [
+              {
+                "id": 111,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        },
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 84,
+            "items": [
+              {
+                "id": 84,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_5weap_mtx9": {
+      "kind": 3,
+      "progressTarget": 150,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 72,
+            "items": [
+              {
+                "id": 72,
+                "quantity": 5,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_heroic_ar_mtx9": {
+      "kind": 3,
+      "progressTarget": 70,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 108,
+            "items": [
+              {
+                "id": 108,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        },
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 84,
+            "items": [
+              {
+                "id": 84,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_y2_winter": {
+      "kind": 3,
+      "progressTarget": 35,
+      "rewardPolicy": "local_native_bribe",
+      "repeatable": true,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 76,
+            "items": [
+              {
+                "id": 76,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_smg_kills": {
+      "kind": 1,
+      "progressTarget": 30,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 1,
+            "items": [
+              {
+                "id": 1,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_lmg_kills": {
+      "kind": 1,
+      "progressTarget": 25,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 1,
+            "items": [
+              {
+                "id": 1,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_shotgun_kills": {
+      "kind": 1,
+      "progressTarget": 25,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 1,
+            "items": [
+              {
+                "id": 1,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_pistol_kills": {
+      "kind": 1,
+      "progressTarget": 10,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 1,
+            "items": [
+              {
+                "id": 1,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_launcher_kills": {
+      "kind": 1,
+      "progressTarget": 10,
+      "rewardPolicy": "local_200_armory_credits",
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "daily_ch_sniper_kills": {
+      "kind": 1,
+      "progressTarget": 15,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 1,
+            "items": [
+              {
+                "id": 1,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_sniper_headshots": {
+      "kind": 1,
+      "progressTarget": 3,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 1,
+            "items": [
+              {
+                "id": 1,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_lmg_headshots": {
+      "kind": 1,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 1,
+            "items": [
+              {
+                "id": 1,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_dive_kill": {
+      "kind": 1,
+      "progressTarget": 1,
+      "rewardPolicy": "local_200_armory_credits",
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "daily_ch_equipment_kills": {
+      "kind": 1,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 1,
+            "items": [
+              {
+                "id": 1,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_armored_skill": {
+      "kind": 1,
+      "progressTarget": 10,
+      "rewardPolicy": "local_200_armory_credits",
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "daily_ch_sniper_skill": {
+      "kind": 1,
+      "progressTarget": 10,
+      "rewardPolicy": "local_200_armory_credits",
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "daily_ch_crouch_prone_kills": {
+      "kind": 1,
+      "progressTarget": 15,
+      "rewardPolicy": "local_200_armory_credits",
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "daily_ch_anti_crouch_prone": {
+      "kind": 1,
+      "progressTarget": 10,
+      "rewardPolicy": "local_200_armory_credits",
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "daily_ch_bullet_pen_kills": {
+      "kind": 1,
+      "progressTarget": 10,
+      "rewardPolicy": "local_200_armory_credits",
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "daily_ch_stick_kills": {
+      "kind": 1,
+      "progressTarget": 5,
+      "rewardPolicy": "local_200_armory_credits",
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "daily_ch_backfire_kills": {
+      "kind": 1,
+      "progressTarget": 5,
+      "rewardPolicy": "local_200_armory_credits",
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "daily_ch_kingslayer_kills": {
+      "kind": 1,
+      "progressTarget": 5,
+      "rewardPolicy": "local_200_armory_credits",
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "daily_ch_longshot_medals": {
+      "kind": 1,
+      "progressTarget": 10,
+      "rewardPolicy": "local_200_armory_credits",
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "daily_ch_throwback_kills": {
+      "kind": 1,
+      "progressTarget": 5,
+      "rewardPolicy": "local_200_armory_credits",
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "daily_ch_no_rifle_infantry": {
+      "kind": 1,
+      "progressTarget": 25,
+      "rewardPolicy": "local_200_armory_credits",
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "daily_ch_no_smg_airborne": {
+      "kind": 1,
+      "progressTarget": 25,
+      "rewardPolicy": "local_200_armory_credits",
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "daily_ch_no_lmg_armored": {
+      "kind": 1,
+      "progressTarget": 25,
+      "rewardPolicy": "local_200_armory_credits",
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "weekly_ch_infantry_kills": {
+      "kind": 2,
+      "progressTarget": 100,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 2,
+            "items": [
+              {
+                "id": 2,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "weekly_ch_armored_kills": {
+      "kind": 2,
+      "progressTarget": 100,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 2,
+            "items": [
+              {
+                "id": 2,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "weekly_ch_mountain_kills": {
+      "kind": 2,
+      "progressTarget": 100,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 2,
+            "items": [
+              {
+                "id": 2,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "weekly_ch_expeditionary_kills": {
+      "kind": 2,
+      "progressTarget": 100,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 2,
+            "items": [
+              {
+                "id": 2,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "weekly_ch_fire_kills": {
+      "kind": 2,
+      "progressTarget": 75,
+      "rewardPolicy": "local_rare_mp_drop",
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 2,
+            "items": [
+              {
+                "id": 2,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "weekly_ch_long_range_kills": {
+      "kind": 2,
+      "progressTarget": 50,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 2,
+            "items": [
+              {
+                "id": 2,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "weekly_ch_pistol_kills_dlc1": {
+      "kind": 2,
+      "progressTarget": 100,
+      "rewardPolicy": "local_rare_mp_drop",
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 2,
+            "items": [
+              {
+                "id": 2,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "weekly_ch_pistol_headshots_dlc1": {
+      "kind": 2,
+      "progressTarget": 50,
+      "rewardPolicy": "local_rare_mp_drop",
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 2,
+            "items": [
+              {
+                "id": 2,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "weekly_ch_resistance_kills_dlc1": {
+      "kind": 2,
+      "progressTarget": 200,
+      "rewardPolicy": "local_rare_mp_drop",
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 2,
+            "items": [
+              {
+                "id": 2,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "weekly_ch_kills": {
+      "kind": 2,
+      "progressTarget": 500,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 2,
+            "items": [
+              {
+                "id": 2,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "weekly_ch_resistance_skill_dlc1": {
+      "kind": 2,
+      "progressTarget": 75,
+      "rewardPolicy": "local_rare_mp_drop",
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 2,
+            "items": [
+              {
+                "id": 2,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_shotguns_1": {
+      "kind": 8,
+      "progressTarget": 50,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_lmgs_1": {
+      "kind": 8,
+      "progressTarget": 75,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_kills_pistols_upgraded_1": {
+      "kind": 8,
+      "progressTarget": 60,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_kills_traps_1": {
+      "kind": 8,
+      "progressTarget": 50,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_wustling_melee_only": {
+      "kind": 8,
+      "progressTarget": 2,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_empty_clip": {
+      "kind": 8,
+      "progressTarget": 3,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_wustling_betty_charge": {
+      "kind": 8,
+      "progressTarget": 2,
+      "rewardPolicy": "local_200_armory_credits",
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_kills_bombers_clean": {
+      "kind": 8,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_bomber_bomb_kills": {
+      "kind": 8,
+      "progressTarget": 15,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_throwing_knifes_1": {
+      "kind": 8,
+      "progressTarget": 15,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_headshots_2": {
+      "kind": 8,
+      "progressTarget": 175,
+      "rewardPolicy": "local_200_armory_credits",
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_kills_upgraded_2": {
+      "kind": 8,
+      "progressTarget": 425,
+      "rewardPolicy": "local_200_armory_credits",
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 200
+          }
+        }
+      ]
+    },
+    "weekly_zm_ch_kills_1": {
+      "kind": 9,
+      "progressTarget": 750,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 6,
+            "items": [
+              {
+                "id": 6,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "weekly_zm_ch_ripsaw_kills_no_heavy": {
+      "kind": 9,
+      "progressTarget": 100,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 6,
+            "items": [
+              {
+                "id": 6,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "weekly_ch_hipfire_dlc2": {
+      "kind": 2,
+      "progressTarget": 150,
+      "rewardPolicy": "local_200_cod_points",
+      "successRewards": [
+        {
+          "currency": {
+            "amount": 200,
+            "id": 2
+          },
+          "type": "grant_currency"
+        }
+      ]
+    },
+    "weekly_ch_hc_kills_dlc2": {
+      "kind": 2,
+      "progressTarget": 350,
+      "rewardPolicy": "local_200_cod_points",
+      "successRewards": [
+        {
+          "currency": {
+            "amount": 200,
+            "id": 2
+          },
+          "type": "grant_currency"
+        }
+      ]
+    },
+    "weekly_ch_cav_kills": {
+      "kind": 2,
+      "progressTarget": 300,
+      "rewardPolicy": "local_200_cod_points",
+      "successRewards": [
+        {
+          "currency": {
+            "amount": 200,
+            "id": 2
+          },
+          "type": "grant_currency"
+        }
+      ]
+    },
+    "contract_15_headshots": {
+      "kind": 4,
+      "progressTarget": 15,
+      "costItemID": 83886184,
+      "usageTimeTarget": 3600,
+      "rewardPolicy": "local_100_cod_points",
+      "successRewards": [
+        {
+          "currency": {
+            "amount": 100,
+            "id": 2
+          },
+          "type": "grant_currency"
+        }
+      ]
+    },
+    "contract_50_kills_rifle": {
+      "kind": 4,
+      "progressTarget": 50,
+      "costItemID": 83886187,
+      "usageTimeTarget": 2400,
+      "rewardPolicy": "local_100_cod_points",
+      "successRewards": [
+        {
+          "currency": {
+            "amount": 100,
+            "id": 2
+          },
+          "type": "grant_currency"
+        }
+      ]
+    },
+    "contract_50_kills_smg": {
+      "kind": 4,
+      "progressTarget": 50,
+      "usageTimeTarget": 2400,
+      "costItemID": 83886188,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 1,
+            "amount": 3000
+          }
+        }
+      ]
+    },
+    "contract_ch_moon_mountain": {
+      "kind": 4,
+      "progressTarget": 1,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 100675627,
+            "items": [
+              {
+                "id": 100675627,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              },
+              {
+                "id": 8389049,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ],
+      "costItemID": 83886235
+    },
+    "contract_ch_moon_hunter": {
+      "kind": 4,
+      "progressTarget": 500,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 100675628,
+            "items": [
+              {
+                "id": 100675628,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              },
+              {
+                "id": 8389050,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ],
+      "costItemID": 83886236,
+      "prerequisiteItemID": 8389049
+    },
+    "contract_ch_moon_survivor": {
+      "kind": 4,
+      "progressTarget": 20,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 100675629,
+            "items": [
+              {
+                "id": 100675629,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              },
+              {
+                "id": 8389051,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ],
+      "costItemID": 83886237,
+      "prerequisiteItemID": 8389050
+    },
+    "contract_ch_moon_slayer": {
+      "kind": 4,
+      "progressTarget": 1,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 100675630,
+            "items": [
+              {
+                "id": 100675630,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ],
+      "costItemID": 83886238,
+      "prerequisiteItemID": 8389051
+    },
+    "special_ch_storm_survivor": {
+      "kind": 10,
+      "progressTarget": 200,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 8389095,
+            "items": [
+              {
+                "id": 8389095,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_storm_hunter": {
+      "kind": 10,
+      "progressTarget": 25,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 8389096,
+            "items": [
+              {
+                "id": 8389096,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_storm_slayer": {
+      "kind": 10,
+      "progressTarget": 3,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 8389097,
+            "items": [
+              {
+                "id": 8389097,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "special_ch_storm_mountain": {
+      "kind": 10,
+      "progressTarget": 200,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 8389098,
+            "items": [
+              {
+                "id": 8389098,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_4_headshots_tdm": {
+      "kind": 4,
+      "progressTarget": 4,
+      "usageTimeTarget": 1200,
+      "costItemID": 83886105,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 1,
+            "amount": 3000
+          }
+        }
+      ]
+    },
+    "contract_ch_mas38": {
+      "kind": 4,
+      "progressTarget": 60,
+      "usageTimeTarget": 4500,
+      "costItemID": 83886193,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17256704,
+            "items": [
+              {
+                "id": 17256704,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_mg81": {
+      "kind": 4,
+      "progressTarget": 25,
+      "usageTimeTarget": 4800,
+      "costItemID": 83886194,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17039616,
+            "items": [
+              {
+                "id": 17039616,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_sten": {
+      "kind": 4,
+      "progressTarget": 30,
+      "usageTimeTarget": 7200,
+      "costItemID": 83886195,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16883968,
+            "items": [
+              {
+                "id": 16883968,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_gewehr": {
+      "kind": 4,
+      "progressTarget": 200,
+      "usageTimeTarget": 7200,
+      "costItemID": 83886196,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16908544,
+            "items": [
+              {
+                "id": 16908544,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_gpmg": {
+      "kind": 4,
+      "progressTarget": 75,
+      "usageTimeTarget": 7200,
+      "costItemID": 83886197,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17129728,
+            "items": [
+              {
+                "id": 17129728,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_icepick": {
+      "kind": 4,
+      "progressTarget": 50,
+      "usageTimeTarget": 7200,
+      "costItemID": 83886198,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17117440,
+            "items": [
+              {
+                "id": 17117440,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_trenchknife": {
+      "kind": 4,
+      "progressTarget": 1,
+      "usageTimeTarget": 7200,
+      "costItemID": 83886199,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17232128,
+            "items": [
+              {
+                "id": 17232128,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_volk": {
+      "kind": 4,
+      "progressTarget": 200,
+      "usageTimeTarget": 7200,
+      "costItemID": 83886200,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16900352,
+            "items": [
+              {
+                "id": 16900352,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_orso": {
+      "kind": 4,
+      "progressTarget": 65,
+      "usageTimeTarget": 7200,
+      "costItemID": 83886201,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16896256,
+            "items": [
+              {
+                "id": 16896256,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_combatknife": {
+      "kind": 4,
+      "progressTarget": 10,
+      "usageTimeTarget": 3600,
+      "costItemID": 83886202,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17101056,
+            "items": [
+              {
+                "id": 17101056,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_enfield": {
+      "kind": 4,
+      "progressTarget": 50,
+      "usageTimeTarget": 7200,
+      "costItemID": 83886203,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16965888,
+            "items": [
+              {
+                "id": 16965888,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_revolver": {
+      "kind": 4,
+      "progressTarget": 20,
+      "usageTimeTarget": 7200,
+      "costItemID": 83886204,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16969984,
+            "items": [
+              {
+                "id": 16969984,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_55_kills_tdm": {
+      "kind": 4,
+      "progressTarget": 55,
+      "usageTimeTarget": 3000,
+      "costItemID": 83886089,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 1,
+            "items": [
+              {
+                "id": 1,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_lad": {
+      "kind": 4,
+      "progressTarget": 10,
+      "usageTimeTarget": 4800,
+      "costItemID": 83886265,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17420544,
+            "items": [
+              {
+                "id": 17420544,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_baseballbat": {
+      "kind": 4,
+      "progressTarget": 25,
+      "usageTimeTarget": 3600,
+      "costItemID": 83886211,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17236224,
+            "items": [
+              {
+                "id": 17236224,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_type5": {
+      "kind": 4,
+      "progressTarget": 10,
+      "usageTimeTarget": 3600,
+      "costItemID": 83886212,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16974080,
+            "items": [
+              {
+                "id": 16974080,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_sterling": {
+      "kind": 4,
+      "progressTarget": 30,
+      "usageTimeTarget": 3600,
+      "costItemID": 83886213,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17252608,
+            "items": [
+              {
+                "id": 17252608,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_arisaka": {
+      "kind": 4,
+      "progressTarget": 15,
+      "usageTimeTarget": 3600,
+      "costItemID": 83886214,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16924928,
+            "items": [
+              {
+                "id": 16924928,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_burstrifle": {
+      "kind": 4,
+      "progressTarget": 60,
+      "usageTimeTarget": 3600,
+      "costItemID": 83886215,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17240320,
+            "items": [
+              {
+                "id": 17240320,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_45_kills": {
+      "kind": 4,
+      "progressTarget": 45,
+      "usageTimeTarget": 2400,
+      "costItemID": 83886092,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 1,
+            "amount": 3000
+          }
+        }
+      ]
+    },
+    "contract_ch_autom2": {
+      "kind": 4,
+      "progressTarget": 45,
+      "usageTimeTarget": 3600,
+      "costItemID": 83886216,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17355008,
+            "items": [
+              {
+                "id": 17355008,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_claymore": {
+      "kind": 4,
+      "progressTarget": 25,
+      "usageTimeTarget": 2700,
+      "costItemID": 83886228,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17350912,
+            "items": [
+              {
+                "id": 17350912,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_lever_action": {
+      "kind": 4,
+      "progressTarget": 10,
+      "usageTimeTarget": 1800,
+      "costItemID": 83886229,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17289472,
+            "items": [
+              {
+                "id": 17289472,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_fire_axe": {
+      "kind": 4,
+      "progressTarget": 15,
+      "usageTimeTarget": 1800,
+      "costItemID": 83886230,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17273088,
+            "items": [
+              {
+                "id": 17273088,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_m1919": {
+      "kind": 4,
+      "progressTarget": 10,
+      "usageTimeTarget": 4800,
+      "costItemID": 83886231,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16937216,
+            "items": [
+              {
+                "id": 16937216,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_nambu": {
+      "kind": 4,
+      "progressTarget": 30,
+      "usageTimeTarget": 3600,
+      "costItemID": 83886232,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17248512,
+            "items": [
+              {
+                "id": 17248512,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_25_kills_dom": {
+      "kind": 4,
+      "progressTarget": 25,
+      "usageTimeTarget": 1200,
+      "costItemID": 83886096,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 1,
+            "amount": 3000
+          }
+        }
+      ]
+    },
+    "contract_ch_blunderbuss": {
+      "kind": 4,
+      "progressTarget": 20,
+      "usageTimeTarget": 2100,
+      "costItemID": 83886233,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17088768,
+            "items": [
+              {
+                "id": 17088768,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_ptrs": {
+      "kind": 4,
+      "progressTarget": 50,
+      "usageTimeTarget": 3600,
+      "costItemID": 83886234,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17338624,
+            "items": [
+              {
+                "id": 17338624,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_avs": {
+      "kind": 4,
+      "progressTarget": 75,
+      "usageTimeTarget": 4500,
+      "costItemID": 83886247,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17383680,
+            "items": [
+              {
+                "id": 17383680,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_delisle": {
+      "kind": 4,
+      "progressTarget": 50,
+      "usageTimeTarget": 3600,
+      "costItemID": 83886249,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17342720,
+            "items": [
+              {
+                "id": 17342720,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_ribeyrolls": {
+      "kind": 4,
+      "progressTarget": 15,
+      "usageTimeTarget": 5100,
+      "costItemID": 83886250,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17400064,
+            "items": [
+              {
+                "id": 17400064,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_3line": {
+      "kind": 4,
+      "progressTarget": 10,
+      "usageTimeTarget": 4800,
+      "costItemID": 83886251,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17334528,
+            "items": [
+              {
+                "id": 17334528,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_9_headshots": {
+      "kind": 4,
+      "progressTarget": 9,
+      "usageTimeTarget": 2400,
+      "costItemID": 83886107,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 1,
+            "amount": 3000
+          }
+        }
+      ]
+    },
+    "contract_ch_vmg": {
+      "kind": 4,
+      "progressTarget": 10,
+      "usageTimeTarget": 4800,
+      "costItemID": 83886254,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17244416,
+            "items": [
+              {
+                "id": 17244416,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_tokyo": {
+      "kind": 4,
+      "progressTarget": 200,
+      "usageTimeTarget": 10800,
+      "costItemID": 83886255,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17432832,
+            "items": [
+              {
+                "id": 17432832,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_crossbow": {
+      "kind": 4,
+      "progressTarget": 5,
+      "usageTimeTarget": 3600,
+      "costItemID": 83886256,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17449216,
+            "items": [
+              {
+                "id": 17449216,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_emp": {
+      "kind": 4,
+      "progressTarget": 30,
+      "usageTimeTarget": 3600,
+      "costItemID": 83886257,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17326336,
+            "items": [
+              {
+                "id": 17326336,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_charlton": {
+      "kind": 4,
+      "progressTarget": 45,
+      "usageTimeTarget": 3600,
+      "costItemID": 83886258,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17395968,
+            "items": [
+              {
+                "id": 17395968,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_sledge": {
+      "kind": 4,
+      "progressTarget": 10,
+      "usageTimeTarget": 1800,
+      "costItemID": 83886260,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17285376,
+            "items": [
+              {
+                "id": 17285376,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_25_kills_lmg": {
+      "kind": 4,
+      "progressTarget": 25,
+      "usageTimeTarget": 1200,
+      "costItemID": 83886147,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 1,
+            "amount": 3000
+          }
+        }
+      ]
+    },
+    "contract_ch_kg": {
+      "kind": 4,
+      "progressTarget": 75,
+      "usageTimeTarget": 4800,
+      "costItemID": 83886262,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17305856,
+            "items": [
+              {
+                "id": 17305856,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_gdb": {
+      "kind": 4,
+      "progressTarget": 15,
+      "usageTimeTarget": 5100,
+      "costItemID": 83886263,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17416448,
+            "items": [
+              {
+                "id": 17416448,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_wimmer": {
+      "kind": 4,
+      "progressTarget": 150,
+      "usageTimeTarget": 7200,
+      "costItemID": 83886264,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17457408,
+            "items": [
+              {
+                "id": 17457408,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_chatellerault": {
+      "kind": 4,
+      "progressTarget": 50,
+      "usageTimeTarget": 6000,
+      "costItemID": 83886266,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17453312,
+            "items": [
+              {
+                "id": 17453312,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_austen": {
+      "kind": 4,
+      "progressTarget": 30,
+      "usageTimeTarget": 3600,
+      "costItemID": 83886267,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17314048,
+            "items": [
+              {
+                "id": 17314048,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_bechowiec": {
+      "kind": 4,
+      "progressTarget": 200,
+      "usageTimeTarget": 10800,
+      "costItemID": 83886268,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17318144,
+            "items": [
+              {
+                "id": 17318144,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_50_kills_lmg": {
+      "kind": 4,
+      "progressTarget": 50,
+      "usageTimeTarget": 3000,
+      "costItemID": 83886189,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 1,
+            "items": [
+              {
+                "id": 1,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_blyskawica": {
+      "kind": 4,
+      "progressTarget": 10,
+      "usageTimeTarget": 3600,
+      "costItemID": 83886269,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17322240,
+            "items": [
+              {
+                "id": 17322240,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_m2": {
+      "kind": 4,
+      "progressTarget": 30,
+      "usageTimeTarget": 3600,
+      "costItemID": 83886270,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17404160,
+            "items": [
+              {
+                "id": 17404160,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_erma": {
+      "kind": 4,
+      "progressTarget": 15,
+      "usageTimeTarget": 5100,
+      "costItemID": 83886271,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17436928,
+            "items": [
+              {
+                "id": 17436928,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_m36": {
+      "kind": 4,
+      "progressTarget": 10,
+      "usageTimeTarget": 4800,
+      "costItemID": 83886272,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17330432,
+            "items": [
+              {
+                "id": 17330432,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_wz": {
+      "kind": 4,
+      "progressTarget": 50,
+      "usageTimeTarget": 3600,
+      "costItemID": 83886273,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17441024,
+            "items": [
+              {
+                "id": 17441024,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "contract_ch_dagger": {
+      "kind": 4,
+      "progressTarget": 40,
+      "usageTimeTarget": 7200,
+      "costItemID": 83886274,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17268992,
+            "items": [
+              {
+                "id": 17268992,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_barloot0_1": {
+      "kind": 1,
+      "progressTarget": 35,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17125632,
+            "items": [
+              {
+                "id": 17125632,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_barloot2_1": {
+      "kind": 1,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17126145,
+            "items": [
+              {
+                "id": 17126145,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_barloot1_2": {
+      "kind": 1,
+      "progressTarget": 3,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17125890,
+            "items": [
+              {
+                "id": 17125890,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_barloot3_1": {
+      "kind": 1,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 17126400,
+            "items": [
+              {
+                "id": 17126400,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_brenloot2_1": {
+      "kind": 1,
+      "progressTarget": 25,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16933633,
+            "items": [
+              {
+                "id": 16933633,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_brenloot0_1": {
+      "kind": 1,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16933120,
+            "items": [
+              {
+                "id": 16933120,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_brenloot0_2": {
+      "kind": 1,
+      "progressTarget": 3,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16933122,
+            "items": [
+              {
+                "id": 16933122,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_brenloot2_2": {
+      "kind": 1,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16933634,
+            "items": [
+              {
+                "id": 16933634,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_brenloot3_2": {
+      "kind": 1,
+      "progressTarget": 25,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16933890,
+            "items": [
+              {
+                "id": 16933890,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_karloot3_1": {
+      "kind": 1,
+      "progressTarget": 15,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16868352,
+            "items": [
+              {
+                "id": 16868352,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_karloot3_2": {
+      "kind": 1,
+      "progressTarget": 3,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16868354,
+            "items": [
+              {
+                "id": 16868354,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_karloot1_2": {
+      "kind": 1,
+      "progressTarget": 3,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16867842,
+            "items": [
+              {
+                "id": 16867842,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_lewisloot0_1": {
+      "kind": 1,
+      "progressTarget": 25,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16863488,
+            "items": [
+              {
+                "id": 16863488,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_lewisloot2_1": {
+      "kind": 1,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16864001,
+            "items": [
+              {
+                "id": 16864001,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_lewisloot0_2": {
+      "kind": 1,
+      "progressTarget": 3,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16863490,
+            "items": [
+              {
+                "id": 16863490,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_lewisloot2_2": {
+      "kind": 1,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16864002,
+            "items": [
+              {
+                "id": 16864002,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_lewisloot3_2": {
+      "kind": 1,
+      "progressTarget": 25,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16864258,
+            "items": [
+              {
+                "id": 16864258,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_lugerloot2_1": {
+      "kind": 1,
+      "progressTarget": 10,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16958209,
+            "items": [
+              {
+                "id": 16958209,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_lugerloot3_2": {
+      "kind": 1,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16958466,
+            "items": [
+              {
+                "id": 16958466,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_lugerloot0_1": {
+      "kind": 1,
+      "progressTarget": 3,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16957696,
+            "items": [
+              {
+                "id": 16957696,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_lugerloot3_1": {
+      "kind": 1,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16958464,
+            "items": [
+              {
+                "id": 16958464,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_lugerloot0_2": {
+      "kind": 1,
+      "progressTarget": 10,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16957698,
+            "items": [
+              {
+                "id": 16957698,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_m1911loot0_1": {
+      "kind": 1,
+      "progressTarget": 10,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16859392,
+            "items": [
+              {
+                "id": 16859392,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_m1911loot2_1": {
+      "kind": 1,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16859905,
+            "items": [
+              {
+                "id": 16859905,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_m1911loot0_2": {
+      "kind": 1,
+      "progressTarget": 3,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16859394,
+            "items": [
+              {
+                "id": 16859394,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_m1911loot1_2": {
+      "kind": 1,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16859650,
+            "items": [
+              {
+                "id": 16859650,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_m30loot0_1": {
+      "kind": 1,
+      "progressTarget": 100,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16920832,
+            "items": [
+              {
+                "id": 16920832,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_m30loot0_2": {
+      "kind": 1,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16920834,
+            "items": [
+              {
+                "id": 16920834,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_m30loot1_1": {
+      "kind": 1,
+      "progressTarget": 3,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16921088,
+            "items": [
+              {
+                "id": 16921088,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_m30loot3_2": {
+      "kind": 1,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16921602,
+            "items": [
+              {
+                "id": 16921602,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_m30loot3_1": {
+      "kind": 1,
+      "progressTarget": 100,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16921600,
+            "items": [
+              {
+                "id": 16921600,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_thompsonloot3_1": {
+      "kind": 1,
+      "progressTarget": 30,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16851968,
+            "items": [
+              {
+                "id": 16851968,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_thompsonloot2_1": {
+      "kind": 1,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16851713,
+            "items": [
+              {
+                "id": 16851713,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_thompsonloot0_2": {
+      "kind": 1,
+      "progressTarget": 3,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16851202,
+            "items": [
+              {
+                "id": 16851202,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_thompsonloot0_1": {
+      "kind": 1,
+      "progressTarget": 30,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16851200,
+            "items": [
+              {
+                "id": 16851200,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_winchesterloot3_1": {
+      "kind": 1,
+      "progressTarget": 100,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16872448,
+            "items": [
+              {
+                "id": 16872448,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_winchesterloot0_1": {
+      "kind": 1,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16871680,
+            "items": [
+              {
+                "id": 16871680,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_winchesterloot1_2": {
+      "kind": 1,
+      "progressTarget": 3,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16871938,
+            "items": [
+              {
+                "id": 16871938,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_winchesterloot2_1": {
+      "kind": 1,
+      "progressTarget": 3,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 16872193,
+            "items": [
+              {
+                "id": 16872193,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_ch_dom_wins": {
+      "kind": 1,
+      "progressTarget": 1,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 7,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_ch_tdm_wins": {
+      "kind": 1,
+      "progressTarget": 1,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 7,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_ch_killstreak": {
+      "kind": 1,
+      "progressTarget": 3,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 1,
+            "amount": 300
+          }
+        }
+      ]
+    },
+    "daily_ch_dom_caps": {
+      "kind": 1,
+      "progressTarget": 5,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 1,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_ch_assists": {
+      "kind": 1,
+      "progressTarget": 10,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 1,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_ch_destroy_scorestreaks": {
+      "kind": 1,
+      "progressTarget": 2,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 1,
+            "amount": 300
+          }
+        }
+      ]
+    },
+    "daily_ch_ffa_killer": {
+      "kind": 1,
+      "progressTarget": 15,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 1,
+            "items": [
+              {
+                "id": 1,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "weekly_ch_wins": {
+      "kind": 2,
+      "progressTarget": 10,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 2,
+            "items": [
+              {
+                "id": 2,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "weekly_ch_scorestreak_calls": {
+      "kind": 2,
+      "progressTarget": 25,
+      "successRewards": [
+        {
+          "type": "grant_product",
+          "product": {
+            "id": 2,
+            "items": [
+              {
+                "id": 2,
+                "quantity": 1,
+                "usage_duration": null,
+                "override_usage_duration": 0
+              }
+            ],
+            "currencies": []
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_kills_jack_in_box_1": {
+      "kind": 8,
+      "progressTarget": 40,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_kills_ripsaw_1": {
+      "kind": 8,
+      "progressTarget": 25,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_traps_propeller_1": {
+      "kind": 8,
+      "progressTarget": 30,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 250
+          }
+        }
+      ]
+    },
+    "daily_zm_ch_wave_asn_spines_1": {
+      "kind": 8,
+      "progressTarget": 2,
+      "successRewards": [
+        {
+          "type": "grant_currency",
+          "currency": {
+            "id": 6,
+            "amount": 250
+          }
+        }
+      ]
+    }
+  },
+  "rotations": [
+    {
+      "kind": 3,
+      "activationLimit": 1,
+      "sets": [
+        [
+          "special_ch_sten"
+        ],
+        [
+          "special_ch_gewehr43"
+        ],
+        [
+          "special_ch_gpmg"
+        ],
+        [
+          "special_ch_icepick"
+        ],
+        [
+          "special_ch_trenchknife"
+        ],
+        [
+          "special_ch_volk"
+        ],
+        [
+          "special_ch_orso"
+        ],
+        [
+          "special_ch_combatknife"
+        ],
+        [
+          "special_ch_enfield"
+        ],
+        [
+          "special_ch_revolver"
+        ],
+        [
+          "special_ch_resist_bribe"
+        ],
+        [
+          "special_ch_uprising_triple_play"
+        ],
+        [
+          "special_ch_heroic_weapon_bribe"
+        ],
+        [
+          "special_ch_epic_weapon_x2"
+        ],
+        [
+          "special_ch_heroic_uniform"
+        ],
+        [
+          "special_ch_epic_weapon"
+        ],
+        [
+          "special_ch_mtx4_bribe"
+        ],
+        [
+          "special_ch_weap_uniform_bribe"
+        ],
+        [
+          "special_ch_blitzkrieg_bribe"
+        ],
+        [
+          "special_ch_weapon_bribe_mtx5"
+        ],
+        [
+          "special_ch_undead_bribe"
+        ],
+        [
+          "special_ch_undead_5bribes"
+        ],
+        [
+          "special_ch_airborne_bribe"
+        ],
+        [
+          "special_ch_epic_uniform_bribe"
+        ],
+        [
+          "special_ch_sniper_bribe"
+        ],
+        [
+          "special_ch_rifle_bribe"
+        ],
+        [
+          "special_ch_shotgun_mtx7"
+        ],
+        [
+          "special_ch_snipe_uniform_mtx7"
+        ],
+        [
+          "special_ch_cavalry_mtx7"
+        ],
+        [
+          "special_ch_lmg_mtx7"
+        ],
+        [
+          "special_ch_summer_uniform_mtx7"
+        ],
+        [
+          "special_ch_smg_uni_mtx7"
+        ],
+        [
+          "special_ch_aruniform_mtx8"
+        ],
+        [
+          "special_ch_weapsmg_mtx8"
+        ],
+        [
+          "special_ch_mountain1_mtx8"
+        ],
+        [
+          "special_ch_weapsniper_mtx8"
+        ],
+        [
+          "special_ch_5weap_mtx9"
+        ],
+        [
+          "special_ch_heroic_ar_mtx9"
+        ],
+        [
+          "special_ch_y2_winter"
+        ]
+      ]
+    },
+    {
+      "kind": 1,
+      "activationLimit": 3,
+      "sets": [
+        [
+          "daily_ch_kills",
+          "daily_ch_smg_kills",
+          "daily_ch_sniper_headshots",
+          "daily_ch_payback_kills",
+          "daily_ch_equipment_kills",
+          "daily_ch_brenloot1_1"
+        ],
+        [
+          "daily_ch_assault_kills",
+          "daily_ch_headshots",
+          "daily_ch_lmg_kills",
+          "daily_ch_dive_kill",
+          "daily_ch_stick_kills",
+          "daily_ch_karloot2_1"
+        ],
+        [
+          "daily_ch_shotgun_kills",
+          "daily_ch_pistol_kills",
+          "daily_ch_shovel_kills",
+          "daily_ch_crouch_prone_kills",
+          "daily_ch_kingslayer_kills",
+          "daily_ch_winchesterloot3_2"
+        ],
+        [
+          "daily_ch_sniper_kills",
+          "daily_ch_assault_headshots",
+          "daily_ch_tactical_kills",
+          "daily_ch_bullet_pen_kills",
+          "daily_ch_backfire_kills",
+          "daily_ch_no_smg_airborne"
+        ],
+        [
+          "daily_ch_launcher_kills",
+          "daily_ch_lmg_headshots",
+          "daily_ch_anti_crouch_prone",
+          "daily_ch_longshot_medals",
+          "daily_ch_armored_skill",
+          "daily_ch_karloot0_1"
+        ],
+        [
+          "daily_ch_sniper_skill",
+          "daily_ch_throwback_kills",
+          "daily_ch_no_lmg_armored",
+          "daily_ch_theater_watch",
+          "daily_ch_no_rifle_infantry",
+          "daily_ch_no_sniper_mountain"
+        ],
+        [
+          "daily_ch_barloot0_1",
+          "daily_ch_barloot2_1",
+          "daily_ch_barloot1_2",
+          "daily_ch_barloot3_1",
+          "daily_ch_brenloot2_1",
+          "daily_ch_brenloot0_1"
+        ],
+        [
+          "daily_ch_brenloot0_2",
+          "daily_ch_brenloot2_2",
+          "daily_ch_brenloot3_2",
+          "daily_ch_karloot3_1",
+          "daily_ch_karloot3_2",
+          "daily_ch_karloot1_2"
+        ],
+        [
+          "daily_ch_lewisloot0_1",
+          "daily_ch_lewisloot2_1",
+          "daily_ch_lewisloot0_2",
+          "daily_ch_lewisloot2_2",
+          "daily_ch_lewisloot3_2",
+          "daily_ch_lugerloot2_1"
+        ],
+        [
+          "daily_ch_lugerloot3_2",
+          "daily_ch_lugerloot0_1",
+          "daily_ch_lugerloot3_1",
+          "daily_ch_lugerloot0_2",
+          "daily_ch_m1911loot0_1",
+          "daily_ch_m1911loot2_1"
+        ],
+        [
+          "daily_ch_m1911loot0_2",
+          "daily_ch_m1911loot1_2",
+          "daily_ch_m30loot0_1",
+          "daily_ch_m30loot0_2",
+          "daily_ch_m30loot1_1",
+          "daily_ch_m30loot3_2"
+        ],
+        [
+          "daily_ch_m30loot3_1",
+          "daily_ch_thompsonloot3_1",
+          "daily_ch_thompsonloot2_1",
+          "daily_ch_thompsonloot0_2",
+          "daily_ch_thompsonloot0_1",
+          "daily_ch_winchesterloot3_1"
+        ],
+        [
+          "daily_ch_winchesterloot0_1",
+          "daily_ch_winchesterloot1_2",
+          "daily_ch_winchesterloot2_1",
+          "daily_ch_dom_wins",
+          "daily_ch_tdm_wins",
+          "daily_ch_killstreak"
+        ],
+        [
+          "daily_ch_dom_caps",
+          "daily_ch_assists",
+          "daily_ch_destroy_scorestreaks",
+          "daily_ch_ffa_killer",
+          "daily_ch_kills",
+          "daily_ch_smg_kills"
+        ],
+        [
+          "daily_ch_sniper_headshots",
+          "daily_ch_payback_kills",
+          "daily_ch_equipment_kills",
+          "daily_ch_brenloot1_1",
+          "daily_ch_assault_kills",
+          "daily_ch_headshots"
+        ],
+        [
+          "daily_ch_lmg_kills",
+          "daily_ch_dive_kill",
+          "daily_ch_stick_kills",
+          "daily_ch_karloot2_1",
+          "daily_ch_shotgun_kills",
+          "daily_ch_pistol_kills"
+        ],
+        [
+          "daily_ch_shovel_kills",
+          "daily_ch_crouch_prone_kills",
+          "daily_ch_kingslayer_kills",
+          "daily_ch_winchesterloot3_2",
+          "daily_ch_sniper_kills",
+          "daily_ch_assault_headshots"
+        ],
+        [
+          "daily_ch_tactical_kills",
+          "daily_ch_bullet_pen_kills",
+          "daily_ch_backfire_kills",
+          "daily_ch_no_smg_airborne",
+          "daily_ch_launcher_kills",
+          "daily_ch_lmg_headshots"
+        ],
+        [
+          "daily_ch_anti_crouch_prone",
+          "daily_ch_longshot_medals",
+          "daily_ch_armored_skill",
+          "daily_ch_karloot0_1",
+          "daily_ch_sniper_skill",
+          "daily_ch_throwback_kills"
+        ],
+        [
+          "daily_ch_no_lmg_armored",
+          "daily_ch_theater_watch",
+          "daily_ch_no_rifle_infantry",
+          "daily_ch_no_sniper_mountain",
+          "daily_ch_barloot0_1",
+          "daily_ch_barloot2_1"
+        ],
+        [
+          "daily_ch_barloot1_2",
+          "daily_ch_barloot3_1",
+          "daily_ch_brenloot2_1",
+          "daily_ch_brenloot0_1",
+          "daily_ch_brenloot0_2",
+          "daily_ch_brenloot2_2"
+        ],
+        [
+          "daily_ch_brenloot3_2",
+          "daily_ch_karloot3_1",
+          "daily_ch_karloot3_2",
+          "daily_ch_karloot1_2",
+          "daily_ch_lewisloot0_1",
+          "daily_ch_lewisloot2_1"
+        ],
+        [
+          "daily_ch_lewisloot0_2",
+          "daily_ch_lewisloot2_2",
+          "daily_ch_lewisloot3_2",
+          "daily_ch_lugerloot2_1",
+          "daily_ch_lugerloot3_2",
+          "daily_ch_lugerloot0_1"
+        ],
+        [
+          "daily_ch_lugerloot3_1",
+          "daily_ch_lugerloot0_2",
+          "daily_ch_m1911loot0_1",
+          "daily_ch_m1911loot2_1",
+          "daily_ch_m1911loot0_2",
+          "daily_ch_m1911loot1_2"
+        ],
+        [
+          "daily_ch_m30loot0_1",
+          "daily_ch_m30loot0_2",
+          "daily_ch_m30loot1_1",
+          "daily_ch_m30loot3_2",
+          "daily_ch_m30loot3_1",
+          "daily_ch_thompsonloot3_1"
+        ],
+        [
+          "daily_ch_thompsonloot2_1",
+          "daily_ch_thompsonloot0_2",
+          "daily_ch_thompsonloot0_1",
+          "daily_ch_winchesterloot3_1",
+          "daily_ch_winchesterloot0_1",
+          "daily_ch_winchesterloot1_2"
+        ],
+        [
+          "daily_ch_winchesterloot2_1",
+          "daily_ch_dom_wins",
+          "daily_ch_tdm_wins",
+          "daily_ch_killstreak",
+          "daily_ch_dom_caps",
+          "daily_ch_assists"
+        ],
+        [
+          "daily_ch_destroy_scorestreaks",
+          "daily_ch_ffa_killer",
+          "daily_ch_kills",
+          "daily_ch_smg_kills",
+          "daily_ch_sniper_headshots",
+          "daily_ch_payback_kills"
+        ],
+        [
+          "daily_ch_equipment_kills",
+          "daily_ch_brenloot1_1",
+          "daily_ch_assault_kills",
+          "daily_ch_headshots",
+          "daily_ch_lmg_kills",
+          "daily_ch_dive_kill"
+        ],
+        [
+          "daily_ch_stick_kills",
+          "daily_ch_karloot2_1",
+          "daily_ch_shotgun_kills",
+          "daily_ch_pistol_kills",
+          "daily_ch_shovel_kills",
+          "daily_ch_crouch_prone_kills"
+        ],
+        [
+          "daily_ch_kingslayer_kills",
+          "daily_ch_winchesterloot3_2",
+          "daily_ch_sniper_kills",
+          "daily_ch_assault_headshots",
+          "daily_ch_tactical_kills",
+          "daily_ch_bullet_pen_kills"
+        ],
+        [
+          "daily_ch_backfire_kills",
+          "daily_ch_no_smg_airborne",
+          "daily_ch_launcher_kills",
+          "daily_ch_lmg_headshots",
+          "daily_ch_anti_crouch_prone",
+          "daily_ch_longshot_medals"
+        ],
+        [
+          "daily_ch_armored_skill",
+          "daily_ch_karloot0_1",
+          "daily_ch_sniper_skill",
+          "daily_ch_throwback_kills",
+          "daily_ch_no_lmg_armored",
+          "daily_ch_theater_watch"
+        ],
+        [
+          "daily_ch_no_rifle_infantry",
+          "daily_ch_no_sniper_mountain",
+          "daily_ch_barloot0_1",
+          "daily_ch_barloot2_1",
+          "daily_ch_barloot1_2",
+          "daily_ch_barloot3_1"
+        ],
+        [
+          "daily_ch_brenloot2_1",
+          "daily_ch_brenloot0_1",
+          "daily_ch_brenloot0_2",
+          "daily_ch_brenloot2_2",
+          "daily_ch_brenloot3_2",
+          "daily_ch_karloot3_1"
+        ],
+        [
+          "daily_ch_karloot3_2",
+          "daily_ch_karloot1_2",
+          "daily_ch_lewisloot0_1",
+          "daily_ch_lewisloot2_1",
+          "daily_ch_lewisloot0_2",
+          "daily_ch_lewisloot2_2"
+        ],
+        [
+          "daily_ch_lewisloot3_2",
+          "daily_ch_lugerloot2_1",
+          "daily_ch_lugerloot3_2",
+          "daily_ch_lugerloot0_1",
+          "daily_ch_lugerloot3_1",
+          "daily_ch_lugerloot0_2"
+        ],
+        [
+          "daily_ch_m1911loot0_1",
+          "daily_ch_m1911loot2_1",
+          "daily_ch_m1911loot0_2",
+          "daily_ch_m1911loot1_2",
+          "daily_ch_m30loot0_1",
+          "daily_ch_m30loot0_2"
+        ],
+        [
+          "daily_ch_m30loot1_1",
+          "daily_ch_m30loot3_2",
+          "daily_ch_m30loot3_1",
+          "daily_ch_thompsonloot3_1",
+          "daily_ch_thompsonloot2_1",
+          "daily_ch_thompsonloot0_2"
+        ],
+        [
+          "daily_ch_thompsonloot0_1",
+          "daily_ch_winchesterloot3_1",
+          "daily_ch_winchesterloot0_1",
+          "daily_ch_winchesterloot1_2",
+          "daily_ch_winchesterloot2_1",
+          "daily_ch_dom_wins"
+        ],
+        [
+          "daily_ch_tdm_wins",
+          "daily_ch_killstreak",
+          "daily_ch_dom_caps",
+          "daily_ch_assists",
+          "daily_ch_destroy_scorestreaks",
+          "daily_ch_ffa_killer"
+        ],
+        [
+          "daily_ch_kills",
+          "daily_ch_smg_kills",
+          "daily_ch_sniper_headshots",
+          "daily_ch_payback_kills",
+          "daily_ch_equipment_kills",
+          "daily_ch_brenloot1_1"
+        ],
+        [
+          "daily_ch_assault_kills",
+          "daily_ch_headshots",
+          "daily_ch_lmg_kills",
+          "daily_ch_dive_kill",
+          "daily_ch_stick_kills",
+          "daily_ch_karloot2_1"
+        ],
+        [
+          "daily_ch_shotgun_kills",
+          "daily_ch_pistol_kills",
+          "daily_ch_shovel_kills",
+          "daily_ch_crouch_prone_kills",
+          "daily_ch_kingslayer_kills",
+          "daily_ch_winchesterloot3_2"
+        ],
+        [
+          "daily_ch_sniper_kills",
+          "daily_ch_assault_headshots",
+          "daily_ch_tactical_kills",
+          "daily_ch_bullet_pen_kills",
+          "daily_ch_backfire_kills",
+          "daily_ch_no_smg_airborne"
+        ],
+        [
+          "daily_ch_launcher_kills",
+          "daily_ch_lmg_headshots",
+          "daily_ch_anti_crouch_prone",
+          "daily_ch_longshot_medals",
+          "daily_ch_armored_skill",
+          "daily_ch_karloot0_1"
+        ],
+        [
+          "daily_ch_sniper_skill",
+          "daily_ch_throwback_kills",
+          "daily_ch_no_lmg_armored",
+          "daily_ch_theater_watch",
+          "daily_ch_no_rifle_infantry",
+          "daily_ch_no_sniper_mountain"
+        ],
+        [
+          "daily_ch_barloot0_1",
+          "daily_ch_barloot2_1",
+          "daily_ch_barloot1_2",
+          "daily_ch_barloot3_1",
+          "daily_ch_brenloot2_1",
+          "daily_ch_brenloot0_1"
+        ],
+        [
+          "daily_ch_brenloot0_2",
+          "daily_ch_brenloot2_2",
+          "daily_ch_brenloot3_2",
+          "daily_ch_karloot3_1",
+          "daily_ch_karloot3_2",
+          "daily_ch_karloot1_2"
+        ],
+        [
+          "daily_ch_lewisloot0_1",
+          "daily_ch_lewisloot2_1",
+          "daily_ch_lewisloot0_2",
+          "daily_ch_lewisloot2_2",
+          "daily_ch_lewisloot3_2",
+          "daily_ch_lugerloot2_1"
+        ],
+        [
+          "daily_ch_lugerloot3_2",
+          "daily_ch_lugerloot0_1",
+          "daily_ch_lugerloot3_1",
+          "daily_ch_lugerloot0_2",
+          "daily_ch_m1911loot0_1",
+          "daily_ch_m1911loot2_1"
+        ],
+        [
+          "daily_ch_m1911loot0_2",
+          "daily_ch_m1911loot1_2",
+          "daily_ch_m30loot0_1",
+          "daily_ch_m30loot0_2",
+          "daily_ch_m30loot1_1",
+          "daily_ch_m30loot3_2"
+        ],
+        [
+          "daily_ch_m30loot3_1",
+          "daily_ch_thompsonloot3_1",
+          "daily_ch_thompsonloot2_1",
+          "daily_ch_thompsonloot0_2",
+          "daily_ch_thompsonloot0_1",
+          "daily_ch_winchesterloot3_1"
+        ],
+        [
+          "daily_ch_winchesterloot0_1",
+          "daily_ch_winchesterloot1_2",
+          "daily_ch_winchesterloot2_1",
+          "daily_ch_dom_wins",
+          "daily_ch_tdm_wins",
+          "daily_ch_killstreak"
+        ],
+        [
+          "daily_ch_dom_caps",
+          "daily_ch_assists",
+          "daily_ch_destroy_scorestreaks",
+          "daily_ch_ffa_killer",
+          "daily_ch_kills",
+          "daily_ch_smg_kills"
+        ],
+        [
+          "daily_ch_sniper_headshots",
+          "daily_ch_payback_kills",
+          "daily_ch_equipment_kills",
+          "daily_ch_brenloot1_1",
+          "daily_ch_assault_kills",
+          "daily_ch_headshots"
+        ],
+        [
+          "daily_ch_lmg_kills",
+          "daily_ch_dive_kill",
+          "daily_ch_stick_kills",
+          "daily_ch_karloot2_1",
+          "daily_ch_shotgun_kills",
+          "daily_ch_pistol_kills"
+        ],
+        [
+          "daily_ch_shovel_kills",
+          "daily_ch_crouch_prone_kills",
+          "daily_ch_kingslayer_kills",
+          "daily_ch_winchesterloot3_2",
+          "daily_ch_sniper_kills",
+          "daily_ch_assault_headshots"
+        ],
+        [
+          "daily_ch_tactical_kills",
+          "daily_ch_bullet_pen_kills",
+          "daily_ch_backfire_kills",
+          "daily_ch_no_smg_airborne",
+          "daily_ch_launcher_kills",
+          "daily_ch_lmg_headshots"
+        ],
+        [
+          "daily_ch_anti_crouch_prone",
+          "daily_ch_longshot_medals",
+          "daily_ch_armored_skill",
+          "daily_ch_karloot0_1",
+          "daily_ch_sniper_skill",
+          "daily_ch_throwback_kills"
+        ],
+        [
+          "daily_ch_no_lmg_armored",
+          "daily_ch_theater_watch",
+          "daily_ch_no_rifle_infantry",
+          "daily_ch_no_sniper_mountain",
+          "daily_ch_barloot0_1",
+          "daily_ch_barloot2_1"
+        ],
+        [
+          "daily_ch_barloot1_2",
+          "daily_ch_barloot3_1",
+          "daily_ch_brenloot2_1",
+          "daily_ch_brenloot0_1",
+          "daily_ch_brenloot0_2",
+          "daily_ch_brenloot2_2"
+        ],
+        [
+          "daily_ch_brenloot3_2",
+          "daily_ch_karloot3_1",
+          "daily_ch_karloot3_2",
+          "daily_ch_karloot1_2",
+          "daily_ch_lewisloot0_1",
+          "daily_ch_lewisloot2_1"
+        ],
+        [
+          "daily_ch_lewisloot0_2",
+          "daily_ch_lewisloot2_2",
+          "daily_ch_lewisloot3_2",
+          "daily_ch_lugerloot2_1",
+          "daily_ch_lugerloot3_2",
+          "daily_ch_lugerloot0_1"
+        ],
+        [
+          "daily_ch_lugerloot3_1",
+          "daily_ch_lugerloot0_2",
+          "daily_ch_m1911loot0_1",
+          "daily_ch_m1911loot2_1",
+          "daily_ch_m1911loot0_2",
+          "daily_ch_m1911loot1_2"
+        ],
+        [
+          "daily_ch_m30loot0_1",
+          "daily_ch_m30loot0_2",
+          "daily_ch_m30loot1_1",
+          "daily_ch_m30loot3_2",
+          "daily_ch_m30loot3_1",
+          "daily_ch_thompsonloot3_1"
+        ],
+        [
+          "daily_ch_thompsonloot2_1",
+          "daily_ch_thompsonloot0_2",
+          "daily_ch_thompsonloot0_1",
+          "daily_ch_winchesterloot3_1",
+          "daily_ch_winchesterloot0_1",
+          "daily_ch_winchesterloot1_2"
+        ],
+        [
+          "daily_ch_winchesterloot2_1",
+          "daily_ch_dom_wins",
+          "daily_ch_tdm_wins",
+          "daily_ch_killstreak",
+          "daily_ch_dom_caps",
+          "daily_ch_assists"
+        ],
+        [
+          "daily_ch_destroy_scorestreaks",
+          "daily_ch_ffa_killer",
+          "daily_ch_kills",
+          "daily_ch_smg_kills",
+          "daily_ch_sniper_headshots",
+          "daily_ch_payback_kills"
+        ],
+        [
+          "daily_ch_equipment_kills",
+          "daily_ch_brenloot1_1",
+          "daily_ch_assault_kills",
+          "daily_ch_headshots",
+          "daily_ch_lmg_kills",
+          "daily_ch_dive_kill"
+        ],
+        [
+          "daily_ch_stick_kills",
+          "daily_ch_karloot2_1",
+          "daily_ch_shotgun_kills",
+          "daily_ch_pistol_kills",
+          "daily_ch_shovel_kills",
+          "daily_ch_crouch_prone_kills"
+        ],
+        [
+          "daily_ch_kingslayer_kills",
+          "daily_ch_winchesterloot3_2",
+          "daily_ch_sniper_kills",
+          "daily_ch_assault_headshots",
+          "daily_ch_tactical_kills",
+          "daily_ch_bullet_pen_kills"
+        ],
+        [
+          "daily_ch_backfire_kills",
+          "daily_ch_no_smg_airborne",
+          "daily_ch_launcher_kills",
+          "daily_ch_lmg_headshots",
+          "daily_ch_anti_crouch_prone",
+          "daily_ch_longshot_medals"
+        ],
+        [
+          "daily_ch_armored_skill",
+          "daily_ch_karloot0_1",
+          "daily_ch_sniper_skill",
+          "daily_ch_throwback_kills",
+          "daily_ch_no_lmg_armored",
+          "daily_ch_theater_watch"
+        ],
+        [
+          "daily_ch_no_rifle_infantry",
+          "daily_ch_no_sniper_mountain",
+          "daily_ch_barloot0_1",
+          "daily_ch_barloot2_1",
+          "daily_ch_barloot1_2",
+          "daily_ch_barloot3_1"
+        ],
+        [
+          "daily_ch_brenloot2_1",
+          "daily_ch_brenloot0_1",
+          "daily_ch_brenloot0_2",
+          "daily_ch_brenloot2_2",
+          "daily_ch_brenloot3_2",
+          "daily_ch_karloot3_1"
+        ],
+        [
+          "daily_ch_karloot3_2",
+          "daily_ch_karloot1_2",
+          "daily_ch_lewisloot0_1",
+          "daily_ch_lewisloot2_1",
+          "daily_ch_lewisloot0_2",
+          "daily_ch_lewisloot2_2"
+        ],
+        [
+          "daily_ch_lewisloot3_2",
+          "daily_ch_lugerloot2_1",
+          "daily_ch_lugerloot3_2",
+          "daily_ch_lugerloot0_1",
+          "daily_ch_lugerloot3_1",
+          "daily_ch_lugerloot0_2"
+        ],
+        [
+          "daily_ch_m1911loot0_1",
+          "daily_ch_m1911loot2_1",
+          "daily_ch_m1911loot0_2",
+          "daily_ch_m1911loot1_2",
+          "daily_ch_m30loot0_1",
+          "daily_ch_m30loot0_2"
+        ],
+        [
+          "daily_ch_m30loot1_1",
+          "daily_ch_m30loot3_2",
+          "daily_ch_m30loot3_1",
+          "daily_ch_thompsonloot3_1",
+          "daily_ch_thompsonloot2_1",
+          "daily_ch_thompsonloot0_2"
+        ],
+        [
+          "daily_ch_thompsonloot0_1",
+          "daily_ch_winchesterloot3_1",
+          "daily_ch_winchesterloot0_1",
+          "daily_ch_winchesterloot1_2",
+          "daily_ch_winchesterloot2_1",
+          "daily_ch_dom_wins"
+        ],
+        [
+          "daily_ch_tdm_wins",
+          "daily_ch_killstreak",
+          "daily_ch_dom_caps",
+          "daily_ch_assists",
+          "daily_ch_destroy_scorestreaks",
+          "daily_ch_ffa_killer"
+        ]
+      ]
+    },
+    {
+      "kind": 2,
+      "activationLimit": 3,
+      "sets": [
+        [
+          "weekly_ch_kills",
+          "weekly_ch_infantry_kills",
+          "weekly_ch_hipfire_dlc2"
+        ],
+        [
+          "weekly_ch_airborne_kills",
+          "weekly_ch_pistol_kills_dlc1",
+          "weekly_ch_cav_assists"
+        ],
+        [
+          "weekly_ch_armored_kills",
+          "weekly_ch_long_range_kills",
+          "weekly_ch_hc_kills_dlc2"
+        ],
+        [
+          "weekly_ch_mountain_kills",
+          "weekly_ch_pistol_headshots_dlc1",
+          "weekly_ch_ab_warwins"
+        ],
+        [
+          "weekly_ch_expeditionary_kills",
+          "weekly_ch_resistance_kills_dlc1",
+          "weekly_ch_cav_kills"
+        ],
+        [
+          "weekly_ch_explosive_kills",
+          "weekly_ch_fire_kills",
+          "weekly_ch_resistance_skill_dlc1"
+        ],
+        [
+          "weekly_ch_wins",
+          "weekly_ch_scorestreak_calls",
+          "weekly_ch_kills"
+        ],
+        [
+          "weekly_ch_infantry_kills",
+          "weekly_ch_hipfire_dlc2",
+          "weekly_ch_airborne_kills"
+        ],
+        [
+          "weekly_ch_pistol_kills_dlc1",
+          "weekly_ch_cav_assists",
+          "weekly_ch_armored_kills"
+        ],
+        [
+          "weekly_ch_long_range_kills",
+          "weekly_ch_hc_kills_dlc2",
+          "weekly_ch_mountain_kills"
+        ],
+        [
+          "weekly_ch_pistol_headshots_dlc1",
+          "weekly_ch_ab_warwins",
+          "weekly_ch_expeditionary_kills"
+        ],
+        [
+          "weekly_ch_resistance_kills_dlc1",
+          "weekly_ch_cav_kills",
+          "weekly_ch_explosive_kills"
+        ],
+        [
+          "weekly_ch_fire_kills",
+          "weekly_ch_resistance_skill_dlc1",
+          "weekly_ch_wins"
+        ],
+        [
+          "weekly_ch_scorestreak_calls",
+          "weekly_ch_kills",
+          "weekly_ch_infantry_kills"
+        ],
+        [
+          "weekly_ch_hipfire_dlc2",
+          "weekly_ch_airborne_kills",
+          "weekly_ch_pistol_kills_dlc1"
+        ],
+        [
+          "weekly_ch_cav_assists",
+          "weekly_ch_armored_kills",
+          "weekly_ch_long_range_kills"
+        ],
+        [
+          "weekly_ch_hc_kills_dlc2",
+          "weekly_ch_mountain_kills",
+          "weekly_ch_pistol_headshots_dlc1"
+        ],
+        [
+          "weekly_ch_ab_warwins",
+          "weekly_ch_expeditionary_kills",
+          "weekly_ch_resistance_kills_dlc1"
+        ],
+        [
+          "weekly_ch_cav_kills",
+          "weekly_ch_explosive_kills",
+          "weekly_ch_fire_kills"
+        ],
+        [
+          "weekly_ch_resistance_skill_dlc1",
+          "weekly_ch_wins",
+          "weekly_ch_scorestreak_calls"
+        ]
+      ]
+    },
+    {
+      "kind": 4,
+      "activationLimit": 3,
+      "sets": [
+        [
+          "contract_4_headshots_tdm",
+          "contract_ch_mas38",
+          "contract_ch_mg81",
+          "contract_ch_sten",
+          "contract_ch_gewehr",
+          "contract_ch_gpmg",
+          "contract_ch_icepick",
+          "contract_50_kills_smg",
+          "contract_ch_trenchknife"
+        ],
+        [
+          "contract_ch_mas38",
+          "contract_ch_mg81",
+          "contract_ch_sten",
+          "contract_ch_gewehr",
+          "contract_ch_gpmg",
+          "contract_ch_icepick",
+          "contract_50_kills_smg",
+          "contract_ch_trenchknife",
+          "contract_ch_volk"
+        ],
+        [
+          "contract_ch_mg81",
+          "contract_ch_sten",
+          "contract_ch_gewehr",
+          "contract_ch_gpmg",
+          "contract_ch_icepick",
+          "contract_50_kills_smg",
+          "contract_ch_trenchknife",
+          "contract_ch_volk",
+          "contract_ch_orso"
+        ],
+        [
+          "contract_ch_sten",
+          "contract_ch_gewehr",
+          "contract_ch_gpmg",
+          "contract_ch_icepick",
+          "contract_50_kills_smg",
+          "contract_ch_trenchknife",
+          "contract_ch_volk",
+          "contract_ch_orso",
+          "contract_ch_combatknife"
+        ],
+        [
+          "contract_ch_gewehr",
+          "contract_ch_gpmg",
+          "contract_ch_icepick",
+          "contract_50_kills_smg",
+          "contract_ch_trenchknife",
+          "contract_ch_volk",
+          "contract_ch_orso",
+          "contract_ch_combatknife",
+          "contract_ch_enfield"
+        ],
+        [
+          "contract_ch_gpmg",
+          "contract_ch_icepick",
+          "contract_50_kills_smg",
+          "contract_ch_trenchknife",
+          "contract_ch_volk",
+          "contract_ch_orso",
+          "contract_ch_combatknife",
+          "contract_ch_enfield",
+          "contract_ch_revolver"
+        ],
+        [
+          "contract_ch_icepick",
+          "contract_50_kills_smg",
+          "contract_ch_trenchknife",
+          "contract_ch_volk",
+          "contract_ch_orso",
+          "contract_ch_combatknife",
+          "contract_ch_enfield",
+          "contract_ch_revolver",
+          "contract_55_kills_tdm"
+        ],
+        [
+          "contract_50_kills_smg",
+          "contract_ch_trenchknife",
+          "contract_ch_volk",
+          "contract_ch_orso",
+          "contract_ch_combatknife",
+          "contract_ch_enfield",
+          "contract_ch_revolver",
+          "contract_55_kills_tdm",
+          "contract_ch_lad"
+        ],
+        [
+          "contract_ch_trenchknife",
+          "contract_ch_volk",
+          "contract_ch_orso",
+          "contract_ch_combatknife",
+          "contract_ch_enfield",
+          "contract_ch_revolver",
+          "contract_55_kills_tdm",
+          "contract_ch_lad",
+          "contract_ch_baseballbat"
+        ],
+        [
+          "contract_ch_volk",
+          "contract_ch_orso",
+          "contract_ch_combatknife",
+          "contract_ch_enfield",
+          "contract_ch_revolver",
+          "contract_55_kills_tdm",
+          "contract_ch_lad",
+          "contract_ch_baseballbat",
+          "contract_ch_type5"
+        ],
+        [
+          "contract_ch_orso",
+          "contract_ch_combatknife",
+          "contract_ch_enfield",
+          "contract_ch_revolver",
+          "contract_55_kills_tdm",
+          "contract_ch_lad",
+          "contract_ch_baseballbat",
+          "contract_ch_type5",
+          "contract_ch_sterling"
+        ],
+        [
+          "contract_ch_combatknife",
+          "contract_ch_enfield",
+          "contract_ch_revolver",
+          "contract_55_kills_tdm",
+          "contract_ch_lad",
+          "contract_ch_baseballbat",
+          "contract_ch_type5",
+          "contract_ch_sterling",
+          "contract_ch_arisaka"
+        ],
+        [
+          "contract_ch_enfield",
+          "contract_ch_revolver",
+          "contract_55_kills_tdm",
+          "contract_ch_lad",
+          "contract_ch_baseballbat",
+          "contract_ch_type5",
+          "contract_ch_sterling",
+          "contract_ch_arisaka",
+          "contract_ch_burstrifle"
+        ],
+        [
+          "contract_ch_revolver",
+          "contract_55_kills_tdm",
+          "contract_ch_lad",
+          "contract_ch_baseballbat",
+          "contract_ch_type5",
+          "contract_ch_sterling",
+          "contract_ch_arisaka",
+          "contract_ch_burstrifle",
+          "contract_45_kills"
+        ],
+        [
+          "contract_55_kills_tdm",
+          "contract_ch_lad",
+          "contract_ch_baseballbat",
+          "contract_ch_type5",
+          "contract_ch_sterling",
+          "contract_ch_arisaka",
+          "contract_ch_burstrifle",
+          "contract_45_kills",
+          "contract_ch_autom2"
+        ],
+        [
+          "contract_ch_lad",
+          "contract_ch_baseballbat",
+          "contract_ch_type5",
+          "contract_ch_sterling",
+          "contract_ch_arisaka",
+          "contract_ch_burstrifle",
+          "contract_45_kills",
+          "contract_ch_autom2",
+          "contract_ch_claymore"
+        ],
+        [
+          "contract_ch_baseballbat",
+          "contract_ch_type5",
+          "contract_ch_sterling",
+          "contract_ch_arisaka",
+          "contract_ch_burstrifle",
+          "contract_45_kills",
+          "contract_ch_autom2",
+          "contract_ch_claymore",
+          "contract_ch_lever_action"
+        ],
+        [
+          "contract_ch_type5",
+          "contract_ch_sterling",
+          "contract_ch_arisaka",
+          "contract_ch_burstrifle",
+          "contract_45_kills",
+          "contract_ch_autom2",
+          "contract_ch_claymore",
+          "contract_ch_lever_action",
+          "contract_ch_fire_axe"
+        ],
+        [
+          "contract_ch_sterling",
+          "contract_ch_arisaka",
+          "contract_ch_burstrifle",
+          "contract_45_kills",
+          "contract_ch_autom2",
+          "contract_ch_claymore",
+          "contract_ch_lever_action",
+          "contract_ch_fire_axe",
+          "contract_ch_m1919"
+        ],
+        [
+          "contract_ch_arisaka",
+          "contract_ch_burstrifle",
+          "contract_45_kills",
+          "contract_ch_autom2",
+          "contract_ch_claymore",
+          "contract_ch_lever_action",
+          "contract_ch_fire_axe",
+          "contract_ch_m1919",
+          "contract_ch_nambu"
+        ],
+        [
+          "contract_ch_burstrifle",
+          "contract_45_kills",
+          "contract_ch_autom2",
+          "contract_ch_claymore",
+          "contract_ch_lever_action",
+          "contract_ch_fire_axe",
+          "contract_ch_m1919",
+          "contract_ch_nambu",
+          "contract_25_kills_dom"
+        ],
+        [
+          "contract_45_kills",
+          "contract_ch_autom2",
+          "contract_ch_claymore",
+          "contract_ch_lever_action",
+          "contract_ch_fire_axe",
+          "contract_ch_m1919",
+          "contract_ch_nambu",
+          "contract_25_kills_dom",
+          "contract_ch_blunderbuss"
+        ],
+        [
+          "contract_ch_autom2",
+          "contract_ch_claymore",
+          "contract_ch_lever_action",
+          "contract_ch_fire_axe",
+          "contract_ch_m1919",
+          "contract_ch_nambu",
+          "contract_25_kills_dom",
+          "contract_ch_blunderbuss",
+          "contract_ch_ptrs"
+        ],
+        [
+          "contract_ch_claymore",
+          "contract_ch_lever_action",
+          "contract_ch_fire_axe",
+          "contract_ch_m1919",
+          "contract_ch_nambu",
+          "contract_25_kills_dom",
+          "contract_ch_blunderbuss",
+          "contract_ch_ptrs",
+          "contract_ch_avs"
+        ],
+        [
+          "contract_ch_lever_action",
+          "contract_ch_fire_axe",
+          "contract_ch_m1919",
+          "contract_ch_nambu",
+          "contract_25_kills_dom",
+          "contract_ch_blunderbuss",
+          "contract_ch_ptrs",
+          "contract_ch_avs",
+          "contract_ch_delisle"
+        ],
+        [
+          "contract_ch_fire_axe",
+          "contract_ch_m1919",
+          "contract_ch_nambu",
+          "contract_25_kills_dom",
+          "contract_ch_blunderbuss",
+          "contract_ch_ptrs",
+          "contract_ch_avs",
+          "contract_ch_delisle",
+          "contract_ch_ribeyrolls"
+        ],
+        [
+          "contract_ch_m1919",
+          "contract_ch_nambu",
+          "contract_25_kills_dom",
+          "contract_ch_blunderbuss",
+          "contract_ch_ptrs",
+          "contract_ch_avs",
+          "contract_ch_delisle",
+          "contract_ch_ribeyrolls",
+          "contract_ch_3line"
+        ],
+        [
+          "contract_ch_nambu",
+          "contract_25_kills_dom",
+          "contract_ch_blunderbuss",
+          "contract_ch_ptrs",
+          "contract_ch_avs",
+          "contract_ch_delisle",
+          "contract_ch_ribeyrolls",
+          "contract_ch_3line",
+          "contract_9_headshots"
+        ],
+        [
+          "contract_25_kills_dom",
+          "contract_ch_blunderbuss",
+          "contract_ch_ptrs",
+          "contract_ch_avs",
+          "contract_ch_delisle",
+          "contract_ch_ribeyrolls",
+          "contract_ch_3line",
+          "contract_9_headshots",
+          "contract_ch_vmg"
+        ],
+        [
+          "contract_ch_blunderbuss",
+          "contract_ch_ptrs",
+          "contract_ch_avs",
+          "contract_ch_delisle",
+          "contract_ch_ribeyrolls",
+          "contract_ch_3line",
+          "contract_9_headshots",
+          "contract_ch_vmg",
+          "contract_ch_tokyo"
+        ],
+        [
+          "contract_ch_ptrs",
+          "contract_ch_avs",
+          "contract_ch_delisle",
+          "contract_ch_ribeyrolls",
+          "contract_ch_3line",
+          "contract_9_headshots",
+          "contract_ch_vmg",
+          "contract_ch_tokyo",
+          "contract_ch_crossbow"
+        ],
+        [
+          "contract_ch_avs",
+          "contract_ch_delisle",
+          "contract_ch_ribeyrolls",
+          "contract_ch_3line",
+          "contract_9_headshots",
+          "contract_ch_vmg",
+          "contract_ch_tokyo",
+          "contract_ch_crossbow",
+          "contract_ch_emp"
+        ],
+        [
+          "contract_ch_delisle",
+          "contract_ch_ribeyrolls",
+          "contract_ch_3line",
+          "contract_9_headshots",
+          "contract_ch_vmg",
+          "contract_ch_tokyo",
+          "contract_ch_crossbow",
+          "contract_ch_emp",
+          "contract_ch_charlton"
+        ],
+        [
+          "contract_ch_ribeyrolls",
+          "contract_ch_3line",
+          "contract_9_headshots",
+          "contract_ch_vmg",
+          "contract_ch_tokyo",
+          "contract_ch_crossbow",
+          "contract_ch_emp",
+          "contract_ch_charlton",
+          "contract_ch_sledge"
+        ],
+        [
+          "contract_ch_3line",
+          "contract_9_headshots",
+          "contract_ch_vmg",
+          "contract_ch_tokyo",
+          "contract_ch_crossbow",
+          "contract_ch_emp",
+          "contract_ch_charlton",
+          "contract_ch_sledge",
+          "contract_25_kills_lmg"
+        ],
+        [
+          "contract_9_headshots",
+          "contract_ch_vmg",
+          "contract_ch_tokyo",
+          "contract_ch_crossbow",
+          "contract_ch_emp",
+          "contract_ch_charlton",
+          "contract_ch_sledge",
+          "contract_25_kills_lmg",
+          "contract_ch_kg"
+        ],
+        [
+          "contract_ch_vmg",
+          "contract_ch_tokyo",
+          "contract_ch_crossbow",
+          "contract_ch_emp",
+          "contract_ch_charlton",
+          "contract_ch_sledge",
+          "contract_25_kills_lmg",
+          "contract_ch_kg",
+          "contract_ch_gdb"
+        ],
+        [
+          "contract_ch_tokyo",
+          "contract_ch_crossbow",
+          "contract_ch_emp",
+          "contract_ch_charlton",
+          "contract_ch_sledge",
+          "contract_25_kills_lmg",
+          "contract_ch_kg",
+          "contract_ch_gdb",
+          "contract_ch_wimmer"
+        ],
+        [
+          "contract_ch_crossbow",
+          "contract_ch_emp",
+          "contract_ch_charlton",
+          "contract_ch_sledge",
+          "contract_25_kills_lmg",
+          "contract_ch_kg",
+          "contract_ch_gdb",
+          "contract_ch_wimmer",
+          "contract_ch_chatellerault"
+        ],
+        [
+          "contract_ch_emp",
+          "contract_ch_charlton",
+          "contract_ch_sledge",
+          "contract_25_kills_lmg",
+          "contract_ch_kg",
+          "contract_ch_gdb",
+          "contract_ch_wimmer",
+          "contract_ch_chatellerault",
+          "contract_ch_austen"
+        ],
+        [
+          "contract_ch_charlton",
+          "contract_ch_sledge",
+          "contract_25_kills_lmg",
+          "contract_ch_kg",
+          "contract_ch_gdb",
+          "contract_ch_wimmer",
+          "contract_ch_chatellerault",
+          "contract_ch_austen",
+          "contract_ch_bechowiec"
+        ],
+        [
+          "contract_ch_sledge",
+          "contract_25_kills_lmg",
+          "contract_ch_kg",
+          "contract_ch_gdb",
+          "contract_ch_wimmer",
+          "contract_ch_chatellerault",
+          "contract_ch_austen",
+          "contract_ch_bechowiec",
+          "contract_50_kills_lmg"
+        ],
+        [
+          "contract_25_kills_lmg",
+          "contract_ch_kg",
+          "contract_ch_gdb",
+          "contract_ch_wimmer",
+          "contract_ch_chatellerault",
+          "contract_ch_austen",
+          "contract_ch_bechowiec",
+          "contract_50_kills_lmg",
+          "contract_ch_blyskawica"
+        ],
+        [
+          "contract_ch_kg",
+          "contract_ch_gdb",
+          "contract_ch_wimmer",
+          "contract_ch_chatellerault",
+          "contract_ch_austen",
+          "contract_ch_bechowiec",
+          "contract_50_kills_lmg",
+          "contract_ch_blyskawica",
+          "contract_ch_m2"
+        ],
+        [
+          "contract_ch_gdb",
+          "contract_ch_wimmer",
+          "contract_ch_chatellerault",
+          "contract_ch_austen",
+          "contract_ch_bechowiec",
+          "contract_50_kills_lmg",
+          "contract_ch_blyskawica",
+          "contract_ch_m2",
+          "contract_ch_erma"
+        ],
+        [
+          "contract_ch_wimmer",
+          "contract_ch_chatellerault",
+          "contract_ch_austen",
+          "contract_ch_bechowiec",
+          "contract_50_kills_lmg",
+          "contract_ch_blyskawica",
+          "contract_ch_m2",
+          "contract_ch_erma",
+          "contract_ch_m36"
+        ],
+        [
+          "contract_ch_chatellerault",
+          "contract_ch_austen",
+          "contract_ch_bechowiec",
+          "contract_50_kills_lmg",
+          "contract_ch_blyskawica",
+          "contract_ch_m2",
+          "contract_ch_erma",
+          "contract_ch_m36",
+          "contract_ch_wz"
+        ],
+        [
+          "contract_ch_austen",
+          "contract_ch_bechowiec",
+          "contract_50_kills_lmg",
+          "contract_ch_blyskawica",
+          "contract_ch_m2",
+          "contract_ch_erma",
+          "contract_ch_m36",
+          "contract_ch_wz",
+          "contract_ch_dagger"
+        ],
+        [
+          "contract_ch_bechowiec",
+          "contract_50_kills_lmg",
+          "contract_ch_blyskawica",
+          "contract_ch_m2",
+          "contract_ch_erma",
+          "contract_ch_m36",
+          "contract_ch_wz",
+          "contract_ch_dagger",
+          "contract_100_kills"
+        ],
+        [
+          "contract_50_kills_lmg",
+          "contract_ch_blyskawica",
+          "contract_ch_m2",
+          "contract_ch_erma",
+          "contract_ch_m36",
+          "contract_ch_wz",
+          "contract_ch_dagger",
+          "contract_100_kills",
+          "contract_10_kills_dive"
+        ],
+        [
+          "contract_ch_blyskawica",
+          "contract_ch_m2",
+          "contract_ch_erma",
+          "contract_ch_m36",
+          "contract_ch_wz",
+          "contract_ch_dagger",
+          "contract_100_kills",
+          "contract_10_kills_dive",
+          "contract_10_kills_shovel"
+        ],
+        [
+          "contract_ch_m2",
+          "contract_ch_erma",
+          "contract_ch_m36",
+          "contract_ch_wz",
+          "contract_ch_dagger",
+          "contract_100_kills",
+          "contract_10_kills_dive",
+          "contract_10_kills_shovel",
+          "contract_3_multikills"
+        ],
+        [
+          "contract_ch_erma",
+          "contract_ch_m36",
+          "contract_ch_wz",
+          "contract_ch_dagger",
+          "contract_100_kills",
+          "contract_10_kills_dive",
+          "contract_10_kills_shovel",
+          "contract_3_multikills",
+          "contract_5_headshots"
+        ],
+        [
+          "contract_ch_m36",
+          "contract_ch_wz",
+          "contract_ch_dagger",
+          "contract_100_kills",
+          "contract_10_kills_dive",
+          "contract_10_kills_shovel",
+          "contract_3_multikills",
+          "contract_5_headshots",
+          "contract_65_kills_tdm"
+        ],
+        [
+          "contract_ch_wz",
+          "contract_ch_dagger",
+          "contract_100_kills",
+          "contract_10_kills_dive",
+          "contract_10_kills_shovel",
+          "contract_3_multikills",
+          "contract_5_headshots",
+          "contract_65_kills_tdm",
+          "contract_6_headshots_tdm"
+        ],
+        [
+          "contract_ch_dagger",
+          "contract_100_kills",
+          "contract_10_kills_dive",
+          "contract_10_kills_shovel",
+          "contract_3_multikills",
+          "contract_5_headshots",
+          "contract_65_kills_tdm",
+          "contract_6_headshots_tdm",
+          "contract_35_kills_dom"
+        ],
+        [
+          "contract_100_kills",
+          "contract_10_kills_dive",
+          "contract_10_kills_shovel",
+          "contract_3_multikills",
+          "contract_5_headshots",
+          "contract_65_kills_tdm",
+          "contract_6_headshots_tdm",
+          "contract_35_kills_dom",
+          "contract_15_headshots"
+        ],
+        [
+          "contract_10_kills_dive",
+          "contract_10_kills_shovel",
+          "contract_3_multikills",
+          "contract_5_headshots",
+          "contract_65_kills_tdm",
+          "contract_6_headshots_tdm",
+          "contract_35_kills_dom",
+          "contract_15_headshots",
+          "contract_25_kills_rifle"
+        ],
+        [
+          "contract_10_kills_shovel",
+          "contract_3_multikills",
+          "contract_5_headshots",
+          "contract_65_kills_tdm",
+          "contract_6_headshots_tdm",
+          "contract_35_kills_dom",
+          "contract_15_headshots",
+          "contract_25_kills_rifle",
+          "contract_65_kills_hc"
+        ],
+        [
+          "contract_3_multikills",
+          "contract_5_headshots",
+          "contract_65_kills_tdm",
+          "contract_6_headshots_tdm",
+          "contract_35_kills_dom",
+          "contract_15_headshots",
+          "contract_25_kills_rifle",
+          "contract_65_kills_hc",
+          "contract_50_kills_rifle"
+        ],
+        [
+          "contract_5_headshots",
+          "contract_65_kills_tdm",
+          "contract_6_headshots_tdm",
+          "contract_35_kills_dom",
+          "contract_15_headshots",
+          "contract_25_kills_rifle",
+          "contract_65_kills_hc",
+          "contract_50_kills_rifle",
+          "contract_55_kills_tdm_dlc2"
+        ],
+        [
+          "contract_65_kills_tdm",
+          "contract_6_headshots_tdm",
+          "contract_35_kills_dom",
+          "contract_15_headshots",
+          "contract_25_kills_rifle",
+          "contract_65_kills_hc",
+          "contract_50_kills_rifle",
+          "contract_55_kills_tdm_dlc2",
+          "contract_4_headshots_tdm"
+        ],
+        [
+          "contract_6_headshots_tdm",
+          "contract_35_kills_dom",
+          "contract_15_headshots",
+          "contract_25_kills_rifle",
+          "contract_65_kills_hc",
+          "contract_50_kills_rifle",
+          "contract_55_kills_tdm_dlc2",
+          "contract_4_headshots_tdm",
+          "contract_ch_mas38"
+        ],
+        [
+          "contract_35_kills_dom",
+          "contract_15_headshots",
+          "contract_25_kills_rifle",
+          "contract_65_kills_hc",
+          "contract_50_kills_rifle",
+          "contract_55_kills_tdm_dlc2",
+          "contract_4_headshots_tdm",
+          "contract_ch_mas38",
+          "contract_ch_mg81"
+        ],
+        [
+          "contract_15_headshots",
+          "contract_25_kills_rifle",
+          "contract_65_kills_hc",
+          "contract_50_kills_rifle",
+          "contract_55_kills_tdm_dlc2",
+          "contract_4_headshots_tdm",
+          "contract_ch_mas38",
+          "contract_ch_mg81",
+          "contract_ch_sten"
+        ],
+        [
+          "contract_25_kills_rifle",
+          "contract_65_kills_hc",
+          "contract_50_kills_rifle",
+          "contract_55_kills_tdm_dlc2",
+          "contract_4_headshots_tdm",
+          "contract_ch_mas38",
+          "contract_ch_mg81",
+          "contract_ch_sten",
+          "contract_ch_gewehr"
+        ],
+        [
+          "contract_65_kills_hc",
+          "contract_50_kills_rifle",
+          "contract_55_kills_tdm_dlc2",
+          "contract_4_headshots_tdm",
+          "contract_ch_mas38",
+          "contract_ch_mg81",
+          "contract_ch_sten",
+          "contract_ch_gewehr",
+          "contract_ch_gpmg"
+        ],
+        [
+          "contract_50_kills_rifle",
+          "contract_55_kills_tdm_dlc2",
+          "contract_4_headshots_tdm",
+          "contract_ch_mas38",
+          "contract_ch_mg81",
+          "contract_ch_sten",
+          "contract_ch_gewehr",
+          "contract_ch_gpmg",
+          "contract_ch_icepick"
+        ],
+        [
+          "contract_55_kills_tdm_dlc2",
+          "contract_4_headshots_tdm",
+          "contract_ch_mas38",
+          "contract_ch_mg81",
+          "contract_ch_sten",
+          "contract_ch_gewehr",
+          "contract_ch_gpmg",
+          "contract_ch_icepick",
+          "contract_50_kills_smg"
+        ]
+      ],
+      "alwaysAvailable": [
+        "contract_ch_moon_mountain",
+        "contract_ch_moon_hunter",
+        "contract_ch_moon_survivor",
+        "contract_ch_moon_slayer"
+      ]
+    },
+    {
+      "kind": 8,
+      "activationLimit": 3,
+      "sets": [
+        [
+          "daily_zm_ch_headshots_1",
+          "daily_zm_ch_pistols_1",
+          "daily_zm_ch_traps",
+          "daily_zm_ch_pest_melee",
+          "daily_zm_ch_wave_challenge_dmg_1",
+          "daily_zm_ch_kills_upgraded_1"
+        ],
+        [
+          "daily_zm_ch_shotguns_1",
+          "daily_zm_ch_lmgs_1",
+          "daily_zm_ch_wustling_melee_only",
+          "daily_zm_ch_empty_clip",
+          "daily_zm_ch_revives_1",
+          "daily_zm_ch_bomber_with_bomb"
+        ],
+        [
+          "daily_zm_ch_kills_pistols_upgraded_1",
+          "daily_zm_ch_sniper_headshots_1",
+          "daily_zm_ch_explosives_1",
+          "daily_zm_ch_wustling_betty_charge",
+          "daily_zm_ch_purchase_weapons_1",
+          "daily_zm_ch_throwing_knifes_1"
+        ],
+        [
+          "daily_zm_ch_kills_traps_1",
+          "daily_zm_ch_kills_bombers_clean",
+          "daily_zm_ch_bomber_bomb_kills",
+          "daily_zm_ch_headshots_2",
+          "daily_zm_ch_kills_upgraded_2",
+          "daily_zm_ch_wave_challenge_shotgun_1"
+        ],
+        [
+          "daily_zm_ch_kills_jack_in_box_1",
+          "daily_zm_ch_kills_ripsaw_1",
+          "daily_zm_ch_traps_propeller_1",
+          "daily_zm_ch_wave_asn_spines_1",
+          "daily_zm_ch_headshots_1",
+          "daily_zm_ch_pistols_1"
+        ],
+        [
+          "daily_zm_ch_traps",
+          "daily_zm_ch_pest_melee",
+          "daily_zm_ch_wave_challenge_dmg_1",
+          "daily_zm_ch_kills_upgraded_1",
+          "daily_zm_ch_shotguns_1",
+          "daily_zm_ch_lmgs_1"
+        ],
+        [
+          "daily_zm_ch_wustling_melee_only",
+          "daily_zm_ch_empty_clip",
+          "daily_zm_ch_revives_1",
+          "daily_zm_ch_bomber_with_bomb",
+          "daily_zm_ch_kills_pistols_upgraded_1",
+          "daily_zm_ch_sniper_headshots_1"
+        ],
+        [
+          "daily_zm_ch_explosives_1",
+          "daily_zm_ch_wustling_betty_charge",
+          "daily_zm_ch_purchase_weapons_1",
+          "daily_zm_ch_throwing_knifes_1",
+          "daily_zm_ch_kills_traps_1",
+          "daily_zm_ch_kills_bombers_clean"
+        ],
+        [
+          "daily_zm_ch_bomber_bomb_kills",
+          "daily_zm_ch_headshots_2",
+          "daily_zm_ch_kills_upgraded_2",
+          "daily_zm_ch_wave_challenge_shotgun_1",
+          "daily_zm_ch_kills_jack_in_box_1",
+          "daily_zm_ch_kills_ripsaw_1"
+        ],
+        [
+          "daily_zm_ch_traps_propeller_1",
+          "daily_zm_ch_wave_asn_spines_1",
+          "daily_zm_ch_headshots_1",
+          "daily_zm_ch_pistols_1",
+          "daily_zm_ch_traps",
+          "daily_zm_ch_pest_melee"
+        ],
+        [
+          "daily_zm_ch_wave_challenge_dmg_1",
+          "daily_zm_ch_kills_upgraded_1",
+          "daily_zm_ch_shotguns_1",
+          "daily_zm_ch_lmgs_1",
+          "daily_zm_ch_wustling_melee_only",
+          "daily_zm_ch_empty_clip"
+        ],
+        [
+          "daily_zm_ch_revives_1",
+          "daily_zm_ch_bomber_with_bomb",
+          "daily_zm_ch_kills_pistols_upgraded_1",
+          "daily_zm_ch_sniper_headshots_1",
+          "daily_zm_ch_explosives_1",
+          "daily_zm_ch_wustling_betty_charge"
+        ],
+        [
+          "daily_zm_ch_purchase_weapons_1",
+          "daily_zm_ch_throwing_knifes_1",
+          "daily_zm_ch_kills_traps_1",
+          "daily_zm_ch_kills_bombers_clean",
+          "daily_zm_ch_bomber_bomb_kills",
+          "daily_zm_ch_headshots_2"
+        ],
+        [
+          "daily_zm_ch_kills_upgraded_2",
+          "daily_zm_ch_wave_challenge_shotgun_1",
+          "daily_zm_ch_kills_jack_in_box_1",
+          "daily_zm_ch_kills_ripsaw_1",
+          "daily_zm_ch_traps_propeller_1",
+          "daily_zm_ch_wave_asn_spines_1"
+        ],
+        [
+          "daily_zm_ch_headshots_1",
+          "daily_zm_ch_pistols_1",
+          "daily_zm_ch_traps",
+          "daily_zm_ch_pest_melee",
+          "daily_zm_ch_wave_challenge_dmg_1",
+          "daily_zm_ch_kills_upgraded_1"
+        ],
+        [
+          "daily_zm_ch_shotguns_1",
+          "daily_zm_ch_lmgs_1",
+          "daily_zm_ch_wustling_melee_only",
+          "daily_zm_ch_empty_clip",
+          "daily_zm_ch_revives_1",
+          "daily_zm_ch_bomber_with_bomb"
+        ],
+        [
+          "daily_zm_ch_kills_pistols_upgraded_1",
+          "daily_zm_ch_sniper_headshots_1",
+          "daily_zm_ch_explosives_1",
+          "daily_zm_ch_wustling_betty_charge",
+          "daily_zm_ch_purchase_weapons_1",
+          "daily_zm_ch_throwing_knifes_1"
+        ],
+        [
+          "daily_zm_ch_kills_traps_1",
+          "daily_zm_ch_kills_bombers_clean",
+          "daily_zm_ch_bomber_bomb_kills",
+          "daily_zm_ch_headshots_2",
+          "daily_zm_ch_kills_upgraded_2",
+          "daily_zm_ch_wave_challenge_shotgun_1"
+        ],
+        [
+          "daily_zm_ch_kills_jack_in_box_1",
+          "daily_zm_ch_kills_ripsaw_1",
+          "daily_zm_ch_traps_propeller_1",
+          "daily_zm_ch_wave_asn_spines_1",
+          "daily_zm_ch_headshots_1",
+          "daily_zm_ch_pistols_1"
+        ],
+        [
+          "daily_zm_ch_traps",
+          "daily_zm_ch_pest_melee",
+          "daily_zm_ch_wave_challenge_dmg_1",
+          "daily_zm_ch_kills_upgraded_1",
+          "daily_zm_ch_shotguns_1",
+          "daily_zm_ch_lmgs_1"
+        ],
+        [
+          "daily_zm_ch_wustling_melee_only",
+          "daily_zm_ch_empty_clip",
+          "daily_zm_ch_revives_1",
+          "daily_zm_ch_bomber_with_bomb",
+          "daily_zm_ch_kills_pistols_upgraded_1",
+          "daily_zm_ch_sniper_headshots_1"
+        ],
+        [
+          "daily_zm_ch_explosives_1",
+          "daily_zm_ch_wustling_betty_charge",
+          "daily_zm_ch_purchase_weapons_1",
+          "daily_zm_ch_throwing_knifes_1",
+          "daily_zm_ch_kills_traps_1",
+          "daily_zm_ch_kills_bombers_clean"
+        ],
+        [
+          "daily_zm_ch_bomber_bomb_kills",
+          "daily_zm_ch_headshots_2",
+          "daily_zm_ch_kills_upgraded_2",
+          "daily_zm_ch_wave_challenge_shotgun_1",
+          "daily_zm_ch_kills_jack_in_box_1",
+          "daily_zm_ch_kills_ripsaw_1"
+        ],
+        [
+          "daily_zm_ch_traps_propeller_1",
+          "daily_zm_ch_wave_asn_spines_1",
+          "daily_zm_ch_headshots_1",
+          "daily_zm_ch_pistols_1",
+          "daily_zm_ch_traps",
+          "daily_zm_ch_pest_melee"
+        ],
+        [
+          "daily_zm_ch_wave_challenge_dmg_1",
+          "daily_zm_ch_kills_upgraded_1",
+          "daily_zm_ch_shotguns_1",
+          "daily_zm_ch_lmgs_1",
+          "daily_zm_ch_wustling_melee_only",
+          "daily_zm_ch_empty_clip"
+        ],
+        [
+          "daily_zm_ch_revives_1",
+          "daily_zm_ch_bomber_with_bomb",
+          "daily_zm_ch_kills_pistols_upgraded_1",
+          "daily_zm_ch_sniper_headshots_1",
+          "daily_zm_ch_explosives_1",
+          "daily_zm_ch_wustling_betty_charge"
+        ],
+        [
+          "daily_zm_ch_purchase_weapons_1",
+          "daily_zm_ch_throwing_knifes_1",
+          "daily_zm_ch_kills_traps_1",
+          "daily_zm_ch_kills_bombers_clean",
+          "daily_zm_ch_bomber_bomb_kills",
+          "daily_zm_ch_headshots_2"
+        ],
+        [
+          "daily_zm_ch_kills_upgraded_2",
+          "daily_zm_ch_wave_challenge_shotgun_1",
+          "daily_zm_ch_kills_jack_in_box_1",
+          "daily_zm_ch_kills_ripsaw_1",
+          "daily_zm_ch_traps_propeller_1",
+          "daily_zm_ch_wave_asn_spines_1"
+        ]
+      ]
+    },
+    {
+      "kind": 9,
+      "activationLimit": 3,
+      "sets": [
+        [
+          "weekly_zm_ch_headshots_1",
+          "weekly_zm_ch_purchase_doors_1",
+          "weekly_zm_ch_kills_equipment"
+        ],
+        [
+          "weekly_zm_ch_kills_electrical_1",
+          "weekly_zm_ch_kills_1",
+          "weekly_zm_ch_traps_1"
+        ],
+        [
+          "weekly_zm_ch_kills_benners_1",
+          "weekly_zm_ch_ripsaw_kills_no_heavy",
+          "weekly_zm_ch_objective_2"
+        ],
+        [
+          "weekly_zm_ch_headshots_1",
+          "weekly_zm_ch_kills_equipment",
+          "weekly_zm_ch_kills_1"
+        ],
+        [
+          "weekly_zm_ch_purchase_doors_1",
+          "weekly_zm_ch_kills_benners_1",
+          "weekly_zm_ch_ripsaw_kills_no_heavy"
+        ],
+        [
+          "weekly_zm_ch_kills_electrical_1",
+          "weekly_zm_ch_traps_1",
+          "weekly_zm_ch_objective_2"
+        ]
+      ]
+    },
+    {
+      "kind": 11,
+      "activationLimit": 3,
+      "sets": [
+        [
+          "contract_zm_wave_location_2",
+          "contract_zm_wave_time_trial_1",
+          "contract_zm_treasure_1",
+          "contract_zm_kills_freefire_1",
+          "contract_zm_ch_kills_1",
+          "contract_zm_ch_kills_3",
+          "contract_zm_shellshock_1",
+          "contract_zm_open_all_doors_1",
+          "contract_zm_ch_kills_2"
+        ],
+        [
+          "contract_zm_ch_jumping_knifes_1",
+          "contract_zm_ch_unique_kills_fr_1",
+          "contract_zm_ch_beheadings_1",
+          "contract_zm_kills_freefire_1",
+          "contract_zm_ch_kills_1",
+          "contract_zm_ch_kills_3",
+          "contract_zm_shellshock_1",
+          "contract_zm_open_all_doors_1",
+          "contract_zm_ch_kills_2"
+        ],
+        [
+          "contract_zm_wave_location_2",
+          "contract_zm_wave_time_trial_1",
+          "contract_zm_treasure_1",
+          "contract_zm_ch_jumping_knifes_1",
+          "contract_zm_ch_unique_kills_fr_1",
+          "contract_zm_ch_beheadings_1",
+          "contract_zm_shellshock_1",
+          "contract_zm_open_all_doors_1",
+          "contract_zm_ch_kills_2"
+        ]
+      ]
+    },
+    {
+      "kind": 10,
+      "activationLimit": 1,
+      "sets": [
+        [
+          "special_ch_storm_survivor"
+        ],
+        [
+          "special_ch_storm_hunter"
+        ],
+        [
+          "special_ch_storm_slayer"
+        ],
+        [
+          "special_ch_storm_mountain"
+        ]
+      ]
+    }
+  ]
+}

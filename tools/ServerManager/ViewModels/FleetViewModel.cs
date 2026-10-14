@@ -774,9 +774,9 @@ namespace S2x.ServerManager.ViewModels
                 state.LastReply = DateTime.Now;
                 state.PingMs = info.RttMs;
                 state.Cap = Math.Max(1, info.Int("sv_maxclients", Math.Max(1, state.Cap)));
-                // clients is humans only; bots is clamped to it, so the real count is s2x_bots.
+                // Current clients includes bots; legacy CR can expose a separate real bot count.
                 state.Bots = Math.Max(0, info.Int("s2x_bots", info.Int("bots", 0)));
-                state.Humans = Math.Max(0, info.Int("clients", 0));
+                state.Humans = info.Humans;
                 state.SvRunning = info.Get("sv_running") == "1";
                 // In the lobby between maps the reply carries the next map as party_*.
                 state.MapKey = Pick(info, "mapname", "party_mapname");

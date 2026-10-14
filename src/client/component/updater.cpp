@@ -6,6 +6,7 @@
 
 #include "component/console/console.hpp"
 #include "game/game.hpp"
+#include "game/player_profile.hpp"
 #include "loader/component_loader.hpp"
 
 #include <updater/updater.hpp>
@@ -70,7 +71,7 @@ namespace updater
 
 		[[noreturn]] void relaunch_installed_binary()
 		{
-			if (!utils::nt::relaunch_self())
+			if (!utils::nt::relaunch_self(player_profile::relaunch_arguments()))
 			{
 				report_error("The installed executable changed, but S2x could not be relaunched.");
 				utils::nt::terminate(1);
@@ -118,16 +119,13 @@ namespace updater
 
 			cleanup_previous_binary();
 
-			// Upstream's update server only serves upstream's files: its UI scripts would
-			// load on top of ours and its executable would replace this one. This fork
-			// takes releases from GitHub instead, so the download is opt-in.
-			if (utils::flags::has_flag("-update"))
+			if (utils::flags::has_flag("-update") && !utils::flags::has_flag("-noupdate"))
 			{
 				perform_update();
 			}
 			else
 			{
-				console::info("[Updater] Automatic updates are off in this fork; new builds are at https://github.com/ChronoRixun/S2x-CR/releases\n");
+				console::info("[Updater] CR automatic updates are off; releases: https://github.com/ChronoRixun/S2x-CR/releases\n");
 			}
 
 			if (binary_was_replaced)

@@ -180,6 +180,21 @@ namespace game
 	{
 		static const auto appdata_path = []
 		{
+			// Candidate testing can isolate all loose files, script storage and caches.
+			if (const auto value = utils::flags::get_value("-appdata-dir"))
+			{
+				const std::filesystem::path root{*value};
+				if (!root.is_absolute())
+				{
+					throw std::runtime_error("-appdata-dir requires an absolute directory path.");
+				}
+				return root.lexically_normal();
+			}
+			if (utils::flags::has_flag("-appdata-dir"))
+			{
+				throw std::runtime_error("Usage: -appdata-dir <absolute directory>");
+			}
+
 			PWSTR path;
 			if (FAILED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &path)))
 			{

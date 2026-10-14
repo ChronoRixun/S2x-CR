@@ -111,15 +111,15 @@ namespace utils::hook
 		}
 
 		template <typename... Args>
-		asmjit::Error jz(Args&&... args)
-		{
-			return this->assembler_.jz(std::forward<Args>(args)...);
-		}
-
-		template <typename... Args>
 		asmjit::Error inc(Args&&... args)
 		{
 			return this->assembler_.inc(std::forward<Args>(args)...);
+		}
+
+		template <typename... Args>
+		asmjit::Error jz(Args&&... args)
+		{
+			return this->assembler_.jz(std::forward<Args>(args)...);
 		}
 
 		template <typename... Args>
@@ -132,6 +132,12 @@ namespace utils::hook
 		asmjit::Error mov(Args&&... args)
 		{
 			return this->assembler_.mov(std::forward<Args>(args)...);
+		}
+
+		template <typename... Args>
+		asmjit::Error movzx(Args&&... args)
+		{
+			return this->assembler_.movzx(std::forward<Args>(args)...);
 		}
 
 		template <typename... Args>

@@ -75,7 +75,7 @@ if Character_Scene and Character_Scene.HandleUpdateVLLoadout and
 	Character_Scene.S2xStockHandleUpdateVLLoadout = Character_Scene.HandleUpdateVLLoadout
 end
 
--- Members whose loadout the filter dropped before the lobby model listed them.
+-- Members the visibility filter hid, whose loadout must be requested again.
 local filteredLoadoutXuids = {}
 
 if Character_Scene and Character_Scene.S2xStockHandleUpdateVLLoadout then
@@ -148,9 +148,8 @@ function S2xRefreshDedicatedPartyPresentation()
 		end
 	end
 
-	-- Re-send loadouts only when a member the filter dropped is now visible. An
-	-- unconditional request on every partystate rebuilt every podium avatar and
-	-- cancelled winners-circle emotes in flight.
+	-- Resending every loadout on each partystate rebuilds the podium avatars and
+	-- cancels winners-circle emotes, so only resend once a hidden member is listed.
 	if CharacterScene.RequestUpdateVLLoadout then
 		for xuid in pairs( filteredLoadoutXuids ) do
 			if IsVisibleDedicatedPartyMember( xuid ) then

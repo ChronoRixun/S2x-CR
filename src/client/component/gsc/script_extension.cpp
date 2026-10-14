@@ -1,5 +1,4 @@
 #include <std_include.hpp>
-#include "../network.hpp"
 #include "loader/component_loader.hpp"
 #include "game/game.hpp"
 #include "game/dvars.hpp"
@@ -10,17 +9,18 @@
 #include "component/command.hpp"
 #include "component/console/console.hpp"
 #include "component/scripting.hpp"
-#include "component/server_admin.hpp"
 
 #include "script_error.hpp"
 #include "script_extension.hpp"
 #include "script_loading.hpp"
 #include "script_storage.hpp"
+#include "../network.hpp"
+#include "../server_admin.hpp"
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 
 #include <utils/hook.hpp>
 #include <utils/string.hpp>
-#include <rapidjson/stringbuffer.h>
-#include <rapidjson/writer.h>
 
 namespace gsc
 {
@@ -324,6 +324,66 @@ namespace gsc
 			console::info("\n");
 		}
 
+		std::unordered_map<const char*, const char*> replaced_functions;
+
+		const char* get_replaced_function(const char* pos)
+		{
+			if (replaced_functions.empty())
+			{
+				return nullptr;
+			}
+
+			const auto itr = replaced_functions.find(pos);
+			return itr != replaced_functions.end() ? itr->second : nullptr;
+		}
+
+		void vm_execute_stub(utils::hook::assembler& a)
+		{
+			const auto original = a.new_label();
+
+			a.pushad64();
+			a.mov(rcx, r15);
+			a.call_aligned(get_replaced_function);
+			a.test(rax, rax);
+			a.jz(original);
+			a.mov(qword_ptr(rsp), rax);
+
+			a.bind(original);
+			a.popad64();
+			a.movzx(r13d, byte_ptr(r15));
+			a.inc(r15);
+			a.jmp(0x692547_g);
+		}
+
+		const char* get_code_pos(const unsigned int index)
+		{
+			if (index >= game::scr_VmPub->outparamcount)
+			{
+				scr_error("Scr_GetCodePos: index is out of range");
+				return nullptr;
+			}
+
+			const auto* value = &game::scr_VmPub->top[-static_cast<int>(index)];
+			if (value->type != game::VAR_FUNCTION)
+			{
+				scr_error("Scr_GetCodePos requires a function as parameter");
+				return nullptr;
+			}
+
+			return value->u.codePosValue;
+		}
+
+		void scr_replace_func()
+		{
+			const auto* what = get_code_pos(0);
+			const auto* with = get_code_pos(1);
+			if (!what || !with)
+			{
+				return;
+			}
+
+			replaced_functions[what] = with;
+		}
 		void scr_file_read()
 		{
 			if (game::Scr_GetNumParam() != 1) throw std::runtime_error("fileread(filename) expects one argument");
@@ -525,6 +585,7 @@ namespace gsc
 		{
 			override_function("print", &scr_print);
 			override_function("println", &scr_print_ln);
+
 			if (game::environment::uses_multiplayer_binary())
 			{
 				add_function("fileread", &scr_file_read);
@@ -536,6 +597,11 @@ namespace gsc
 				scripting::on_shutdown([](int) { reset_admin_notices(); });
 			}
 
+			add_function("toupper", []
+			{
+				game::Scr_AddString(utils::string::to_upper(game::Scr_GetString(0)).data());
+			});
+
 			scr_error_hook.create(game::Scr_Error, scr_error_stub);
 			scr_error2_hook.create(game::Scr_Error2, scr_error2_stub);
 
@@ -543,6 +609,17 @@ namespace gsc
 			utils::hook::call(game::select(0x6939DC, 0x49A28C), vm_call_builtin_function);
 
 			utils::hook::call(game::select(0x694BDC, 0x49B48C), vm_error_stub); // LargeLocalResetToMark
+
+			if (game::environment::uses_multiplayer_binary())
+			{
+				add_function("replacefunc", scr_replace_func);
+				utils::hook::jump(0x692540_g, utils::hook::assemble(vm_execute_stub));
+
+				scripting::on_shutdown([](int)
+				{
+					replaced_functions.clear();
+				});
+			}
 		}
 	};
 }

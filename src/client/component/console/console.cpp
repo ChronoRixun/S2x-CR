@@ -4,6 +4,7 @@
 #include "game/game.hpp"
 
 #include "component/scheduler.hpp"
+#include "component/server_commands.hpp"
 
 #include <utils/flags.hpp>
 
@@ -19,6 +20,15 @@ namespace game_console
 
 namespace console
 {
+	namespace
+	{
+		constexpr std::size_t console_format_buffer_size = 0x1000;
+		constexpr std::size_t maximum_console_message_size = 1024 * 1024;
+		constexpr std::string_view console_truncation_marker =
+			"\n[console output truncated]\n";
+		std::atomic<std::shared_ptr<const std::string>> log_path;
+	}
+
 	enum console_type
 	{
 		con_type_none,
@@ -84,55 +94,82 @@ namespace console
 
 	std::string format(va_list* ap, const char* message)
 	{
-		static thread_local char buffer[0x1000];
-
-		// _TRUNCATE hands back -1 when the line did not fit (with sizeof(buffer) as
-		// the count the CRT would fail-fast instead). The terminated prefix is
-		// still the diagnostic, so keep it and mark the cut. The cut swallowed the
-		// line's own newline, so one is put back for every sink, not only the log
-		// file, which is the only one that adds its own.
-		const auto count = _vsnprintf_s(buffer, sizeof(buffer), _TRUNCATE, message, *ap);
-		if (count < 0)
+		if (!ap || !message)
 		{
-			std::string truncated{buffer, strnlen(buffer, sizeof(buffer) - 1)};
-			if (!truncated.empty())
-			{
-				truncated += " [truncated]\n";
-			}
-
-			return truncated;
+			return {};
 		}
 
-		return { buffer, static_cast<size_t>(count) };
-	}
+		static thread_local char buffer[console_format_buffer_size];
+		va_list arguments;
+		va_copy(arguments, *ap);
+		const auto count = _vsnprintf_s(
+			buffer, sizeof(buffer), _TRUNCATE, message, arguments);
+		va_end(arguments);
 
-	namespace
-	{
-		std::atomic<std::uint64_t> printed_lines{};
-	}
+		if (count >= 0)
+		{
+			return {buffer, static_cast<std::size_t>(count)};
+		}
 
-	std::uint64_t lines_printed()
-	{
-		return printed_lines.load();
+		va_copy(arguments, *ap);
+		const auto required_count = _vscprintf(message, arguments);
+		va_end(arguments);
+		if (required_count < 0)
+		{
+			return {};
+		}
+
+		const auto required_size = static_cast<std::size_t>(required_count);
+		const auto truncated = required_size > maximum_console_message_size;
+		const auto output_capacity = truncated
+			? maximum_console_message_size - console_truncation_marker.size()
+			: required_size;
+		std::vector<char> dynamic_buffer(output_capacity + 1);
+
+		va_copy(arguments, *ap);
+		const auto dynamic_count = _vsnprintf_s(dynamic_buffer.data(), dynamic_buffer.size(),
+			_TRUNCATE, message, arguments);
+		va_end(arguments);
+
+		if (!truncated && dynamic_count < 0)
+		{
+			return {};
+		}
+
+		const auto written = truncated
+			? strnlen_s(dynamic_buffer.data(), dynamic_buffer.size())
+			: static_cast<std::size_t>(dynamic_count);
+		std::string result{dynamic_buffer.data(), written};
+		if (truncated)
+		{
+			result.append(console_truncation_marker);
+		}
+
+		return result;
 	}
 
 	void dispatch_message(const int type, const std::string& message)
 	{
-		++printed_lines;
+		if (server_commands::message_redirect(message))
+		{
+			return;
+		}
+
 		std::string out = message;
 		if (out.empty() || out.back() != '\n')
 		{
 			out.push_back('\n');
 		}
 
-		// A path given on the command line (+set g_consoleLog <path>, how the launcher
-		// gives each server its own file) wins over the dvar: the dvar is registered
-		// late and saved, so the native +set never reaches it.
+		// Logs also originate on the Demonware worker. Never borrow the Dvar's
+		// live string there; its main-thread producer owns this immutable copy.
+		// A Manager launch gives each server an immutable command-line log path.
 		static const auto flag_path = utils::flags::get_set_value("g_consoleLog");
+		const auto path = log_path.load(std::memory_order_acquire);
 		if (flag_path)
 			utils::io::write_file(*flag_path, out, true);
-		else if (console_log && console_log->current.string)
-			utils::io::write_file(console_log->current.string, out, true);
+		else if (path && !path->empty())
+			utils::io::write_file(*path, out, true);
 
 		if (console::is_enabled())
 		{
@@ -207,6 +244,15 @@ namespace console
 		scheduler::once([]()
 		{
 			console_log = game::Dvar_RegisterString("g_consoleLog", "s2x/logs/console.log", game::DVAR_FLAG_SAVED);
+			scheduler::loop([]
+			{
+
+				const auto text = console_log ? console_log->current.string : nullptr;
+				const std::string value = text ? text : "";
+				const auto previous = log_path.load(std::memory_order_acquire);
+				if (!previous || *previous != value)
+					log_path.store(std::make_shared<const std::string>(value), std::memory_order_release);
+			}, scheduler::main);
 		}, scheduler::main);
 	}
 }

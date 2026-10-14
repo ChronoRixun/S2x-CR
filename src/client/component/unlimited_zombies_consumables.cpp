@@ -15,18 +15,27 @@ namespace unlimited_zombies_consumables
 		const game::dvar_t* cg_unlimited_zm_consumables{};
 		utils::hook::detour get_item_quantity_hook;
 
-		int get_item_quantity_stub(const unsigned int controller_index, const unsigned int item_guid)
+		char consume_gameplay_item_stub(const int controller_index, const unsigned int* items,
+			const unsigned int count, const char* client_tx)
 		{
-			// The progression item is not a consumable — it gates access to
-			// Groesten Haus. Check it first so the consumable override below
-			// does not give it 999 and mask the cg_unlock_zm_progression toggle.
-			if (game::zombies_inventory::is_progression_item(item_guid))
+			// CG_DeployServerCommandString handles the script's "> a GUID" by
+			// consuming one card on its first use. Keep the script's rarity charges
+			// and HUD behavior, but do not debit persistent stock in unlimited mode.
+			if (cg_unlimited_zm_consumables && cg_unlimited_zm_consumables->current.enabled &&
+				count == 1 && items && items[1] == 1 &&
+				!game::zombies_inventory::is_progression_item(items[0]) &&
+				game::Inventory_IsItemGuidAZMConsumable(items[0]))
 			{
-				const auto quantity = get_item_quantity_hook.invoke<int>(controller_index, item_guid);
-				return game::zombies_inventory::is_progression_unlock_forced() ? std::max(quantity, 1) : quantity;
+				return 1;
 			}
 
+			return utils::hook::invoke<char>(0x278480_g, controller_index, items, count, client_tx);
+		}
+
+		int get_item_quantity_stub(const unsigned int controller_index, const unsigned int item_guid)
+		{
 			if (cg_unlimited_zm_consumables && cg_unlimited_zm_consumables->current.enabled &&
+				!game::zombies_inventory::is_progression_item(item_guid) &&
 				game::Inventory_IsItemGuidAZMConsumable(item_guid))
 			{
 				return unlimited_consumable_quantity;
@@ -50,6 +59,7 @@ namespace unlimited_zombies_consumables
 				"cg_unlimited_zm_consumables", false, game::DVAR_FLAG_SAVED);
 
 			get_item_quantity_hook.create(game::Inventory_GetItemQuantity, get_item_quantity_stub);
+			utils::hook::call(0x434DAA_g, consume_gameplay_item_stub);
 		}
 	};
 }

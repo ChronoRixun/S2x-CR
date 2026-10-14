@@ -1,6 +1,12 @@
+# Rebuilt upstream validation (2026-10-13)
+
+`python tests/next-map/native.py` compiles the current production selection, rotation-current, hosted-limit response/polling, and capacity/count functions against native-call stubs with MSVC. It checks malformed and case-normalized votes, one-shot consumption, operator priority, pending `map_rotate`, adjacent duplicate skipping, one-entry wrap, `sv_mapRotationCurrent` consumption, reply identity and numeric validation, polling cancellation/supersession/retry bounds, and connected/bot counts versus configured capacity. Native stub checks passed during this transplant; they do not exercise the game binary, native recipe memory, packet dispatch or script VM.
+
+The preserved fixtures use the current `sv_maxplayers`/`sv_minplayers` settings. No fixture was installed or run against a game/profile as part of the rebuild. The runtime record below is historical CR-branch evidence; its passes are not new upstream-rebuild smoke tests. For the rebuilt precedence, both operator `map` and valid `sv_mapRotationCurrent` entries override a vote; the vote is consumed in either case. Remaining game checks include real clients joining a custom/dedicated lobby, limit HUD refresh across rotation, named/listen bots, and vote selection with the upstream lifecycle/network fixes.
+
 # Scripted next map (s2x_nextmap): test record
 
-Branch `feat/scripted-next-map`, from `integration` at 0ef554f (v1.6.0). Release x64 build, no warnings. Bots only, private LAN runtime (`sv_lanOnly 1`, `master_server_enable 0`, `bot_fill 4`, `party_minplayers 1`, `party_matchStartDelay 5`), ports 27080-27083. No human client and no vote script were used. The design's test numbers (B1-B11) are used below.
+Branch `feat/scripted-next-map`, from `integration` at 0ef554f (v1.6.0). Release x64 build, no warnings. Bots only, private LAN runtime (`sv_lanOnly 1`, `master_server_enable 0`, `bot_fill 4`, `sv_minplayers 1`, `party_matchStartDelay 5`), ports 27080-27083. No human client and no vote script were used. The design's test numbers (B1-B11) are used below.
 
 Files here:
 - `nextmap-test.cfg`: the B1-B3/B7 server (rotation war, dom, gun, dm on `mp_shipment_s2`, no time or score limits).

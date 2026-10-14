@@ -4,16 +4,13 @@
 #include "command.hpp"
 #include "console/console.hpp"
 #include "unlock_zombies.hpp"
+#include "demonware/zombies_progression.hpp"
+#include "scheduler.hpp"
 
 #include "game/game.hpp"
-#include "game/demonware/hq_economy.hpp"
-#include "game/ui_scripting/execution.hpp"
-
-#include "ui_scripting.hpp"
 
 #include <algorithm>
 #include <charconv>
-#include <optional>
 
 namespace stats
 {
@@ -636,6 +633,54 @@ namespace stats
 			}
 		}
 
+		void unlock_zombie_quests(const command::params& params)
+		{
+			if (params.size() != 2 || std::string_view{params[1]} != "confirm")
+			{
+				console::warn("unlockzmeastereggs: permanently unlocks supported Zombies maps and quest records. "
+					"Run \"unlockzmeastereggs confirm\" to continue.\n");
+				return;
+			}
+			if (!game::environment::is_zombies())
+			{
+				return;
+			}
+			scheduler::once([]
+			{
+				// The stock Sword of Barbarossa pickup reads Coop DDL, not AE1114.
+				// Easy survival unlocks also emit event 42 without completing the EE
+				// sequence, so normal events must never synthesize this stat from 1114.
+				unsigned int group{};
+				for (; group < stats_group_count; ++group)
+				{
+					if (is_stat_path_valid({"zmShatteredRecord", "hasCompletedEESequence"}, group) &&
+						is_stat_path_valid({"zmShatteredRecord", "mapCompleted"}, group))
+					{
+						break;
+					}
+				}
+				if (!has_stats() || group == stats_group_count || !zombies_progression::unlock_quests())
+				{
+					console::error("unlockzmeastereggs: stats/catalog unavailable or economy save failed; retry when ready.\n");
+					return;
+				}
+				// Economy completion and Groesten Haus ownership commit together first.
+				// Native stats retain their normal save path; re-running is idempotent
+				// if shutdown interrupts that separate native profile write.
+				const auto maps = set_stat({"zmShatteredRecord", "mapCompleted"}, 7, group);
+				const auto sequence = set_stat({"zmShatteredRecord", "hasCompletedEESequence"}, 1, group);
+				if (!maps || !sequence)
+				{
+					console::error("unlockzmeastereggs: quest records saved; native sequence stat write failed. Retry the command.\n");
+				}
+				else
+				{
+					console::info("unlockzmeastereggs: maps and supported quests unlocked, including Sword of Barbarossa access. "
+						"Red Talon still uses its per-match puzzle.\n");
+				}
+			}, scheduler::pipeline::main);
+		}
+
 		void unlock_zombie_stats(const command::params& params)
 		{
 			if (params.size() != 2 || std::string_view{params[1]} != "confirm")
@@ -683,7 +728,7 @@ namespace stats
 
 			if (!challenges.persisted)
 			{
-				console::warn("unlockstatszm: failed to persist Zombies Hidden Challenge progression.\n");
+				console::warn("unlockstatszm: challenge/reward data unavailable or save failed; retry when ready.\n");
 			}
 			else if (!challenges_unlocked)
 			{
@@ -692,467 +737,8 @@ namespace stats
 
 			if (rank_unlocked && challenges_unlocked)
 			{
-				console::info("unlockstatszm: Zombies progression and Hidden Challenges unlocked.\n");
+				console::info("unlockstatszm: Zombies progression, Hidden Challenges and their rewards unlocked.\n");
 			}
-		}
-
-		void unlock_zombie_easter_eggs(const command::params& params)
-		{
-			if (params.size() != 2 || std::string_view{params[1]} != "confirm")
-			{
-				console::warn("unlockzmeastereggs: this permanently marks the Zombies main quests (Tortured Path "
-					"chapters and Easter eggs) as completed and cannot be automatically undone. Run "
-					"\"unlockzmeastereggs confirm\" to continue.\n");
-				return;
-			}
-
-			if (!game::environment::is_zombies())
-			{
-				console::error("unlockzmeastereggs: this command is only available in Zombies.\n");
-				return;
-			}
-
-			const auto result = unlock_zombies::unlock_easter_eggs();
-			if (!result.persisted)
-			{
-				console::warn("unlockzmeastereggs: failed to persist the Zombies main quest progression.\n");
-				return;
-			}
-
-			if (result.completed != result.total)
-			{
-				console::warn("unlockzmeastereggs: %d of %d main quest entries could not be resolved.\n",
-					result.total - result.completed, result.total);
-			}
-
-			console::info("unlockzmeastereggs: %d Zombies main quest entries marked as completed. "
-				"Return to the lobby for the change to apply.\n", result.completed);
-		}
-	}
-
-	namespace
-	{
-		// Rank tables (mp/rankTable.csv, mp/cp_rankTable.csv) key their rows by
-		// the zero-based rank index; column 2 holds the rank's minimum experience.
-		// "maxrank" is the highest rank index before the final prestige and
-		// "maxrankfinalprestige" the highest index at master prestige.
-		constexpr int rank_min_experience_column = 2;
-
-		struct rank_table_info
-		{
-			const game::StringTable* table{};
-			int max_prestige{};
-			int max_rank_index{};
-			int max_rank_index_final_prestige{};
-			// Minimum experience per rank index, 0..max_rank_index_final_prestige,
-			// checked at load to be complete and non-decreasing so the lookups below
-			// never stop early on a missing or malformed row.
-			std::vector<int> minimum_experience{};
-		};
-
-		bool load_rank_table(const char* table_name, rank_table_info& info)
-		{
-			info = {};
-			info.table = find_string_table(table_name);
-			if (!info.table)
-			{
-				return false;
-			}
-
-			if (!get_integer_cell(info.table, find_row(info.table, 0, "maxprestige"), 1, info.max_prestige) ||
-				!get_integer_cell(info.table, find_row(info.table, 0, "maxrankfinalprestige"), 1,
-					info.max_rank_index_final_prestige))
-			{
-				return false;
-			}
-
-			// The caps feed std::clamp and a + 1 level conversion, so a malformed
-			// table must be rejected here rather than produce reversed bounds or an
-			// overflow later. Every rank index needs a row of its own, which bounds
-			// the final cap by the table's row count. A missing maxrank row is a
-			// supported layout (the regular cap equals the final-prestige cap); a
-			// present but invalid cell is not.
-			if (info.max_prestige < 0 || info.max_rank_index_final_prestige < 0 ||
-				info.max_rank_index_final_prestige >= info.table->rowCount)
-			{
-				return false;
-			}
-
-			const auto max_rank_row = find_row(info.table, 0, "maxrank");
-			if (max_rank_row < 0)
-			{
-				info.max_rank_index = info.max_rank_index_final_prestige;
-			}
-			else if (!get_integer_cell(info.table, max_rank_row, 1, info.max_rank_index) ||
-				info.max_rank_index < 0 || info.max_rank_index > info.max_rank_index_final_prestige)
-			{
-				return false;
-			}
-
-			// Collect the minimum experience of every rank the caps can name. A rank
-			// that is missing, listed twice, or carries a non-numeric or negative XP
-			// cell rejects the table, as does experience that decreases from one rank
-			// to the next: the level conversion walks the ranks in order and a rank
-			// row must never be mistaken for the threshold above the player's XP.
-			const auto rank_count = static_cast<std::size_t>(info.max_rank_index_final_prestige) + 1;
-			std::vector<int> minimum_experience(rank_count);
-			std::vector<bool> seen(rank_count);
-			for (auto row = 0; row < info.table->rowCount; ++row)
-			{
-				int rank_index{};
-				if (!get_integer_cell(info.table, row, 0, rank_index) || rank_index < 0 ||
-					static_cast<std::size_t>(rank_index) >= rank_count)
-				{
-					continue;
-				}
-
-				int minimum{};
-				if (seen[rank_index] ||
-					!get_integer_cell(info.table, row, rank_min_experience_column, minimum) || minimum < 0)
-				{
-					return false;
-				}
-
-				seen[rank_index] = true;
-				minimum_experience[rank_index] = minimum;
-			}
-
-			if (std::find(seen.begin(), seen.end(), false) != seen.end() || minimum_experience[0] != 0 ||
-				!std::is_sorted(minimum_experience.begin(), minimum_experience.end()))
-			{
-				return false;
-			}
-
-			info.minimum_experience = std::move(minimum_experience);
-			return true;
-		}
-
-		int get_rank_level_cap(const rank_table_info& info, const int prestige)
-		{
-			const auto max_index = prestige >= info.max_prestige
-				? info.max_rank_index_final_prestige
-				: info.max_rank_index;
-			return max_index + 1;
-		}
-
-		bool get_rank_experience(const rank_table_info& info, const int level, int& experience)
-		{
-			if (level < 1 || static_cast<std::size_t>(level) > info.minimum_experience.size())
-			{
-				return false;
-			}
-
-			experience = info.minimum_experience[static_cast<std::size_t>(level) - 1];
-			return true;
-		}
-
-		// The highest level whose minimum experience the player has reached. Level 1
-		// needs zero experience, so a loaded table always yields at least 1.
-		int get_level_for_experience(const rank_table_info& info, const int experience)
-		{
-			auto level = 1;
-			for (std::size_t index = 0; index < info.minimum_experience.size(); ++index)
-			{
-				if (info.minimum_experience[index] > experience)
-				{
-					break;
-				}
-
-				level = static_cast<int>(index) + 1;
-			}
-
-			return level;
-		}
-
-		const char* get_rank_table_name()
-		{
-			return game::environment::is_zombies() ? "mp/cp_rankTable.csv" : "mp/rankTable.csv";
-		}
-
-		struct progression_target
-		{
-			const char* table{};
-			const char* prestige_stat{};
-			const char* experience_stat{};
-			unsigned int stats_group{};
-		};
-
-		// Resolves the table, stat fields and stats group the current mode's
-		// progression lives in. Failures are reported under `command` when one is
-		// given; the rank chooser's bridge passes none and only gets false.
-		bool resolve_progression_target(const char* command, progression_target& target)
-		{
-			if (!has_stats())
-			{
-				if (command)
-				{
-					console::error("%s: player stats are not available.\n", command);
-				}
-
-				return false;
-			}
-
-			if (game::environment::is_multiplayer())
-			{
-				target = {"mp/rankTable.csv", "prestige", "experience", ranked_stats_group};
-				return true;
-			}
-
-			unsigned int zombie_group{};
-			if (game::environment::is_zombies() && find_zombie_stats_group(zombie_group))
-			{
-				target = {"mp/cp_rankTable.csv", "prestigeLevel", "totalXP", zombie_group};
-				return true;
-			}
-
-			if (command)
-			{
-				console::error("%s: only available in Multiplayer or Zombies.\n", command);
-			}
-
-			return false;
-		}
-
-		// The engine only exposes player stats to LUI, so the current prestige is read
-		// through Engine.GetPlayerData - the same call the UNLOCKS rank chooser uses to
-		// seed its steppers. Returns false when LUI is down or the field cannot be read.
-		bool read_current_prestige(const progression_target& target, int& prestige)
-		{
-			const auto controller_index = game::CL_ControllerIndexFromClientNum(0);
-			if (controller_index < 0 || !*game::hks::lui_lua_state)
-			{
-				return false;
-			}
-
-			auto found = false;
-			game::LUI_EnterCriticalSection();
-
-			try
-			{
-				const auto engine = ui_scripting::get_globals().get("Engine");
-				if (engine.is<ui_scripting::table>())
-				{
-					const auto reader = engine.as<ui_scripting::table>().get("GetPlayerData");
-					if (reader.is<ui_scripting::function>())
-					{
-						const auto result = reader.as<ui_scripting::function>().call(
-							{controller_index, static_cast<int>(target.stats_group), target.prestige_stat});
-						if (!result.empty() && result[0].is<float>())
-						{
-							prestige = static_cast<int>(result[0].as<float>());
-							found = true;
-						}
-					}
-				}
-			}
-			catch (const std::exception& e)
-			{
-				console::debug("failed to read %s from LUI: %s\n", target.prestige_stat, e.what());
-			}
-
-			game::LUI_LeaveCriticalSection();
-			return found;
-		}
-
-		bool apply_progression(const char* command, const std::optional<int> prestige, const int level)
-		{
-			progression_target target{};
-			rank_table_info info{};
-			if (!resolve_progression_target(command, target))
-			{
-				return false;
-			}
-
-			if (!load_rank_table(target.table, info))
-			{
-				console::error("%s: rank table %s is unavailable or has an unexpected layout.\n", command, target.table);
-				return false;
-			}
-
-			// Levels above the regular cap only exist at the final prestige. With a
-			// prestige argument the level is capped for that prestige; without one it is
-			// capped for the prestige the player is on right now. When the current
-			// prestige cannot be read, cap as at prestige 0 and say so - the two-argument
-			// form and setprestige still reach every level.
-			auto current_prestige = 0;
-			if (!prestige && !read_current_prestige(target, current_prestige))
-			{
-				console::warn("%s: your current prestige could not be read; capping the level as at prestige 0. "
-					"Pass a prestige (%s <level> <prestige>) to reach the levels above that cap.\n",
-					command, command);
-			}
-
-			const auto chosen_prestige = std::clamp(prestige ? *prestige : current_prestige, 0, info.max_prestige);
-			const auto level_cap = get_rank_level_cap(info, chosen_prestige);
-			const auto chosen_level = std::clamp(level, 1, level_cap);
-
-			int experience{};
-			if (!get_rank_experience(info, chosen_level, experience))
-			{
-				console::error("%s: no rank row for level %d in %s.\n", command, chosen_level, target.table);
-				return false;
-			}
-
-			// MP displays experience + inventoryTotalXP - inventoryXPAtLastReset
-			// (native 0xD71B0). Setting only experience leaves past reward XP on top
-			// of the requested rank. Match the native prestige reset (0x18ED20) by
-			// baselining both inventory fields to currency 1. Use the persisted wallet
-			// that hq_native projects, so a pending wallet refresh cannot restore old XP.
-			int inventory_experience{};
-			const auto reset_inventory_experience = target.stats_group == ranked_stats_group;
-			if (reset_inventory_experience)
-			{
-				try
-				{
-					const auto wallet = demonware::hq_economy::snapshot();
-					const auto it = wallet.currencies.find(1);
-					const auto amount = it == wallet.currencies.end() ? 0u : it->second;
-					if (amount > static_cast<unsigned>(std::numeric_limits<int>::max()) ||
-						!is_stat_path_valid({"inventoryTotalXP"}, target.stats_group) ||
-						!is_stat_path_valid({"inventoryXPAtLastReset"}, target.stats_group))
-					{
-						console::error("%s: inventory XP cannot be reset safely; rank was not changed.\n", command);
-						return false;
-					}
-					inventory_experience = static_cast<int>(amount);
-				}
-				catch (const std::exception& error)
-				{
-					console::error("%s: cannot read inventory XP: %s. Rank was not changed.\n", command, error.what());
-					return false;
-				}
-			}
-
-			// The game's own prestige routine advances by exactly one prestige and only
-			// in Multiplayer, so it cannot serve a command that sets an absolute prestige
-			// in either mode. We write the prestige stat directly instead. That is the
-			// prestige the menus read; it is not the retail prestige event, so the
-			// cosmetic rewards that normally come with a prestige are not granted.
-			if (prestige && !set_stat({target.prestige_stat}, chosen_prestige, target.stats_group))
-			{
-				console::error("%s: failed to write %s.\n", command, target.prestige_stat);
-				return false;
-			}
-
-			if (!set_stat({target.experience_stat}, experience, target.stats_group))
-			{
-				console::error("%s: failed to write %s.\n", command, target.experience_stat);
-				return false;
-			}
-			if (reset_inventory_experience &&
-				(!set_stat({"inventoryTotalXP"}, inventory_experience, target.stats_group) ||
-					!set_stat({"inventoryXPAtLastReset"}, inventory_experience, target.stats_group)))
-			{
-				console::error("%s: failed to reset inventory XP; rank update is incomplete.\n", command);
-				return false;
-			}
-
-			if (prestige)
-			{
-				console::info("%s: prestige %d, level %d applied (%s = %d). Re-open the Soldier menu to refresh the display.\n",
-					command, chosen_prestige, chosen_level, target.experience_stat, experience);
-				console::info("%s: this sets the prestige and level only; the rewards a prestige normally grants are not given.\n", command);
-			}
-			else
-			{
-				console::info("%s: level %d applied (%s = %d). Re-open the Soldier menu to refresh the display.\n",
-					command, chosen_level, target.experience_stat, experience);
-			}
-
-			if (prestige && (chosen_prestige != *prestige || chosen_level != level))
-			{
-				console::warn("%s: values were clamped to prestige 0-%d and level 1-%d.\n",
-					command, info.max_prestige, level_cap);
-			}
-			else if (!prestige && chosen_level != level)
-			{
-				console::warn("%s: values were clamped to level 1-%d at prestige %d.\n",
-					command, level_cap, chosen_prestige);
-			}
-
-			return true;
-		}
-
-		void set_rank_command(const command::params& params)
-		{
-			int level{};
-			int prestige{};
-			if (params.size() < 2 || params.size() > 3 || !parse_integer(params[1], level) ||
-				(params.size() == 3 && !parse_integer(params[2], prestige)))
-			{
-				console::info("Usage: setrank <level> [prestige]\n");
-				console::info("Without a prestige the level is capped at your current prestige's maximum.\n");
-				return;
-			}
-
-			apply_progression("setrank", params.size() == 3 ? std::optional{prestige} : std::nullopt, level);
-		}
-
-		void set_prestige_command(const command::params& params)
-		{
-			int prestige{};
-			if (params.size() != 2 || !parse_integer(params[1], prestige))
-			{
-				console::info("Usage: setprestige <prestige>\n");
-				console::info("Sets the prestige and level the menus show. It does not grant the prestige rewards.\n");
-				return;
-			}
-
-			apply_progression("setprestige", prestige, 1);
-		}
-
-		// Lua helpers for the UNLOCKS tab rank chooser.
-		void install_lua_functions()
-		{
-			auto lua = ui_scripting::get_globals();
-			ui_scripting::table stats_table{};
-			lua["S2xStats"] = stats_table;
-
-			// maxPrestige, maxLevel (before the final prestige), maxLevelFinalPrestige;
-			// nothing when the current mode's rank table is unavailable or malformed,
-			// so the chooser cannot mistake a default for a cap.
-			stats_table["GetRankCaps"] = []() -> ui_scripting::arguments
-			{
-				rank_table_info info{};
-				if (!load_rank_table(get_rank_table_name(), info))
-				{
-					return {};
-				}
-
-				return {info.max_prestige, info.max_rank_index + 1, info.max_rank_index_final_prestige + 1};
-			};
-
-			// The level a total experience value has reached; nothing when the table
-			// cannot be used.
-			stats_table["GetLevelForExperience"] = [](const int experience) -> ui_scripting::arguments
-			{
-				rank_table_info info{};
-				if (!load_rank_table(get_rank_table_name(), info))
-				{
-					return {};
-				}
-
-				return {get_level_for_experience(info, std::max(experience, 0))};
-			};
-
-			// statsGroup, prestigeField, experienceField: the stats setrank and
-			// setprestige write, so the chooser seeds itself from the same fields the
-			// commands change. Nothing until the player's stats are loaded.
-			stats_table["GetProgressionSource"] = []() -> ui_scripting::arguments
-			{
-				progression_target target{};
-				if (!resolve_progression_target(nullptr, target))
-				{
-					return {};
-				}
-
-				return {static_cast<int>(target.stats_group), target.prestige_stat, target.experience_stat};
-			};
-
-			stats_table["HasStats"] = []()
-			{
-				return has_stats();
-			};
 		}
 	}
 
@@ -1169,11 +755,7 @@ namespace stats
 			command::add("setPlayerDataInt", set_player_data_int);
 			command::add("unlockstatsmp", unlock_multiplayer_stats);
 			command::add("unlockstatszm", unlock_zombie_stats);
-			command::add("setrank", set_rank_command);
-			command::add("setprestige", set_prestige_command);
-			command::add("unlockzmeastereggs", unlock_zombie_easter_eggs);
-
-			ui_scripting::on_start(install_lua_functions);
+			command::add("unlockzmeastereggs", unlock_zombie_quests);
 		}
 	};
 }

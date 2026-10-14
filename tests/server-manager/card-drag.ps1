@@ -77,5 +77,3 @@ $null=InvokeStatic $behavior 'SetEnabled' @($card,$false)
 Check (Hint $card) '' 'disable clears hint'
 Check $card.AllowDrop $false 'disable removes drop participation'
 Write-Output 'All disconnected-WPF CardReorder behavior checks passed.'
-
-

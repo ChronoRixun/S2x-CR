@@ -31,15 +31,4 @@ namespace game::zombies_inventory
 
 		return guid && item_guid == guid;
 	}
-
-	bool is_progression_unlock_forced()
-	{
-		static const dvar_t* cg_unlock_zm_progression{};
-		if (!cg_unlock_zm_progression)
-		{
-			cg_unlock_zm_progression = Dvar_FindMalleableVar("cg_unlock_zm_progression");
-		}
-
-		return cg_unlock_zm_progression && cg_unlock_zm_progression->current.enabled;
-	}
 }

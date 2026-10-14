@@ -71,12 +71,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName", ""
-            VALUE "FileDescription", "S2x"
+            VALUE "FileDescription", "S2x-CR"
             VALUE "FileVersion", VERSION_FILE
             VALUE "InternalName", "something"
             VALUE "LegalCopyright", "Copyright (C) 2026 S2x. All rights reserved."
             VALUE "OriginalFilename", "S2x.exe"
-            VALUE "ProductName", "S2x"
+            VALUE "ProductName", "S2x-CR"
             VALUE "ProductVersion", VERSION_PRODUCT
         END
     END
@@ -95,6 +95,8 @@ ID_ICON               ICON   "resources/icon.ico"
 IMAGE_SPLASH          BITMAP "resources/splash.bmp"
 IMAGE_LOGO            BITMAP "resources/logo.bmp"
 
+SERVER_ADMIN_NOTICE_SCRIPT RCDATA "resources/server_admin_notice.gsc"
+
 DW_MOTD               RCDATA "resources/dw/motd-english.txt"
 DW_PLAYLISTS          RCDATA "resources/dw/playlists_tu26.aggr"
 DW_SURVEYS            RCDATA "resources/dw/publisher_storage_surveys.csv"
@@ -106,8 +108,22 @@ DW_PUBLISHER_VARIABLES_MM_HUB   RCDATA "resources/dw/publisher_variables/mm_hub_
 DW_PUBLISHER_VARIABLES_MM_PARTY RCDATA "resources/dw/publisher_variables/mm_party_tu26_1_11.json"
 DW_PUBLISHER_VARIABLES_QOS      RCDATA "resources/dw/publisher_variables/qos_tu26_1_14.json"
 
-LAUNCHER_MENU         RCDATA "resources/main.html"
-SERVER_ADMIN_NOTICE_SCRIPT RCDATA "resources/server_admin_notice.gsc"
+DW_MARKETPLACE_SKUS             RCDATA "resources/dw/marketplace_skus.bin"
+DW_MARKETPLACE_PRODUCTS         RCDATA "resources/dw/marketplace_products.bin"
+DW_MARKETPLACE_CATALOG_MANIFEST RCDATA "resources/dw/marketplace_catalog_manifest.json"
+DW_ACHIEVEMENT_OFFERS           RCDATA "resources/dw/achievement_offers.json"
+DW_ZOMBIE_CONSUMABLE_REFERENCES RCDATA "resources/dw/zombie_consumable_references.txt"
+
+LAUNCHER_DOCUMENT     RCDATA "resources/launcher/launcher.rml"
+LAUNCHER_STYLES       RCDATA "resources/launcher/launcher.rcss"
+LAUNCHER_TITLE_FONT   RCDATA "resources/launcher/title.woff"
+LAUNCHER_BODY_FONT    RCDATA "../../deps/rmlui/Samples/assets/LatoLatin-Regular.ttf"
+LAUNCHER_BACKGROUND   RCDATA "resources/launcher/background.jpg"
+LAUNCHER_WORDMARK     RCDATA "resources/launcher/wordmark.png"
+LAUNCHER_SINGLEPLAYER RCDATA "resources/launcher/singleplayer.png"
+LAUNCHER_MULTIPLAYER  RCDATA "resources/launcher/multiplayer.png"
+LAUNCHER_ZOMBIES      RCDATA "resources/launcher/zombies.png"
+LAUNCHER_LICENSES     RCDATA "resources/launcher/licenses.txt"
 
 #ifdef _DEBUG
 TLS_DLL               RCDATA "../../build/bin/x64/Debug/tlsdll.dll"
@@ -129,4 +145,3 @@ TLS_DLL               RCDATA "../../build/bin/x64/Release/tlsdll.dll"
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
-
